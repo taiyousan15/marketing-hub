@@ -1,0 +1,9 @@
+Region/Country,Free Plan Name,Free Messages/Month,Entry Paid Plan,Entry Price,Entry Messages,Premium Plan,Premium Price,Premium Messages,Additional Messages,Verified Available,Paid Plans Available,Notes
+Japan,Communication Plan (コミュニケーションプラン),200,Light Plan (ライトプラン),¥5000/month,5000,Standard Plan (スタンダードプラン),¥15000/month,30000,¥3/message (Standard only),Yes,Yes,Lowest free tier; full feature access
+Taiwan,Light Usage (輕用量),200,Medium Usage (中用量),NT$800/month,3000,High Usage (高用量),NT$1200/month,6000,NT$0.2/message decreasing,Yes,Yes,Billing on Japan timezone
+Thailand,Free Package,300,Basic Package,฿1280/month,15000,Pro Package,฿1780/month,35000,฿0.04-0.10/message,Yes,Yes,Reduced from 500 in Aug 2024; most affordable
+United States,Communication Plan,500,N/A,N/A,N/A,N/A,N/A,N/A,Not available,No,No,Only free tier available; no upgrade path
+Singapore,Communication Plan,500,N/A,N/A,N/A,N/A,N/A,N/A,Not available,No,No,Only free tier available; no upgrade path
+Indonesia,Communication Plan,500,N/A,N/A,N/A,N/A,N/A,N/A,Not available,No,No,Only free tier available; no upgrade path
+European Union,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,Service not available in EU
+Other Regions (Default),Communication Plan,500-1000,Light Plan,$50/month,10000,Standard Plan,$150/month,40000,$0.05/message,No,Limited,Varies by specific country

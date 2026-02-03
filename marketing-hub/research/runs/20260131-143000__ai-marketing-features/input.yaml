@@ -1,0 +1,35 @@
+topic: "AIマーケティング自動化機能の調査"
+domain: marketing
+horizon: 180d
+lang: [ja, en]
+depth: deep
+
+objectives:
+  - MarketingHubに実装可能なAI機能の洗い出し
+  - MCP Marketから利用可能なサーバーの特定
+  - 世界のAIマーケティングツールのベストプラクティス調査
+  - 実装優先度の決定
+
+focus_areas:
+  - AI自動応答・チャットボット
+  - 購買意欲分析・予測
+  - パーソナライゼーション
+  - コンテンツ生成
+  - セグメンテーション・RFM分析
+  - レコメンデーション
+  - 感情分析・センチメント
+  - A/Bテスト最適化
+  - 予測分析・チャーン予測
+  - リードスコアリング
+
+must_include:
+  - MCP Market
+  - Claude AI
+  - LINE API
+  - マーケティングオートメーション
+
+must_exclude:
+  - 非倫理的手法
+  - スパム
+
+created_at: "2026-01-31T14:30:00+09:00"

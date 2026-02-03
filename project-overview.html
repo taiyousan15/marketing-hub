@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MarketingHub - プロジェクト概要</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 2rem;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        .card h2 {
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .card h3 {
+            font-size: 1rem;
+            margin: 1rem 0 0.5rem;
+            color: #aaa;
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stat-card .number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-card .label {
+            color: #888;
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 0.5rem;
+        }
+        th, td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        th {
+            color: #888;
+            font-weight: 500;
+            font-size: 0.85rem;
+        }
+        td {
+            font-size: 0.9rem;
+        }
+        .status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .status-pending { background: #ffd43b20; color: #ffd43b; }
+        .status-progress { background: #339af020; color: #339af0; }
+        .status-done { background: #51cf6620; color: #51cf66; }
+        .status-required { background: #ff6b6b20; color: #ff6b6b; }
+        .status-recommended { background: #ffd43b20; color: #ffd43b; }
+        .status-optional { background: #868e9620; color: #868e96; }
+        .priority-p0 { background: #ff6b6b20; color: #ff6b6b; }
+        .priority-p1 { background: #ffa94d20; color: #ffa94d; }
+        .priority-p2 { background: #ffd43b20; color: #ffd43b; }
+        .priority-p3 { background: #868e9620; color: #868e96; }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .tech-tag {
+            background: rgba(102, 126, 234, 0.2);
+            color: #667eea;
+            padding: 0.4rem 0.8rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .progress-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 0.5rem;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 4px;
+        }
+        .phase-section {
+            margin-bottom: 2rem;
+        }
+        .phase-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .phase-title {
+            font-size: 1.3rem;
+            color: #fff;
+        }
+        .phase-badge {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+        }
+        .full-width {
+            grid-column: 1 / -1;
+        }
+        .api-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .api-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .api-item .icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+        .api-item .name {
+            font-size: 0.9rem;
+            color: #fff;
+        }
+        .api-item .use {
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 0.25rem;
+        }
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1.5rem;
+        }
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -2rem;
+            top: 0.5rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #667eea;
+            transform: translateX(-5px);
+        }
+        .timeline-item.pending::before {
+            background: #868e96;
+        }
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            margin: 2rem 0;
+        }
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+        .feature-item {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .feature-item .title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+        .feature-item .desc {
+            font-size: 0.8rem;
+            color: #888;
+        }
+        .architecture-diagram {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 2rem;
+            font-family: monospace;
+            font-size: 0.75rem;
+            line-height: 1.4;
+            overflow-x: auto;
+            white-space: pre;
+            color: #aaa;
+        }
+        @media (max-width: 768px) {
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 MarketingHub</h1>
+        <p class="subtitle">UTAGE × L-STEP 統合マーケティング自動化システム</p>
+
+        <!-- 統計カード -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <div class="number">4</div>
+                <div class="label">開発フェーズ</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">75+</div>
+                <div class="label">実装タスク</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">11</div>
+                <div class="label">機能カテゴリ</div>
+            </div>
+            <div class="stat-card">
+                <div class="number">8</div>
+                <div class="label">外部API連携</div>
+            </div>
+        </div>
+
+        <!-- フェーズ進捗 -->
+        <div class="card full-width" style="margin-bottom: 2rem;">
+            <h2>📊 フェーズ進捗</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>フェーズ</th>
+                        <th>内容</th>
+                        <th>タスク数</th>
+                        <th>進捗</th>
+                        <th>状態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Phase 1</strong></td>
+                        <td>MVP（基盤構築・コア機能）</td>
+                        <td>15+</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 6%"></div></div>
+                        </td>
+                        <td><span class="status status-progress">作業中</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 2</strong></td>
+                        <td>機能拡張（配信・ファネル・決済）</td>
+                        <td>40+</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                        </td>
+                        <td><span class="status status-pending">未着手</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 3</strong></td>
+                        <td>AI/MCP統合</td>
+                        <td>10+</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                        </td>
+                        <td><span class="status status-pending">未着手</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 4</strong></td>
+                        <td>高度機能（ウェビナー・アフィリエイト・SMS）</td>
+                        <td>10+</td>
+                        <td>
+                            <div class="progress-bar"><div class="progress-fill" style="width: 0%"></div></div>
+                        </td>
+                        <td><span class="status status-pending">未着手</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="grid">
+            <!-- 機能一覧 -->
+            <div class="card">
+                <h2>✨ 機能一覧（11カテゴリ）</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>カテゴリ</th>
+                            <th>優先度</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>📱 LINE配信</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>✉️ メール配信</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>👥 顧客管理(CRM)</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>🎯 ファネル/LP作成</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>🎓 会員サイト</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>💳 決済</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>📅 予約/イベント</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>📊 分析/レポート</td>
+                            <td><span class="status status-required">必須</span></td>
+                        </tr>
+                        <tr>
+                            <td>🤖 AI統合</td>
+                            <td><span class="status status-recommended">推奨</span></td>
+                        </tr>
+                        <tr>
+                            <td>🎬 ウェビナー</td>
+                            <td><span class="status status-recommended">推奨</span></td>
+                        </tr>
+                        <tr>
+                            <td>🤝 アフィリエイト</td>
+                            <td><span class="status status-recommended">推奨</span></td>
+                        </tr>
+                        <tr>
+                            <td>📲 SMS配信</td>
+                            <td><span class="status status-recommended">推奨</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 技術スタック -->
+            <div class="card">
+                <h2>🛠️ 技術スタック</h2>
+                <h3>フロントエンド</h3>
+                <div class="tech-stack">
+                    <span class="tech-tag">Next.js 15</span>
+                    <span class="tech-tag">React 19</span>
+                    <span class="tech-tag">TypeScript</span>
+                    <span class="tech-tag">Tailwind CSS v4</span>
+                    <span class="tech-tag">shadcn/ui</span>
+                </div>
+                <h3>バックエンド</h3>
+                <div class="tech-stack">
+                    <span class="tech-tag">Server Actions</span>
+                    <span class="tech-tag">API Routes</span>
+                    <span class="tech-tag">Prisma</span>
+                </div>
+                <h3>データベース</h3>
+                <div class="tech-stack">
+                    <span class="tech-tag">PostgreSQL</span>
+                    <span class="tech-tag">Redis (Upstash)</span>
+                </div>
+                <h3>インフラ</h3>
+                <div class="tech-stack">
+                    <span class="tech-tag">Google Cloud Run</span>
+                    <span class="tech-tag">Cloud SQL</span>
+                    <span class="tech-tag">Cloud Tasks</span>
+                    <span class="tech-tag">Cloudflare CDN</span>
+                    <span class="tech-tag">Cloudflare R2</span>
+                </div>
+                <h3>認証</h3>
+                <div class="tech-stack">
+                    <span class="tech-tag">Clerk</span>
+                </div>
+            </div>
+
+            <!-- 外部API -->
+            <div class="card">
+                <h2>🔌 外部API連携</h2>
+                <div class="api-list">
+                    <div class="api-item">
+                        <div class="icon">💚</div>
+                        <div class="name">LINE</div>
+                        <div class="use">配信</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">💳</div>
+                        <div class="name">Stripe</div>
+                        <div class="use">決済</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">✉️</div>
+                        <div class="name">SendGrid</div>
+                        <div class="use">メール</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">📹</div>
+                        <div class="name">Zoom</div>
+                        <div class="use">会議</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">📅</div>
+                        <div class="name">Google Calendar</div>
+                        <div class="use">予約</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">📲</div>
+                        <div class="name">Twilio</div>
+                        <div class="use">SMS</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">🤖</div>
+                        <div class="name">Claude API</div>
+                        <div class="use">AI</div>
+                    </div>
+                    <div class="api-item">
+                        <div class="icon">🔄</div>
+                        <div class="name">Pusher</div>
+                        <div class="use">WebSocket</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phase 1 詳細タスク -->
+            <div class="card">
+                <h2>📋 Phase 1 タスク詳細</h2>
+                <div class="timeline">
+                    <div class="timeline-item">
+                        <strong>1.1.1 Next.js プロジェクト作成</strong>
+                        <div style="color: #51cf66; font-size: 0.85rem;">✅ 完了</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.1.2 開発環境構築</strong>
+                        <div style="color: #888; font-size: 0.85rem;">shadcn/ui, Husky等</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.1.3 Prisma + PostgreSQL</strong>
+                        <div style="color: #888; font-size: 0.85rem;">スキーマ定義</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.2.1 Clerk認証統合</strong>
+                        <div style="color: #888; font-size: 0.85rem;">ログイン/サインアップ</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.2.2 テナント管理基盤</strong>
+                        <div style="color: #888; font-size: 0.85rem;">マルチテナント</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.3.1 ダッシュボードレイアウト</strong>
+                        <div style="color: #888; font-size: 0.85rem;">サイドバー、ヘッダー</div>
+                    </div>
+                    <div class="timeline-item pending">
+                        <strong>1.4.x コンタクト管理</strong>
+                        <div style="color: #888; font-size: 0.85rem;">CRM基盤</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SMS配信詳細 -->
+        <div class="section-divider"></div>
+        <div class="card full-width">
+            <h2>📲 SMS配信システム（ショートメッセージ）</h2>
+            <div class="grid" style="margin-top: 1rem;">
+                <div>
+                    <h3>基本情報</h3>
+                    <table>
+                        <tr>
+                            <td>優先度</td>
+                            <td><span class="status priority-p3">P3: 推奨</span></td>
+                        </tr>
+                        <tr>
+                            <td>フェーズ</td>
+                            <td>Phase 4（高度機能）</td>
+                        </tr>
+                        <tr>
+                            <td>ステータス</td>
+                            <td><span class="status status-pending">未着手</span></td>
+                        </tr>
+                        <tr>
+                            <td>依存</td>
+                            <td>Phase 2完了後</td>
+                        </tr>
+                        <tr>
+                            <td>連携API</td>
+                            <td>Twilio</td>
+                        </tr>
+                    </table>
+                </div>
+                <div>
+                    <h3>機能要件</h3>
+                    <div class="feature-grid">
+                        <div class="feature-item">
+                            <div class="title">SMS-001: SMS配信</div>
+                            <div class="desc">日本国内の携帯番号への配信</div>
+                        </div>
+                        <div class="feature-item">
+                            <div class="title">SMS-002: リマインダSMS</div>
+                            <div class="desc">予約・イベントのリマインダ</div>
+                        </div>
+                    </div>
+                    <h3 style="margin-top: 1rem;">主な利用シーン</h3>
+                    <ul style="padding-left: 1.5rem; color: #888; font-size: 0.9rem;">
+                        <li>予約リマインダ（1時間前確認）</li>
+                        <li>決済失敗通知（緊急連絡）</li>
+                        <li>本人確認（OTP送信）</li>
+                        <li>重要告知（LINE/メール未読時）</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- アーキテクチャ図 -->
+        <div class="section-divider"></div>
+        <div class="card full-width">
+            <h2>🏗️ システムアーキテクチャ</h2>
+            <div class="architecture-diagram">
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Client Layer                                    │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐             │
+│  │   Web Browser   │  │   LINE App      │  │   Mobile App    │             │
+│  │   (React 19)    │  │   (Webhook)     │  │   (Future)      │             │
+│  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘             │
+└───────────┼─────────────────────┼─────────────────────┼─────────────────────┘
+            │                     │                     │
+            ▼                     ▼                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Edge Layer                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                      Cloudflare CDN / WAF                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Application Layer                                  │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │                    Google Cloud Run                                  │   │
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐           │   │
+│  │  │ App Router    │  │ Server        │  │ API Routes    │           │   │
+│  │  │ (RSC/RCC)     │  │ Actions       │  │ (Webhook)     │           │   │
+│  │  └───────────────┘  └───────────────┘  └───────────────┘           │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              Data Layer                                      │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │  Cloud SQL   │  │   Upstash    │  │  Cloudflare  │  │  Cloudflare  │   │
+│  │  PostgreSQL  │  │   Redis      │  │  R2          │  │  Stream      │   │
+│  │  (Primary)   │  │  (Cache)     │  │  (Storage)   │  │  (Video)     │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+            │
+            ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          External Services Layer                             │
+│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐        │
+│  │  LINE  │ │SendGrid│ │ Stripe │ │ Zoom   │ │ Google │ │ Twilio │        │
+│  │  API   │ │  API   │ │  API   │ │  API   │ │Calendar│ │  API   │        │
+│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘        │
+│  ┌────────┐ ┌────────┐ ┌────────┐                                          │
+│  │ Clerk  │ │ Pusher │ │ Claude │                                          │
+│  │ (Auth) │ │ (WS)   │ │  API   │                                          │
+│  └────────┘ └────────┘ └────────┘                                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+            </div>
+        </div>
+
+        <!-- ターゲットユーザー -->
+        <div class="section-divider"></div>
+        <div class="card full-width">
+            <h2>👥 ターゲットユーザー</h2>
+            <div class="grid" style="margin-top: 1rem; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                <div class="feature-item">
+                    <div class="title">🎯 コーチ・コンサルタント</div>
+                    <div class="desc">年商数十万〜数千万円、1〜3名<br>個別相談予約、ステップ配信、決済・会員サイト</div>
+                </div>
+                <div class="feature-item">
+                    <div class="title">🎓 オンラインスクール運営者</div>
+                    <div class="desc">年商500万〜5,000万円、1〜10名<br>会員サイト、サブスク課金、段階的コンテンツ公開</div>
+                </div>
+                <div class="feature-item">
+                    <div class="title">💈 店舗ビジネス</div>
+                    <div class="desc">年商1,000万〜1億円、3〜20名<br>LINE予約、リマインダ、ポイントカード、口コミ促進</div>
+                </div>
+                <div class="feature-item">
+                    <div class="title">🛒 EC・物販事業者</div>
+                    <div class="desc">リピート率向上が課題<br>購入後自動フォロー、セグメント別クーポン</div>
+                </div>
+                <div class="feature-item">
+                    <div class="title">📱 インフルエンサー</div>
+                    <div class="desc">フォロワーのマネタイズ<br>SNS→LINE導線、ファンコミュニティ、デジタルコンテンツ販売</div>
+                </div>
+                <div class="feature-item">
+                    <div class="title">🏢 BtoB企業</div>
+                    <div class="desc">リードナーチャリング<br>リード管理、スコアリング、商談予約自動化</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- フッター -->
+        <div style="text-align: center; margin-top: 3rem; color: #666; font-size: 0.85rem;">
+            <p>Generated: 2026-02-03 | MarketingHub Project Overview</p>
+        </div>
+    </div>
+</body>
+</html>
