@@ -13,8 +13,29 @@
 
 import { Resend } from "resend";
 
-// Resendクライアント初期化
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resendクライアント初期化（遅延初期化）
+let resendClient: Resend | null = null;
+
+function getResendClient(): Resend {
+  if (!resendClient) {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+      throw new Error("RESEND_API_KEY is not configured");
+    }
+    resendClient = new Resend(apiKey);
+  }
+  return resendClient;
+}
+
+// 後方互換性のためのエイリアス
+const resend = {
+  get emails() {
+    return getResendClient().emails;
+  },
+  get domains() {
+    return getResendClient().domains;
+  },
+};
 
 // メール送信オプション
 export interface EmailOptions {
