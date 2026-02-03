@@ -1,0 +1,126 @@
+{
+  "research_metadata": {
+    "topic": "LINE Official Account Free Message Limits by Region",
+    "research_date": "2026-02-01",
+    "researcher": "Claude AI Agent"
+  },
+  "official_sources": [
+    {
+      "title": "Messaging API Pricing",
+      "url": "https://developers.line.biz/en/docs/messaging-api/pricing/",
+      "type": "official_documentation",
+      "relevance": "Primary source for API pricing and message counting rules"
+    },
+    {
+      "title": "LINE Official Account Help Center - Message Limits",
+      "url": "https://help2.line.me/official_account/web/categoryId/20006330/pc?lang=en&contentId=20011707",
+      "type": "official_documentation",
+      "relevance": "Message limits by plan type"
+    },
+    {
+      "title": "Japan Official Account Help Center - Message Limits",
+      "url": "https://help2.line.me/official_account_jp/web/pc?lang=en&contentId=20011745",
+      "type": "official_documentation",
+      "relevance": "Japan-specific message limits (200 messages/month)"
+    },
+    {
+      "title": "Sending Additional Messages Beyond Free Limit",
+      "url": "https://help2.line.me/official_account/android/pc?lang=en&contentId=20013992",
+      "type": "official_documentation",
+      "relevance": "Regional restrictions (US, Indonesia, Singapore - no paid plans)"
+    },
+    {
+      "title": "LINE Official Account Terms of Use",
+      "url": "https://terms2.line.me/official_account_terms_oth",
+      "type": "official_terms",
+      "relevance": "Multiple account policies and restrictions"
+    },
+    {
+      "title": "LINE Official Account Guidelines",
+      "url": "https://terms2.line.me/official_account_guideline_oth",
+      "type": "official_guidelines",
+      "relevance": "Account creation policies and prohibited activities"
+    },
+    {
+      "title": "LINE for Business Japan - Pricing Plans",
+      "url": "https://www.lycbiz.com/jp/service/line-official-account/plan/",
+      "type": "official_pricing",
+      "relevance": "Japan pricing details (¥5,000 Light, ¥15,000 Standard)"
+    },
+    {
+      "title": "LINE for Business Thailand - Package Changes Announcement",
+      "url": "https://lineforbusiness.com/th/news/20240619_1",
+      "type": "official_announcement",
+      "relevance": "Thailand pricing changes August 2024 (500→300 free messages)"
+    },
+    {
+      "title": "LINE Business Taiwan",
+      "url": "https://tw.linebiz.com/service/account-solutions/line-official-account/",
+      "type": "official_pricing",
+      "relevance": "Taiwan pricing details"
+    },
+    {
+      "title": "Creating new LINE Official Accounts",
+      "url": "https://help.line.me/official_account/web/categoryId/20010172/pc?lang=en&contentId=20013134",
+      "type": "official_documentation",
+      "relevance": "EU availability (not available)"
+    },
+    {
+      "title": "Messaging API Development Guidelines",
+      "url": "https://developers.line.biz/en/docs/messaging-api/development-guidelines/",
+      "type": "official_documentation",
+      "relevance": "API rate limits and restrictions"
+    },
+    {
+      "title": "LINE Developers News - Multicast Rate Limit Changes",
+      "url": "https://developers.line.biz/en/news/2025/03/31/messaging-api-rate-limit/",
+      "type": "official_announcement",
+      "relevance": "April 2025 rate limit changes"
+    }
+  ],
+  "third_party_sources": [
+    {
+      "title": "SaleSmartly - LINE Official Account Pricing 2024",
+      "url": "https://www.salesmartly.com/en/blog/docs/line-official-account-price",
+      "type": "third_party_analysis",
+      "relevance": "Comprehensive pricing comparison across regions"
+    },
+    {
+      "title": "Respond.io - LINE Business Guide",
+      "url": "https://respond.io/blog/line-business",
+      "type": "third_party_guide",
+      "relevance": "LINE Official Account overview and features"
+    },
+    {
+      "title": "SleekFlow - LINE Business Account Guide",
+      "url": "https://sleekflow.io/blog/line-business-account-set-up",
+      "type": "third_party_guide",
+      "relevance": "Account setup and pricing information"
+    },
+    {
+      "title": "Medium - LINE Official Account Pricing 2025",
+      "url": "https://medium.com/@content_73484/everything-you-need-to-know-about-line-official-account-pricing-in-2025-6c0773eaf02f",
+      "type": "third_party_analysis",
+      "relevance": "2025 pricing analysis"
+    },
+    {
+      "title": "Anyong - Taiwan LINE Official Account Pricing 2025",
+      "url": "https://www.anyong.com.tw/37452",
+      "type": "third_party_analysis",
+      "relevance": "Taiwan-specific pricing details (Chinese)"
+    }
+  ],
+  "key_findings": {
+    "us_free_limit": "500 messages/month (confirmed)",
+    "japan_free_limit": "200 messages/month (confirmed)",
+    "thailand_free_limit": "300 messages/month (reduced from 500 in August 2024)",
+    "taiwan_free_limit": "200 messages/month (confirmed)",
+    "indonesia_free_limit": "500 messages/month (confirmed)",
+    "singapore_free_limit": "500 messages/month (confirmed)",
+    "eu_availability": "Not available",
+    "paid_plans_restricted_regions": ["United States", "Indonesia", "Singapore", "European Union"],
+    "verification_available_regions": ["Japan", "Taiwan", "Thailand"],
+    "max_accounts_per_business_id": 100,
+    "api_rate_limit_push": "2000 requests/second"
+  }
+}

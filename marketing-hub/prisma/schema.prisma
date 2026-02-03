@@ -1,0 +1,2902 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== テナント ====================
+
+model Tenant {
+  id               String  @id @default(cuid())
+  name             String
+  subdomain        String  @unique
+  plan             Plan    @default(STARTER)
+  stripeCustomerId String?
+
+  // 設定
+  settings Json @default("{}")
+
+  // LINE設定
+  lineChannelId     String?
+  lineChannelSecret String?
+  lineAccessToken   String?
+  lineWebhookUrl    String?
+
+  // タイムスタンプ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  users         User[]
+  contacts      Contact[]
+  tags          Tag[]
+  campaigns     Campaign[]
+  funnels       Funnel[]
+  products      Product[]
+  orders        Order[]
+  subscriptions Subscription[]
+  courses       Course[]
+  events        Event[]
+  partners      Partner[]
+  lineRichMenus LineRichMenu[]
+  auditLogs     AuditLog[]
+  smsSettings   SMSSettings?
+
+  @@index([subdomain])
+}
+
+enum Plan {
+  STARTER
+  STANDARD
+  PRO
+  ENTERPRISE
+}
+
+// ==================== ユーザー（管理者） ====================
+
+model User {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email       String
+  name        String?
+  role        UserRole @default(MEMBER)
+  clerkUserId String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([clerkUserId])
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  OPERATOR
+}
+
+// ==================== コンタクト（顧客） ====================
+
+model Contact {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 識別情報
+  email      String?
+  lineUserId String?
+  phone      String?
+
+  // 基本情報
+  name      String?
+  firstName String?
+  lastName  String?
+
+  // スコアリング
+  score Int @default(0)
+
+  // カスタムフィールド（最大100項目）
+  customFields Json @default("{}")
+
+  // 流入経路
+  source       String?
+  sourceDetail Json?
+
+  // アフィリエイト紹介元
+  referredByPartnerId String?
+  referredByPartner   Partner? @relation("ReferredContacts", fields: [referredByPartnerId], references: [id])
+  affiliateClickId    String? // 紐付いたクリックID
+
+  // メール配信設定
+  emailOptIn   Boolean   @default(true)
+  emailOptInAt DateTime?
+
+  // LINE配信設定
+  lineOptIn   Boolean   @default(true)
+  lineOptInAt DateTime?
+
+  // SMS配信設定
+  smsOptIn      Boolean   @default(true)
+  smsOptInAt    DateTime?
+  smsOptOutAt   DateTime?
+  phoneVerified Boolean   @default(false)
+
+  // WhatsApp
+  whatsappOptIn   Boolean   @default(false)
+  whatsappOptInAt DateTime?
+  whatsappOptOutAt DateTime?
+  whatsappNumber  String?   // whatsapp:+818012345678 形式（携帯と同じ場合は省略可）
+
+  // 振り分けられたLINEアカウント
+  lineAccountId String?
+  lineAccount   LineAccount? @relation("LineAccountContacts", fields: [lineAccountId], references: [id])
+
+  // タイムスタンプ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  tags                 ContactTag[]
+  campaignContacts     CampaignContact[]
+  orders               Order[]
+  subscriptions        Subscription[]
+  courseEnrollments    CourseEnrollment[]
+  eventRegistrations   EventRegistration[]
+  messageHistories     MessageHistory[]
+  affiliateConversions AffiliateConversion[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, lineUserId])
+  @@unique([tenantId, phone])
+  @@index([tenantId])
+  @@index([tenantId, email])
+  @@index([tenantId, lineUserId])
+  @@index([tenantId, phone])
+  @@index([referredByPartnerId])
+  @@index([lineAccountId])
+}
+
+// ==================== タグ ====================
+
+model Tag {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name  String
+  color String @default("#6366f1")
+
+  createdAt DateTime @default(now())
+
+  contacts ContactTag[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ContactTag {
+  id        String  @id @default(cuid())
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, tagId])
+  @@index([contactId])
+  @@index([tagId])
+}
+
+// ==================== キャンペーン（配信） ====================
+
+model Campaign {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name   String
+  type   CampaignType
+  status CampaignStatus @default(DRAFT)
+
+  // セグメント連携
+  segmentId String?
+  segment   Segment? @relation(fields: [segmentId], references: [id])
+
+  // 送信最適化設定
+  useOptimalSendTime Boolean @default(false)
+  minScoreThreshold  Int? // 最低スコア閾値
+
+  // 設定
+  settings Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  steps    CampaignStep[]
+  contacts CampaignContact[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([segmentId])
+}
+
+enum CampaignType {
+  EMAIL_STEP
+  EMAIL_BROADCAST
+  LINE_STEP
+  LINE_BROADCAST
+  LINE_SEGMENT
+  SMS
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model CampaignStep {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  order Int
+  type  StepType
+
+  // 配信チャンネル
+  channel DeliveryChannel @default(EMAIL)
+
+  // タイミング
+  delayDays    Int     @default(0)
+  delayHours   Int     @default(0)
+  delayMinutes Int     @default(0)
+  sendTime     String? // HH:mm形式
+
+  // コンテンツ
+  subject String? // メール件名
+  content Json // メッセージ内容
+  smsBody String? // SMS本文（70文字推奨）
+
+  // 条件分岐
+  conditions Json?
+
+  // 条件分岐の遷移先
+  trueBranchOrder  Int? // 条件一致時の次ステップorder
+  falseBranchOrder Int? // 条件不一致時の次ステップorder
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([campaignId, order])
+}
+
+enum StepType {
+  MESSAGE
+  WAIT
+  CONDITION
+  ACTION
+}
+
+enum DeliveryChannel {
+  EMAIL
+  SMS
+  LINE
+  WHATSAPP
+}
+
+model CampaignContact {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  currentStep Int                   @default(0)
+  status      CampaignContactStatus @default(ACTIVE)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  nextStepAt  DateTime?
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([contactId])
+}
+
+enum CampaignContactStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  UNSUBSCRIBED
+}
+
+// ==================== メッセージ履歴 ====================
+
+model MessageHistory {
+  id        String  @id @default(cuid())
+  tenantId  String
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  channel   MessageChannel
+  direction MessageDirection
+  content   Json
+
+  // ステータス
+  status       MessageStatus @default(PENDING)
+  sentAt       DateTime?
+  deliveredAt  DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  errorMessage String?
+
+  // メタデータ
+  metadata Json?
+
+  // キャンペーン関連
+  campaignId String?
+  stepId     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([tenantId, channel])
+  @@index([campaignId])
+}
+
+enum MessageChannel {
+  EMAIL
+  LINE
+  SMS
+  WHATSAPP
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+// ==================== ファネル ====================
+
+model Funnel {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name   String
+  domain String?
+  status FunnelStatus @default(DRAFT)
+
+  // ファネルタイプ
+  type FunnelType @default(SALES)
+
+  settings Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pages FunnelPage[]
+  steps FunnelStep[]
+
+  @@index([tenantId])
+}
+
+enum FunnelType {
+  OPTIN // オプトインファネル（メルマガ/LINE登録）
+  SALES // セールスファネル（商品販売）
+  WEBINAR // ウェビナーファネル
+  PRODUCT_LAUNCH // プロダクトローンチ
+  MEMBERSHIP // 会員登録
+  TRIPWIRE // トリップワイヤー
+  APPLICATION // 申込み/相談予約
+}
+
+enum FunnelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model FunnelPage {
+  id       String @id @default(cuid())
+  funnelId String
+  funnel   Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  name String
+  slug String
+
+  // ページコンテンツ（JSON形式でブロック構造を保存）
+  content Json @default("[]")
+
+  // 設定
+  seoTitle       String?
+  seoDescription String?
+  ogImage        String?
+
+  // A/Bテスト
+  isVariant     Boolean @default(false)
+  variantWeight Int     @default(50)
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actions     FunnelAction[]
+  funnelSteps FunnelStep[]
+
+  @@unique([funnelId, slug])
+  @@index([funnelId])
+}
+
+model FunnelAction {
+  id     String     @id @default(cuid())
+  pageId String
+  page   FunnelPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  type    ActionType
+  trigger String // click, submit, exit等
+  config  Json
+
+  createdAt DateTime @default(now())
+
+  @@index([pageId])
+}
+
+enum ActionType {
+  ADD_TAG
+  REMOVE_TAG
+  START_CAMPAIGN
+  REDIRECT
+  POPUP
+  WEBHOOK
+  GOOGLE_SHEETS
+}
+
+// ==================== 商品・決済 ====================
+
+model Product {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  // 価格
+  price    Int
+  currency String @default("JPY")
+
+  // Stripe連携
+  stripeProductId String?
+  stripePriceId   String?
+
+  // 商品タイプ
+  type ProductType @default(ONE_TIME)
+
+  // 商品カテゴリ（フロントエンド/バックエンド）
+  category ProductCategory @default(FRONTEND)
+
+  // サブスク設定
+  recurringInterval RecurringInterval?
+
+  // 関連コース
+  courseId String?
+  course   Course? @relation(fields: [courseId], references: [id])
+
+  // アフィリエイト報酬設定
+  affiliateEnabled        Boolean @default(true)
+  affiliateCommissionRate Int? // パーセント（nullの場合はパートナーのデフォルト）
+
+  // ステータス
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders          Order[]
+  subscriptions   Subscription[]
+  affiliateOffers AffiliateOffer[]
+
+  @@index([tenantId])
+  @@index([tenantId, category])
+}
+
+enum ProductCategory {
+  FRONTEND // フロントエンド商品（低価格・無料オファー）
+  BACKEND // バックエンド商品（高価格商品）
+}
+
+enum ProductType {
+  ONE_TIME
+  SUBSCRIPTION
+  PAYMENT_PLAN
+}
+
+enum RecurringInterval {
+  MONTH
+  YEAR
+}
+
+model Order {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  amount   Int
+  currency String      @default("JPY")
+  status   OrderStatus @default(PENDING)
+
+  // Stripe連携
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+
+  // アフィリエイト追跡
+  affiliateConversionId String?
+  affiliateConversion   AffiliateConversion? @relation(fields: [affiliateConversionId], references: [id])
+
+  // メタデータ
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([affiliateConversionId])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Subscription {
+  id        String  @id @default(cuid())
+  tenantId  String
+  tenant    Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id])
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  // Stripe連携
+  stripeSubscriptionId String?
+
+  status SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  canceledAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([stripeSubscriptionId])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+// ==================== 会員サイト ====================
+
+model Course {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  thumbnail   String?
+
+  isPublished Boolean @default(false)
+
+  // アクセス設定
+  accessMode     CourseAccessMode @default(PUBLIC)
+  isPublicCourse Boolean          @default(false) // true=誰でもアクセス可（リンク共有用）
+  shareCode      String?          @unique // 公開URL用コード（/m/[shareCode]）
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lessons     Lesson[]
+  products    Product[]
+  enrollments CourseEnrollment[]
+
+  @@index([tenantId])
+  @@index([shareCode])
+}
+
+model Lesson {
+  id       String @id @default(cuid())
+  courseId String
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  // コンテンツ
+  content   Json       @default("{}")
+  videoUrl  String?
+  videoType VideoType?
+  duration  Int? // 秒
+
+  // 公開設定
+  isPublished  Boolean @default(false)
+  releaseDelay Int     @default(0) // 入会日からの日数
+
+  // ランク設定
+  requiredRank MemberRank @default(BRONZE)
+
+  // 順次視聴設定
+  isSequentialStart   Boolean @default(false) // ここから順番視聴開始
+  requireCompletion   Boolean @default(false) // 完了必須（次へ進む条件）
+  completionThreshold Int     @default(80) // 完了判定％
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  progress LessonProgress[]
+
+  @@index([courseId])
+  @@index([courseId, order])
+}
+
+enum VideoType {
+  UPLOAD
+  YOUTUBE
+  VIMEO
+}
+
+// ==================== 会員ランク ====================
+
+enum MemberRank {
+  BRONZE // ブロンズ（無料/入門）
+  SILVER // シルバー
+  GOLD // ゴールド
+  PLATINUM // プラチナ
+}
+
+enum CourseAccessMode {
+  PUBLIC // 全員に表示（ランク無視）
+  RANK_BASED // ランクに応じて制限
+}
+
+model CourseEnrollment {
+  id        String  @id @default(cuid())
+  courseId  String
+  course    Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  // 受講者ランク
+  memberRank MemberRank @default(BRONZE)
+
+  enrolledAt DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@unique([courseId, contactId])
+  @@index([courseId])
+  @@index([contactId])
+  @@index([courseId, memberRank])
+}
+
+model LessonProgress {
+  id        String @id @default(cuid())
+  lessonId  String
+  lesson    Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  contactId String
+
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+
+  // 動画視聴進捗
+  watchedSeconds Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([lessonId, contactId])
+  @@index([lessonId])
+  @@index([contactId])
+}
+
+// ==================== 予約・イベント ====================
+
+model Event {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        EventType
+
+  // 日時
+  startAt  DateTime
+  endAt    DateTime
+  timezone String   @default("Asia/Tokyo")
+
+  // 場所
+  location   String?
+  isOnline   Boolean @default(true)
+  meetingUrl String?
+
+  // 定員
+  capacity Int?
+
+  // ステータス
+  status EventStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  registrations EventRegistration[]
+  livestream    LiveStream?
+
+  @@index([tenantId])
+  @@index([tenantId, startAt])
+}
+
+enum EventType {
+  SEMINAR
+  CONSULTATION
+  WEBINAR
+  LIVESTREAM // ライブ配信
+}
+
+enum EventStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+model EventRegistration {
+  id        String  @id @default(cuid())
+  eventId   String
+  event     Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  status EventRegistrationStatus @default(REGISTERED)
+
+  registeredAt DateTime  @default(now())
+  attendedAt   DateTime?
+  canceledAt   DateTime?
+
+  @@unique([eventId, contactId])
+  @@index([eventId])
+  @@index([contactId])
+}
+
+enum EventRegistrationStatus {
+  REGISTERED
+  CONFIRMED
+  ATTENDED
+  NO_SHOW
+  CANCELED
+}
+
+// ==================== アフィリエイト ====================
+
+model Partner {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email       String
+  name        String
+  companyName String?
+  phone       String?
+
+  // アフィリエイトコード
+  code String @unique
+
+  // 2ティア（親パートナー）
+  parentPartnerId String?
+  parentPartner   Partner?  @relation("PartnerHierarchy", fields: [parentPartnerId], references: [id])
+  childPartners   Partner[] @relation("PartnerHierarchy")
+
+  // ランク
+  rank PartnerRank @default(STANDARD)
+
+  // デフォルト報酬設定
+  defaultOptinCommission    Int @default(500) // オプトイン報酬（円）
+  defaultFrontendCommission Int @default(30) // フロントエンド報酬率（%）
+  defaultBackendCommission  Int @default(20) // バックエンド報酬率（%）
+
+  // 2ティア報酬率
+  tier2CommissionRate Int @default(10) // 子パートナーの成約から得る報酬率（%）
+
+  // 最低支払い金額
+  minimumPayoutAmount Int @default(5000) // 最低支払い金額（円）
+
+  // 支払い情報
+  bankName          String?
+  bankBranch        String?
+  bankAccountType   String? // 普通/当座
+  bankAccountNumber String?
+  bankAccountName   String?
+  paypalEmail       String?
+
+  // 統計（キャッシュ）
+  totalClicks      Int @default(0)
+  totalConversions Int @default(0)
+  totalEarnings    Int @default(0)
+  unpaidEarnings   Int @default(0)
+
+  status     PartnerStatus @default(PENDING)
+  approvedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  affiliateLinks       AffiliateLink[]
+  affiliateClicks      AffiliateClick[]
+  affiliateConversions AffiliateConversion[]
+  commissions          AffiliateCommission[]
+  payouts              AffiliatePayout[]
+  referredContacts     Contact[]             @relation("ReferredContacts")
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([code])
+  @@index([parentPartnerId])
+}
+
+enum PartnerRank {
+  STANDARD // 通常
+  SILVER // シルバー
+  GOLD // ゴールド
+  PLATINUM // プラチナ
+  VIP // VIP（個別設定）
+}
+
+enum PartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+// ==================== アフィリエイトオファー ====================
+
+model AffiliateOffer {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name        String
+  description String?
+
+  // オファータイプ
+  type AffiliateOfferType
+
+  // 報酬設定
+  commissionType   AffiliateCommissionType @default(FIXED)
+  commissionAmount Int // 固定額またはパーセント
+
+  // 2ティア設定
+  tier2Enabled Boolean @default(false)
+  tier2Rate    Int? // 2ティア報酬率（%）
+
+  // 対象商品（PURCHASE/BACKEND_PURCHASE用）
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id])
+
+  // 承認設定
+  autoApprove    Boolean @default(false)
+  coolingOffDays Int     @default(30) // クーリングオフ期間
+
+  // ランク別報酬
+  rankCommissions Json? // { "GOLD": 500, "PLATINUM": 800, "VIP": 1000 }
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversions AffiliateConversion[]
+
+  @@index([tenantId])
+  @@index([productId])
+}
+
+enum AffiliateOfferType {
+  LINE_OPTIN // LINE友だち追加
+  EMAIL_OPTIN // メール登録
+  FRONTEND_PURCHASE // フロントエンド商品購入
+  BACKEND_PURCHASE // バックエンド商品購入
+}
+
+enum AffiliateCommissionType {
+  FIXED // 固定額
+  PERCENTAGE // パーセント
+}
+
+// ==================== アフィリエイトリンク ====================
+
+model AffiliateLink {
+  id        String  @id @default(cuid())
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // リンク情報
+  code      String  @unique // 短縮コード
+  targetUrl String // 遷移先URL
+  name      String? // リンク名（管理用）
+
+  // カスタムパラメータ
+  customParams Json? // UTMパラメータなど
+
+  // 統計（キャッシュ）
+  clickCount      Int @default(0)
+  conversionCount Int @default(0)
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+
+  // リレーション
+  clicks      AffiliateClick[]
+  conversions AffiliateConversion[]
+
+  @@index([partnerId])
+  @@index([code])
+}
+
+// ==================== クリック追跡 ====================
+
+model AffiliateClick {
+  id              String        @id @default(cuid())
+  affiliateLinkId String
+  affiliateLink   AffiliateLink @relation(fields: [affiliateLinkId], references: [id], onDelete: Cascade)
+  partnerId       String
+  partner         Partner       @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // クリックID（S2Sトラッキング用）
+  clickId String @unique @default(cuid())
+
+  // 訪問者情報
+  ipAddress String?
+  userAgent String?
+  referer   String?
+
+  // デバイス情報
+  deviceType String? // desktop/mobile/tablet
+  browser    String?
+  os         String?
+
+  // 地域
+  country String?
+  region  String?
+
+  // フィンガープリント（不正検知用）
+  fingerprint String?
+
+  // LIFF経由のトラッキング用
+  pendingLineUserId String?
+  metadata          Json?
+
+  clickedAt DateTime @default(now())
+
+  // コンバージョン紐付け
+  conversions AffiliateConversion[]
+
+  @@index([affiliateLinkId])
+  @@index([partnerId])
+  @@index([clickId])
+  @@index([clickedAt])
+  @@index([pendingLineUserId])
+}
+
+// ==================== コンバージョン（成果） ====================
+
+model AffiliateConversion {
+  id       String @id @default(cuid())
+  tenantId String
+
+  affiliateLinkId String?
+  affiliateLink   AffiliateLink? @relation(fields: [affiliateLinkId], references: [id])
+  partnerId       String
+  partner         Partner        @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // クリック紐付け
+  clickId String?
+  click   AffiliateClick? @relation(fields: [clickId], references: [id])
+
+  // オファー紐付け
+  offerId String?
+  offer   AffiliateOffer? @relation(fields: [offerId], references: [id])
+
+  // コンバージョンタイプ
+  type AffiliateConversionType
+
+  // 紐付け対象
+  contactId String?
+  contact   Contact? @relation(fields: [contactId], references: [id])
+  orderId   String? // 商品購入時
+
+  // 金額（商品購入の場合）
+  amount   Int?
+  currency String @default("JPY")
+
+  // ステータス
+  status          AffiliateConversionStatus @default(PENDING)
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  rejectionReason String?
+
+  // 不正フラグ
+  isFraudSuspect Boolean @default(false)
+  fraudScore     Int? // 0-100
+
+  convertedAt DateTime @default(now())
+
+  // リレーション
+  commissions AffiliateCommission[]
+  orders      Order[]
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([affiliateLinkId])
+  @@index([contactId])
+  @@index([status])
+  @@index([convertedAt])
+}
+
+enum AffiliateConversionType {
+  LINE_OPTIN // LINE登録
+  EMAIL_OPTIN // メール登録
+  FRONTEND_PURCHASE // フロントエンド購入
+  BACKEND_PURCHASE // バックエンド購入
+}
+
+enum AffiliateConversionStatus {
+  PENDING // 承認待ち
+  APPROVED // 承認済み
+  REJECTED // 却下
+  CANCELLED // キャンセル（返金等）
+}
+
+// ==================== 報酬（コミッション） ====================
+
+model AffiliateCommission {
+  id       String @id @default(cuid())
+  tenantId String
+
+  partnerId    String
+  partner      Partner             @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  conversionId String
+  conversion   AffiliateConversion @relation(fields: [conversionId], references: [id], onDelete: Cascade)
+
+  // 報酬タイプ
+  type AffiliateCommissionTypeName
+
+  // 金額
+  amount   Int
+  currency String @default("JPY")
+
+  // 計算詳細
+  rate       Int? // パーセント（成約報酬の場合）
+  baseAmount Int? // 計算元金額
+
+  // 2ティア情報
+  tier            Int     @default(1) // 1=直接、2=2ティア
+  sourcePartnerId String? // 2ティアの場合、元パートナー
+
+  // ステータス
+  status AffiliateCommissionStatus @default(PENDING)
+
+  // 支払い紐付け
+  payoutId String?
+  payout   AffiliatePayout? @relation(fields: [payoutId], references: [id])
+
+  // 支払い可能日（クーリングオフ後）
+  payableAt DateTime?
+
+  createdAt  DateTime  @default(now())
+  approvedAt DateTime?
+  paidAt     DateTime?
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([conversionId])
+  @@index([status])
+  @@index([payoutId])
+  @@index([payableAt])
+}
+
+enum AffiliateCommissionTypeName {
+  OPTIN // オプトイン報酬
+  FRONTEND // フロントエンド報酬
+  BACKEND // バックエンド報酬
+  TIER2 // 2ティア報酬
+}
+
+enum AffiliateCommissionStatus {
+  PENDING // 確定待ち（クーリングオフ中）
+  APPROVED // 確定（支払い可能）
+  PAID // 支払済
+  CANCELLED // キャンセル
+}
+
+// ==================== 支払い ====================
+
+model AffiliatePayout {
+  id       String @id @default(cuid())
+  tenantId String
+
+  partnerId String
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  // 支払い情報
+  amount   Int
+  currency String @default("JPY")
+
+  // 支払い方法
+  method AffiliatePayoutMethod
+
+  // ステータス
+  status AffiliatePayoutStatus @default(PENDING)
+
+  // 対象期間
+  periodStart DateTime
+  periodEnd   DateTime
+
+  // 処理情報
+  processedAt   DateTime?
+  transactionId String? // 振込ID等
+  note          String?
+
+  createdAt DateTime @default(now())
+
+  // リレーション
+  commissions AffiliateCommission[]
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+enum AffiliatePayoutMethod {
+  BANK_TRANSFER // 銀行振込
+  PAYPAL // PayPal
+}
+
+enum AffiliatePayoutStatus {
+  PENDING // 処理待ち
+  PROCESSING // 処理中
+  COMPLETED // 完了
+  FAILED // 失敗
+}
+
+// ==================== LINEプロジェクト ====================
+
+model LineProject {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name        String // プロジェクト名
+  description String? // 説明
+  color       String  @default("#6366f1") // 識別色
+
+  // 統計（キャッシュ）
+  totalAccounts Int @default(0)
+  totalFriends  Int @default(0)
+
+  // ステータス
+  isActive Boolean @default(true)
+
+  // タイムスタンプ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  accounts            LineAccount[]
+  distributionSetting LineDistributionSetting?
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+}
+
+// ==================== LINE設定 ====================
+
+model LineRichMenu {
+  id       String @id @default(cuid())
+  tenantId String
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name           String
+  lineRichMenuId String?
+
+  // メニュー設定
+  size        Json
+  areas       Json
+  imageUrl    String?
+  chatBarText String  @default("メニュー")
+
+  // セグメント条件（nullの場合はデフォルト）
+  conditions Json?
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// LINE公式アカウント（複数アカウント管理）
+model LineAccount {
+  id       String @id @default(cuid())
+  tenantId String
+
+  // プロジェクト紐付け
+  projectId String?
+  project   LineProject? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  // アカウント情報
+  name          String // 表示名（管理用）
+  channelId     String // LINEチャネルID
+  channelSecret String // チャネルシークレット
+  accessToken   String // アクセストークン
+
+  // Bot情報（接続テスト時に取得）
+  botUserId      String? // BotのユーザーID
+  botBasicId     String? // Bot基本ID
+  botDisplayName String? // Bot表示名
+  botPictureUrl  String? // Botアイコン
+
+  // ステータス
+  isActive     Boolean   @default(true)
+  isConnected  Boolean   @default(false)
+  lastTestedAt DateTime?
+
+  // 振り分け設定
+  order          Int  @default(0) // 振り分け順序
+  weight         Int  @default(1) // 重み（1-10）
+  maxFriends     Int? // 最大友だち数（上限）
+  currentFriends Int  @default(0) // 現在の友だち数
+
+  // タイムスタンプ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  contacts Contact[] @relation("LineAccountContacts")
+
+  @@unique([tenantId, channelId])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([tenantId, isActive, order])
+}
+
+// LINE振り分け設定（プロジェクト単位）
+model LineDistributionSetting {
+  id       String @id @default(cuid())
+  tenantId String
+
+  // プロジェクト紐付け（プロジェクト単位で振り分け設定）
+  projectId String      @unique
+  project   LineProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  // 振り分け有効化
+  isEnabled Boolean @default(false)
+
+  // 振り分け方式
+  distributionType String @default("ROUND_ROBIN") // ROUND_ROBIN, WEIGHTED, FILL_FIRST
+
+  // 最大振り分けリスト数（1-5）
+  maxListsPerRotation Int @default(1)
+
+  // 現在の振り分けインデックス（ラウンドロビン用）
+  currentIndex Int @default(0)
+
+  // 上限到達時の動作
+  onLimitReached String @default("NEXT_ACCOUNT") // NEXT_ACCOUNT, STOP, NOTIFY
+
+  // タイムスタンプ
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId])
+}
+
+// ==================== AI自動化 ====================
+
+model AutomationRule {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name        String
+  description String?
+
+  // 有効/無効
+  isActive Boolean @default(false)
+
+  // AI設定
+  aiEnabled Boolean @default(false)
+  aiConfig  Json? // AI分析設定
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  triggers   AutomationTrigger[]
+  actions    AutomationAction[]
+  executions AutomationExecution[]
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+}
+
+model AutomationTrigger {
+  id     String         @id @default(cuid())
+  ruleId String
+  rule   AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  type       TriggerType
+  conditions Json        @default("[]") // 条件配列
+  logicalOp  String      @default("AND") // AND/OR
+
+  createdAt DateTime @default(now())
+
+  @@index([ruleId])
+}
+
+enum TriggerType {
+  LINE_FRIEND_ADDED
+  EMAIL_SUBSCRIBED
+  PAGE_VIEWED
+  PRODUCT_VIEWED
+  CART_ABANDONED
+  PURCHASE_COMPLETED
+  MESSAGE_OPENED
+  LINK_CLICKED
+  FORM_SUBMITTED
+  TAG_ADDED
+  TAG_REMOVED
+  SCORE_CHANGED
+  SEGMENT_CHANGED
+  INACTIVE_DAYS
+}
+
+model AutomationAction {
+  id     String         @id @default(cuid())
+  ruleId String
+  rule   AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  type   AutomationActionType
+  config Json                 @default("{}")
+
+  // 遅延設定
+  delayDays    Int @default(0)
+  delayHours   Int @default(0)
+  delayMinutes Int @default(0)
+
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([ruleId])
+  @@index([ruleId, order])
+}
+
+enum AutomationActionType {
+  SEND_LINE_MESSAGE
+  SEND_EMAIL
+  ADD_TAG
+  REMOVE_TAG
+  UPDATE_SCORE
+  START_SEQUENCE
+  STOP_SEQUENCE
+  MOVE_TO_SEGMENT
+  NOTIFY_OPERATOR
+  WEBHOOK
+  AI_GENERATE_MESSAGE
+}
+
+model AutomationExecution {
+  id        String         @id @default(cuid())
+  ruleId    String
+  rule      AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  contactId String
+
+  status ExecutionStatus @default(PENDING)
+
+  // AI判断の記録
+  aiDecision   Json? // AIの判断結果を保存
+  aiConfidence Float? // AI信頼度
+
+  triggeredAt  DateTime  @default(now())
+  completedAt  DateTime?
+  errorMessage String?
+
+  @@index([ruleId])
+  @@index([contactId])
+  @@index([status])
+  @@index([triggeredAt])
+}
+
+enum ExecutionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+// ==================== コンタクトスコア ====================
+
+model ContactScore {
+  id        String @id @default(cuid())
+  contactId String @unique
+  tenantId  String
+
+  // RFMスコア (1-5)
+  recency   Int @default(1)
+  frequency Int @default(1)
+  monetary  Int @default(1)
+
+  // セグメント
+  rfmSegment String? // champions, loyal_customers, etc.
+
+  // リードスコア (0-100)
+  leadScore Int @default(0)
+
+  // エンゲージメントスコア (0-100)
+  engagementScore Int @default(0)
+
+  // チャーンスコア (0-100, 高いほど離脱リスク)
+  churnScore Int @default(0)
+
+  // ティア
+  tier String @default("cold") // hot, warm, cold, frozen
+
+  // 最終計算日時
+  calculatedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, rfmSegment])
+  @@index([tenantId, tier])
+  @@index([leadScore])
+}
+
+// ==================== 行動イベント ====================
+
+model BehaviorEvent {
+  id        String @id @default(cuid())
+  tenantId  String
+  contactId String
+
+  type BehaviorEventType
+
+  // イベント詳細
+  data Json @default("{}")
+
+  // メタデータ
+  source     String? // web, line, email
+  sessionId  String?
+  deviceType String?
+  ipAddress  String?
+
+  occurredAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([tenantId, type])
+  @@index([occurredAt])
+}
+
+enum BehaviorEventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  CART_ADD
+  CART_REMOVE
+  CART_ABANDON
+  CHECKOUT_START
+  PURCHASE
+  MESSAGE_OPEN
+  MESSAGE_CLICK
+  LINK_CLICK
+  FORM_SUBMIT
+  VIDEO_PLAY
+  VIDEO_COMPLETE
+  DOWNLOAD
+  SEARCH
+  SIGNUP
+  LOGIN
+  LOGOUT
+}
+
+// ==================== セグメント ====================
+
+model Segment {
+  id       String @id @default(cuid())
+  tenantId String
+
+  name        String
+  description String?
+  color       String  @default("#6366f1")
+
+  // ルール（JSON形式で条件を保存）
+  // 例: [{"field": "score", "operator": "gte", "value": 50}]
+  rules      Json   @default("[]")
+  rulesLogic String @default("AND") // AND/OR
+
+  // 自動更新
+  autoUpdate  Boolean @default(true)
+  memberCount Int     @default(0)
+
+  // 優先度（セグメント適用順序）
+  priority Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  contacts  ContactSegment[]
+  campaigns Campaign[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, autoUpdate])
+}
+
+model ContactSegment {
+  id        String   @id @default(cuid())
+  contactId String
+  segmentId String
+  addedAt   DateTime @default(now())
+
+  // 自動追加か手動追加か
+  isAuto Boolean @default(true)
+
+  // リレーション
+  segment Segment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, segmentId])
+  @@index([contactId])
+  @@index([segmentId])
+}
+
+// ==================== 送信時間最適化 ====================
+
+model SendTimePreference {
+  id        String @id @default(cuid())
+  contactId String @unique
+  tenantId  String
+
+  // 最適送信時間
+  optimalHour Int // 0-23
+  optimalDay  Int? // 0-6 (日-土)
+  timezone    String @default("Asia/Tokyo")
+
+  // 予測信頼度
+  confidence Float @default(0)
+  dataPoints Int   @default(0)
+
+  // 開封パターン（時間帯別の開封率）
+  hourlyPattern Json? // {0: 0.02, 1: 0.01, ..., 23: 0.05}
+
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, optimalHour])
+}
+
+// ==================== 監査ログ ====================
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  tenantId String
+  tenant   Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId   String?
+
+  action     String
+  entityType String
+  entityId   String?
+
+  oldValue Json?
+  newValue Json?
+
+  ipAddress String?
+  userAgent String?
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, entityType])
+  @@index([createdAt])
+}
+
+// ==================== ライブ配信 ====================
+
+model LiveStream {
+  id       String @id @default(cuid())
+  tenantId String
+
+  // イベントとのリレーション（任意）
+  eventId String? @unique
+  event   Event?  @relation(fields: [eventId], references: [id], onDelete: SetNull)
+
+  // 基本情報
+  title       String
+  description String?
+  thumbnail   String?
+
+  // LiveKit設定
+  roomName String  @unique // LiveKitのルーム名
+  roomSid  String? // LiveKitのルームSID
+
+  // スケジュール
+  scheduledStartAt DateTime?
+  scheduledEndAt   DateTime?
+  actualStartAt    DateTime?
+  actualEndAt      DateTime?
+
+  // 配信設定
+  recordingEnabled Boolean @default(true)
+  recordingUrl     String? // 録画URL（Egress完了後）
+
+  // 視聴制限
+  isPublic     Boolean     @default(false) // 誰でも視聴可能
+  requiredRank MemberRank? // ランク制限（nullなら制限なし）
+  maxViewers   Int? // 最大視聴者数制限
+
+  // チャット設定
+  chatEnabled   Boolean @default(true)
+  chatModerated Boolean @default(false)
+
+  // 統計
+  peakViewers       Int @default(0)
+  totalViewers      Int @default(0)
+  totalChatMessages Int @default(0)
+
+  // ステータス
+  status LiveStreamStatus @default(SCHEDULED)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  sessions           LiveSession[]
+  chatMessages       LiveChatMessage[]
+  recordings         LiveRecording[]
+  externalIntegration ExternalMeetingIntegration?
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([roomName])
+  @@index([eventId])
+}
+
+enum LiveStreamStatus {
+  SCHEDULED // 予定
+  PREPARING // 準備中（ルーム作成済み）
+  LIVE // 配信中
+  PAUSED // 一時停止
+  ENDED // 終了
+  CANCELLED // キャンセル
+}
+
+// ライブ配信セッション（視聴者ごとの参加記録）
+model LiveSession {
+  id           String     @id @default(cuid())
+  liveStreamId String
+  liveStream   LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+  contactId    String? // 未認証視聴者はnull
+
+  // 視聴情報
+  participantId String? // LiveKitの参加者ID
+  joinedAt      DateTime  @default(now())
+  leftAt        DateTime?
+
+  // 視聴統計
+  watchDuration Int @default(0) // 秒
+
+  // デバイス情報
+  userAgent String?
+  ipAddress String?
+
+  @@index([liveStreamId])
+  @@index([contactId])
+  @@index([joinedAt])
+}
+
+// ライブチャットメッセージ
+model LiveChatMessage {
+  id           String     @id @default(cuid())
+  liveStreamId String
+  liveStream   LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+  contactId    String? // 未認証ユーザーはnull
+
+  // メッセージ
+  content    String
+  senderName String // 表示名
+
+  // モデレーション
+  isHidden Boolean @default(false)
+  isPinned Boolean @default(false)
+
+  // 種別
+  type LiveChatMessageType @default(NORMAL)
+
+  createdAt DateTime @default(now())
+
+  @@index([liveStreamId])
+  @@index([liveStreamId, createdAt])
+}
+
+enum LiveChatMessageType {
+  NORMAL // 通常メッセージ
+  QUESTION // 質問（Q&A用）
+  ANNOUNCEMENT // お知らせ（配信者からの告知）
+  SYSTEM // システムメッセージ
+}
+
+// ライブ配信録画
+model LiveRecording {
+  id           String     @id @default(cuid())
+  liveStreamId String
+  liveStream   LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+
+  // LiveKit Egress情報
+  egressId String @unique
+
+  // ファイル情報
+  fileUrl  String?
+  fileSize Int? // バイト
+  duration Int? // 秒
+
+  // ステータス
+  status RecordingStatus @default(RECORDING)
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  // リレーション
+  distribution  RecordingDistribution?
+  transcription RecordingTranscription?
+
+  @@index([liveStreamId])
+  @@index([egressId])
+}
+
+enum RecordingStatus {
+  RECORDING // 録画中
+  PROCESSING // 処理中
+  COMPLETED // 完了
+  FAILED // 失敗
+}
+
+// 録画アクセスレベル
+enum RecordingAccessLevel {
+  ALL // 全参加者
+  SPECIFIED // 指定メンバーのみ
+  PURCHASERS // 購入者のみ
+  NONE // 非公開
+}
+
+// 外部プラットフォーム種別
+enum ExternalMeetingPlatform {
+  ZOOM
+  GOOGLE_MEET
+  TEAMS
+  NONE
+}
+
+// 録画配布設定
+model RecordingDistribution {
+  id           String        @id @default(cuid())
+  recordingId  String        @unique
+  recording    LiveRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  // アクセス設定
+  accessLevel RecordingAccessLevel @default(ALL)
+
+  // 配布設定
+  title       String? // 配布時のタイトル（録画タイトルと異なる場合）
+  description String?
+  thumbnail   String?
+
+  // 有効期限
+  expiresAt   DateTime?
+
+  // 指定メンバー（accessLevel=SPECIFIEDの場合）
+  specifiedContactIds Json? // String[]
+
+  // 購入者条件（accessLevel=PURCHASERSの場合）
+  requiredProductId String? // 特定商品の購入者のみ
+  requiredTagId     String? // 特定タグ保有者のみ
+
+  // 通知設定
+  notifyOnAvailable Boolean @default(true)
+  notifyViaEmail    Boolean @default(true)
+  notifyViaLine     Boolean @default(true)
+
+  // ダウンロード許可
+  allowDownload Boolean @default(false)
+
+  // 視聴統計
+  totalViews   Int @default(0)
+  uniqueViews  Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accesses RecordingAccessLog[]
+
+  @@index([accessLevel])
+}
+
+// 録画アクセスログ
+model RecordingAccessLog {
+  id             String               @id @default(cuid())
+  distributionId String
+  distribution   RecordingDistribution @relation(fields: [distributionId], references: [id], onDelete: Cascade)
+  contactId      String?
+
+  // アクセス情報
+  accessToken  String   @unique // 視聴用トークン
+  accessedAt   DateTime @default(now())
+  watchedUntil Int      @default(0) // 視聴秒数
+
+  // デバイス情報
+  userAgent String?
+  ipAddress String?
+
+  @@index([distributionId])
+  @@index([contactId])
+  @@index([accessToken])
+}
+
+// トランスクリプション（文字起こし）
+model RecordingTranscription {
+  id          String        @id @default(cuid())
+  recordingId String        @unique
+  recording   LiveRecording @relation(fields: [recordingId], references: [id], onDelete: Cascade)
+
+  // 処理状態
+  status TranscriptionStatus @default(PENDING)
+
+  // 言語設定
+  language String @default("ja")
+
+  // トランスクリプション結果
+  fullText    String? @db.Text // 全文テキスト
+  segments    Json? // タイムスタンプ付きセグメント配列
+  speakers    Json? // 話者分離情報
+  wordCount   Int?
+
+  // サマリー（AI生成）
+  summary     String? @db.Text
+  keyPoints   Json? // 要点リスト
+  actionItems Json? // アクションアイテム
+
+  // メタデータ
+  processingStartedAt DateTime?
+  processingEndedAt   DateTime?
+  processingError     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+}
+
+enum TranscriptionStatus {
+  PENDING // 待機中
+  PROCESSING // 処理中
+  COMPLETED // 完了
+  FAILED // 失敗
+}
+
+// 外部ミーティング連携（Zoom/Meet）
+model ExternalMeetingIntegration {
+  id           String     @id @default(cuid())
+  liveStreamId String     @unique
+  liveStream   LiveStream @relation(fields: [liveStreamId], references: [id], onDelete: Cascade)
+
+  // プラットフォーム情報
+  platform   ExternalMeetingPlatform
+  meetingId  String? // Zoom Meeting ID / Meet Code
+  meetingUrl String? // 参加URL
+  password   String? // ミーティングパスワード
+
+  // ホスト情報
+  hostEmail String?
+
+  // 自動録画設定
+  autoRecordEnabled Boolean @default(true)
+  autoTranscribe    Boolean @default(true)
+
+  // 録画インポート設定
+  importRecordingOnEnd Boolean @default(true)
+
+  // OAuth情報（必要に応じて）
+  accessToken  String? @db.Text
+  refreshToken String? @db.Text
+  tokenExpiry  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([platform])
+  @@index([meetingId])
+}
+
+// ==================== オートウェビナー（EverWebinar型） ====================
+
+enum AutoWebinarScheduleType {
+  JUST_IN_TIME // 登録後X分で開始
+  RECURRING // 定期開催（毎週火・木 15:00等）
+  SPECIFIC_DATES // 特定日時
+  ON_DEMAND // いつでも視聴（シミュレーションなし）
+}
+
+enum AutoWebinarStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum AutoWebinarRegStatus {
+  REGISTERED
+  ATTENDED
+  WATCHED_LIVE
+  WATCHED_REPLAY
+  EXPIRED
+  NO_SHOW
+}
+
+enum SimChatMessageType {
+  COMMENT
+  QUESTION
+  REACTION
+  TESTIMONIAL
+}
+
+model AutomatedWebinar {
+  id       String @id @default(cuid())
+  tenantId String
+
+  title       String
+  description String?
+  thumbnail   String?
+
+  // 動画ソース
+  videoUrl      String
+  videoType     VideoType // YOUTUBE, VIMEO, UPLOAD
+  videoDuration Int // 秒数
+
+  // スケジュール
+  scheduleType           AutoWebinarScheduleType @default(JUST_IN_TIME)
+  justInTimeDelayMinutes Int                     @default(15)
+  recurringSchedule      Json? // { days: [2,4], times: ["15:00"], timezone: "Asia/Tokyo" }
+  specificDates          Json? // ["2026-02-15T15:00:00+09:00", ...]
+
+  // 参加者シミュレーション
+  fakeAttendeesEnabled Boolean @default(true)
+  fakeAttendeesMin     Int     @default(50)
+  fakeAttendeesMax     Int     @default(200)
+
+  // チャット設定
+  simulatedChatEnabled Boolean @default(true)
+  userChatEnabled      Boolean @default(false)
+
+  // リプレイ設定
+  replayEnabled           Boolean @default(true)
+  replayExpiresAfterHours Int?
+
+  status AutoWebinarStatus @default(DRAFT)
+
+  // ファネル連携
+  funnelId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  chatMessages           AutoWebinarChatMessage[]
+  timedOffers            AutoWebinarTimedOffer[]
+  registrations          AutoWebinarRegistration[]
+  sessions               AutoWebinarSession[]
+  rewards                AutoWebinarReward[]
+  notificationSettings   AutoWebinarNotificationSettings?
+  scheduledNotifications AutoWebinarScheduledNotification[]
+  notificationLogs       AutoWebinarNotificationLog[]
+  abTests                OfferABTest[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model AutoWebinarChatMessage {
+  id        String           @id @default(cuid())
+  webinarId String
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  appearAtSeconds Int // 表示タイミング（動画開始からの秒数）
+  senderName      String
+  senderAvatar    String?
+  content         String
+  messageType     SimChatMessageType @default(COMMENT)
+  order           Int                @default(0)
+
+  createdAt DateTime @default(now())
+
+  @@index([webinarId])
+  @@index([webinarId, appearAtSeconds])
+}
+
+enum OfferActionType {
+  EXTERNAL_LINK // 外部URLに遷移
+  EMAIL_FORM // メール登録フォーム
+  LINE_FRIEND // LINE友だち追加
+  STRIPE_CHECKOUT // Stripe決済
+  DOWNLOAD // ダウンロード
+}
+
+model AutoWebinarTimedOffer {
+  id        String           @id @default(cuid())
+  webinarId String
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  appearAtSeconds Int // 表示開始
+  hideAtSeconds   Int? // 表示終了（null=最後まで）
+
+  title       String
+  description String?
+  buttonText  String  @default("今すぐ申し込む")
+  buttonUrl   String
+
+  // アクションタイプ
+  actionType OfferActionType @default(EXTERNAL_LINK)
+
+  // EMAIL_FORM用
+  emailFormTitle String?
+  emailFormTagId String? // 登録時に付与するタグID
+  emailSuccessMessage String?
+
+  // LINE_FRIEND用
+  lineAddUrl String? // LINE友だち追加URL
+  lineLiffId String? // LIFF ID（アプリ内追加用）
+
+  // STRIPE_CHECKOUT用
+  stripePriceId String? // Stripe Price ID
+  stripeSuccessUrl String?
+  stripeCancelUrl String?
+
+  // DOWNLOAD用
+  downloadUrl String?
+  downloadFileName String?
+
+  // 緊急性演出
+  countdownEnabled Boolean @default(false)
+  countdownSeconds Int?
+  limitedSeats     Int?
+
+  // 表示設定
+  popupPosition String @default("bottom-right") // center, bottom-right, bottom-left
+
+  // 統計
+  clickCount      Int @default(0)
+  conversionCount Int @default(0)
+  formSubmitCount Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([webinarId])
+  @@index([webinarId, appearAtSeconds])
+}
+
+// ==================== オファーA/Bテスト ====================
+
+enum ABTestStatus {
+  DRAFT // 下書き
+  RUNNING // 実行中
+  PAUSED // 一時停止
+  COMPLETED // 完了（勝者決定）
+}
+
+enum ABTestAlgorithm {
+  RANDOM // 均等ランダム
+  EPSILON_GREEDY // ε-greedy（探索と活用のバランス）
+  THOMPSON_SAMPLING // Thompson Sampling（ベイズ最適化）
+  UCB1 // Upper Confidence Bound
+}
+
+model OfferABTest {
+  id        String           @id @default(cuid())
+  webinarId String
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  offerId   String // 元オファーID（AutoWebinarTimedOffer）
+
+  name        String
+  description String?
+
+  // テスト設定
+  status    ABTestStatus    @default(DRAFT)
+  algorithm ABTestAlgorithm @default(RANDOM)
+
+  // 統計的有意性の閾値
+  confidenceLevel  Float @default(0.95) // 95%信頼区間
+  minSampleSize    Int   @default(100) // 最小サンプル数
+  minConversions   Int   @default(10) // 最小コンバージョン数
+
+  // 自動最適化
+  autoOptimize      Boolean @default(false) // 勝者を自動適用
+  autoOptimizeAfter Int?    // N件後に自動最適化
+
+  // 結果
+  winnerId      String? // 勝者バリアントID
+  winnerDeclaredAt DateTime?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  variants    OfferABVariant[]
+  assignments OfferABAssignment[]
+
+  @@index([webinarId])
+  @@index([offerId])
+  @@index([status])
+}
+
+model OfferABVariant {
+  id     String      @id @default(cuid())
+  testId String
+  test   OfferABTest @relation(fields: [testId], references: [id], onDelete: Cascade)
+
+  name        String // バリアント名（A, B, C...）
+  description String?
+  isControl   Boolean @default(false) // コントロール（元のオファー）かどうか
+
+  // オファー内容（オーバーライド）
+  title            String?
+  offerDescription String?
+  buttonText       String?
+  buttonUrl        String?
+
+  // 緊急性演出
+  countdownEnabled Boolean?
+  countdownSeconds Int?
+  limitedSeats     Int?
+
+  // 表示設定
+  popupPosition String?
+
+  // 割り当て比率（0-100）
+  weight Int @default(50)
+
+  // 統計
+  impressions Int @default(0) // 表示回数
+  clicks      Int @default(0) // クリック数
+  conversions Int @default(0) // コンバージョン数
+
+  // 計算済みメトリクス
+  clickRate      Float? // CTR
+  conversionRate Float? // CVR
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assignments OfferABAssignment[]
+
+  @@index([testId])
+}
+
+model OfferABAssignment {
+  id        String          @id @default(cuid())
+  testId    String
+  test      OfferABTest     @relation(fields: [testId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   OfferABVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  sessionId String // AutoWebinarSession.id
+  contactId String?
+
+  // アクション追跡
+  impressed   Boolean   @default(false) // 表示された
+  impressedAt DateTime?
+  clicked     Boolean   @default(false) // クリックした
+  clickedAt   DateTime?
+  converted   Boolean   @default(false) // コンバージョンした
+  convertedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([testId, sessionId])
+  @@index([testId])
+  @@index([variantId])
+  @@index([sessionId])
+}
+
+model AutoWebinarRegistration {
+  id        String           @id @default(cuid())
+  webinarId String
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  contactId String
+
+  scheduledStartAt DateTime // この人の視聴開始時刻
+
+  replayAccessToken String?   @unique
+  replayExpiresAt   DateTime?
+
+  status       AutoWebinarRegStatus @default(REGISTERED)
+  registeredAt DateTime             @default(now())
+  attendedAt   DateTime?
+
+  @@unique([webinarId, contactId])
+  @@index([webinarId])
+  @@index([contactId])
+  @@index([replayAccessToken])
+}
+
+model AutoWebinarSession {
+  id             String           @id @default(cuid())
+  webinarId      String
+  webinar        AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  contactId      String?
+  registrationId String?
+
+  sessionToken String  @unique
+  isReplay     Boolean @default(false)
+
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  maxWatchedSeconds Int   @default(0)
+  completionPercent Float @default(0)
+
+  offersClicked Json? // クリックしたオファーIDの配列
+
+  @@index([webinarId])
+  @@index([contactId])
+  @@index([sessionToken])
+}
+
+// ==================== ウェビナー特典システム ====================
+
+enum WebinarRewardType {
+  WATCH_TIME // 視聴時間達成
+  KEYWORD // キーワード入力
+  TIMED_INPUT // 期間限定入力
+  POLL_ANSWER // 投票回答
+  QUIZ_CORRECT // クイズ正解
+}
+
+enum WebinarRewardDeliveryType {
+  DOWNLOAD // ダウンロードリンク
+  EMAIL // メール送信
+  LINE // LINE送信
+  COUPON // クーポンコード
+  UNLOCK_CONTENT // コンテンツ解放
+  TAG_ADD // タグ付与
+}
+
+model AutoWebinarReward {
+  id        String           @id @default(cuid())
+  webinarId String
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  name        String // 特典名
+  description String? // 説明
+
+  // トリガー条件
+  rewardType WebinarRewardType
+
+  // 視聴時間条件（WATCH_TIME用）
+  watchTimeSeconds Int? // X秒視聴で付与
+
+  // キーワード条件（KEYWORD用）
+  triggerKeywords Json? // ["ABC", "あいうえお"] 複数キーワード対応
+
+  // 期間限定条件（TIMED_INPUT用）
+  appearAtSeconds Int? // 表示開始タイミング
+  inputDeadlineSeconds Int? // 入力制限時間（秒）
+  inputFields Json? // [{ name: "email", type: "email", required: true }]
+
+  // 配布方法
+  deliveryType WebinarRewardDeliveryType
+
+  // 配布内容
+  downloadUrl String? // ダウンロードURL
+  couponCode String? // クーポンコード
+  emailTemplateId String? // メールテンプレートID
+  lineMessage String? // LINEメッセージ
+  unlockContentId String? // 解放するコンテンツID
+  tagId String? // 付与するタグID
+
+  // ポップアップ表示設定
+  popupTitle String?
+  popupDescription String?
+  popupButtonText String @default("特典を受け取る")
+  popupPosition String @default("center") // center, bottom-right, bottom-left
+
+  // 制限
+  maxClaims Int? // 最大獲得数（null=無制限）
+  currentClaims Int @default(0) // 現在の獲得数
+
+  isActive Boolean @default(true)
+  order Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // リレーション
+  claims AutoWebinarRewardClaim[]
+
+  @@index([webinarId])
+  @@index([webinarId, rewardType])
+}
+
+model AutoWebinarRewardClaim {
+  id        String             @id @default(cuid())
+  rewardId  String
+  reward    AutoWebinarReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  sessionId String?
+  contactId String?
+
+  // 獲得情報
+  claimedAt DateTime @default(now())
+  inputData Json? // 入力されたデータ（TIMED_INPUT用）
+  keyword String? // 入力されたキーワード（KEYWORD用）
+  watchedSeconds Int? // 獲得時の視聴秒数（WATCH_TIME用）
+
+  // 配布状況
+  delivered Boolean @default(false)
+  deliveredAt DateTime?
+  deliveryError String?
+
+  @@unique([rewardId, sessionId])
+  @@index([rewardId])
+  @@index([sessionId])
+  @@index([contactId])
+}
+
+// ==================== ウェビナー通知システム ====================
+
+enum WebinarNotificationType {
+  REMINDER_30MIN // 30分前リマインダー
+  REMINDER_5MIN // 5分前リマインダー
+  REMINDER_1MIN // 1分前リマインダー
+  STARTING_NOW // 開始通知
+  REPLAY_AVAILABLE // リプレイ公開通知
+  REPLAY_EXPIRING // リプレイ期限切れ警告
+  CUSTOM // カスタム通知
+}
+
+enum NotificationChannel {
+  EMAIL
+  LINE
+  BOTH
+}
+
+enum NotificationStatus {
+  PENDING // 未送信
+  SCHEDULED // スケジュール済み
+  SENT // 送信済み
+  FAILED // 失敗
+  CANCELLED // キャンセル
+}
+
+// ウェビナー通知設定（ウェビナーごと）
+model AutoWebinarNotificationSettings {
+  id        String           @id @default(cuid())
+  webinarId String           @unique
+  webinar   AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+
+  // 有効/無効
+  isEnabled Boolean @default(true)
+
+  // リマインダー設定
+  reminder30MinEnabled Boolean @default(true)
+  reminder5MinEnabled  Boolean @default(true)
+  reminder1MinEnabled  Boolean @default(false)
+  startingNowEnabled   Boolean @default(true)
+
+  // リプレイ通知設定
+  replayAvailableEnabled Boolean @default(true)
+  replayExpiringEnabled  Boolean @default(true)
+  replayExpiringHours    Int     @default(24) // 期限切れ何時間前に通知
+
+  // 配信チャンネル
+  defaultChannel NotificationChannel @default(BOTH)
+
+  // カスタムメッセージ（nullならデフォルト使用）
+  reminder30MinSubject String?
+  reminder30MinBody    String? @db.Text
+  reminder5MinSubject  String?
+  reminder5MinBody     String? @db.Text
+  startingNowSubject   String?
+  startingNowBody      String? @db.Text
+  replaySubject        String?
+  replayBody           String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// スケジュール済み通知（送信キュー）
+model AutoWebinarScheduledNotification {
+  id             String           @id @default(cuid())
+  webinarId      String
+  webinar        AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  registrationId String
+  contactId      String
+
+  // 通知タイプと送信予定
+  notificationType WebinarNotificationType
+  scheduledAt      DateTime
+  channel          NotificationChannel
+
+  // ステータス
+  status    NotificationStatus @default(PENDING)
+  sentAt    DateTime?
+  failedAt  DateTime?
+  errorMessage String?
+
+  // 送信結果
+  emailMessageId String?
+  lineMessageId  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([webinarId])
+  @@index([contactId])
+  @@index([scheduledAt])
+  @@index([status, scheduledAt])
+}
+
+// 通知送信ログ（履歴）
+model AutoWebinarNotificationLog {
+  id             String           @id @default(cuid())
+  webinarId      String
+  webinar        AutomatedWebinar @relation(fields: [webinarId], references: [id], onDelete: Cascade)
+  registrationId String?
+  contactId      String?
+
+  // 通知情報
+  notificationType WebinarNotificationType
+  channel          NotificationChannel
+  subject          String?
+  body             String? @db.Text
+
+  // 送信結果
+  success      Boolean
+  sentAt       DateTime @default(now())
+  errorMessage String?
+
+  // 外部メッセージID
+  emailMessageId String?
+  lineMessageId  String?
+
+  @@index([webinarId])
+  @@index([contactId])
+  @@index([sentAt])
+}
+
+// ==================== ファネル拡張 ====================
+
+// ファネルステップ（マルチステップ対応）
+model FunnelStep {
+  id       String @id @default(cuid())
+  funnelId String
+  funnel   Funnel @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  // ステップ情報
+  name  String
+  order Int
+
+  // ステップタイプ
+  type FunnelStepType
+
+  // 対象ページ
+  pageId String?
+  page   FunnelPage? @relation(fields: [pageId], references: [id])
+
+  // 条件分岐（JSON形式）
+  conditions Json? // 次のステップへの条件
+
+  // A/Bテスト設定
+  variants Json? // [{ pageId, weight }]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([funnelId])
+  @@index([funnelId, order])
+}
+
+enum FunnelStepType {
+  OPTIN // オプトインページ
+  LANDING // ランディングページ
+  SALES // セールスページ
+  ORDER_FORM // 注文フォーム
+  CHECKOUT // 決済ページ
+  UPSELL // アップセル
+  DOWNSELL // ダウンセル
+  THANKYOU // サンキューページ
+  WEBINAR // ウェビナーページ
+  REPLAY // リプレイページ
+  CONFIRMATION // 確認ページ
+  CONTENT // コンテンツページ（動画等）
+  APPLICATION_FORM // 申込みフォーム
+  MEMBERSHIP_ACCESS // 会員アクセス
+  REDIRECT // リダイレクト
+}
+
+// ファネル訪問者追跡
+model FunnelVisitor {
+  id        String  @id @default(cuid())
+  funnelId  String
+  contactId String? // 未識別の場合はnull
+
+  // 追跡ID
+  visitorId String @unique // クッキーベースのID
+
+  // 流入情報
+  entryPageId String?
+  source      String? // utm_source
+  medium      String? // utm_medium
+  campaign    String? // utm_campaign
+
+  // ステップ進捗
+  currentStep Int @default(0)
+  maxStep     Int @default(0)
+
+  // コンバージョン
+  convertedAt     DateTime?
+  conversionValue Decimal?
+
+  // セッション情報
+  firstVisitAt DateTime @default(now())
+  lastVisitAt  DateTime @default(now())
+  visitCount   Int      @default(1)
+
+  // デバイス
+  userAgent String?
+
+  @@index([funnelId])
+  @@index([contactId])
+  @@index([visitorId])
+}
+
+// A/Bテスト結果
+model ABTestResult {
+  id       String @id @default(cuid())
+  funnelId String
+  stepId   String
+
+  // バリアント
+  variantId   String // ページIDまたはバリアントID
+  variantName String
+
+  // メトリクス
+  impressions Int     @default(0)
+  conversions Int     @default(0)
+  revenue     Decimal @default(0)
+
+  // 統計
+  conversionRate    Float?
+  revenuePerVisitor Float?
+
+  // 期間
+  startedAt DateTime  @default(now())
+  endedAt   DateTime?
+
+  // ステータス
+  isWinner Boolean @default(false)
+
+  @@unique([stepId, variantId])
+  @@index([funnelId])
+  @@index([stepId])
+}
+
+// ==================== SMS設定 ====================
+
+model SMSSettings {
+  id       String @id @default(cuid())
+  tenantId String @unique
+  tenant   Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // プロバイダー設定
+  provider          String  @default("twilio") // twilio, vonage, aws_sns
+  accountSid        String?
+  authToken         String?
+  fromNumber        String? // E.164形式: +8150XXXXXXXX
+  messagingServiceSid String? // Twilioスケジュール配信用
+
+  // 配信設定
+  enabled           Boolean @default(false)
+  sendingHoursStart Int     @default(9)  // 配信開始時刻（JST）
+  sendingHoursEnd   Int     @default(20) // 配信終了時刻（JST）
+  
+  // 日本向け設定
+  removeUrls        Boolean @default(true) // URL自動除去（日本キャリア対策）
+  
+  // レート制限
+  maxPerMinute      Int     @default(30)
+  maxPerDay         Int     @default(1000)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SMSLog {
+  id        String @id @default(cuid())
+  tenantId  String
+  contactId String?
+  
+  // Twilio情報
+  messageSid String? @unique
+  
+  // 送信内容
+  toNumber  String  // E.164形式
+  fromNumber String?
+  body      String
+  segments  Int     @default(1) // メッセージセグメント数
+  
+  // ステータス
+  status    SMSStatus @default(QUEUED)
+  errorCode String?
+  errorMessage String?
+  
+  // コスト
+  price     Decimal?
+  priceUnit String?
+  
+  // 関連
+  stepMailId String? // ステップメールからの送信
+  campaignId String? // キャンペーンからの送信
+  
+  // タイムスタンプ
+  queuedAt    DateTime  @default(now())
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  failedAt    DateTime?
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([messageSid])
+  @@index([status])
+  @@index([tenantId, queuedAt])
+}
+
+enum SMSStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  FAILED
+  UNDELIVERED
+}
+
+// WhatsApp Business API設定
+model WhatsAppSettings {
+  id            String  @id @default(cuid())
+  tenantId      String  @unique
+
+  // Twilio WhatsApp設定（推奨）
+  provider      String  @default("twilio") // twilio, meta
+
+  // Twilio設定
+  accountSid    String?
+  authToken     String?
+  whatsappNumber String? // whatsapp:+1234567890 形式
+
+  // Meta Cloud API設定（将来用）
+  metaAccessToken   String?
+  metaPhoneNumberId String?
+  metaBusinessId    String?
+
+  // 機能設定
+  enabled           Boolean @default(false)
+  sendingHoursStart Int     @default(9)  // JST
+  sendingHoursEnd   Int     @default(21) // JST
+  maxPerMinute      Int     @default(60)
+  maxPerDay         Int     @default(1000)
+
+  // テンプレート設定
+  welcomeTemplateId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// WhatsAppメッセージログ
+model WhatsAppLog {
+  id            String @id @default(cuid())
+  tenantId      String
+  contactId     String?
+
+  // Twilio/Meta情報
+  messageSid    String? @unique
+
+  // 送信内容
+  toNumber      String  // whatsapp:+1234567890形式
+  fromNumber    String?
+  body          String?
+  templateId    String?
+  templateParams Json?
+
+  // メディア（WhatsApp対応）
+  mediaUrl      String?
+  mediaType     String? // image, video, document, audio
+
+  // ステータス
+  status        WhatsAppStatus @default(QUEUED)
+  errorCode     String?
+  errorMessage  String?
+
+  // コスト
+  price         Decimal?
+  priceUnit     String?
+
+  // 関連
+  stepMailId    String?
+  campaignId    String?
+
+  // タイムスタンプ
+  queuedAt      DateTime  @default(now())
+  sentAt        DateTime?
+  deliveredAt   DateTime?
+  readAt        DateTime?
+  failedAt      DateTime?
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([messageSid])
+  @@index([status])
+  @@index([tenantId, queuedAt])
+}
+
+enum WhatsAppStatus {
+  QUEUED
+  SENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  UNDELIVERED
+}
+
+// ==================== ジャーニービルダー ====================
+
+model Journey {
+  id          String   @id @default(cuid())
+  tenantId    String
+
+  name        String
+  description String?
+  status      JourneyStatus @default(DRAFT)
+  triggerType String   // signup, purchase, cart_abandon, inactivity, tag_added, webhook
+  triggerConfig Json?  // トリガーの詳細設定
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // リレーション
+  nodes       JourneyNode[]
+  contacts    JourneyContact[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model JourneyNode {
+  id          String   @id @default(cuid())
+  journeyId   String
+  journey     Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  type        JourneyNodeType
+  title       String
+  description String?
+  config      Json?    // ノードの詳細設定
+  position    Json     // { x: number, y: number }
+  connections String[] // 接続先ノードID配列
+
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([journeyId])
+  @@index([journeyId, order])
+}
+
+model JourneyContact {
+  id          String   @id @default(cuid())
+  journeyId   String
+  journey     Journey  @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  status      JourneyContactStatus @default(ACTIVE)
+  currentNodeId String?
+  enrolledAt  DateTime @default(now())
+  completedAt DateTime?
+
+  // 追跡データ
+  metadata    Json?
+
+  @@unique([journeyId, contactId])
+  @@index([journeyId])
+  @@index([contactId])
+  @@index([journeyId, status])
+}
+
+enum JourneyStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum JourneyNodeType {
+  TRIGGER
+  ACTION
+  CONDITION
+  DELAY
+  AI_DECISION
+}
+
+enum JourneyContactStatus {
+  ACTIVE
+  COMPLETED
+  PAUSED
+  FAILED
+}
