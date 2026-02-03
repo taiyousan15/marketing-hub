@@ -1,10 +1,40 @@
 import { prisma } from "@/lib/db/prisma";
 import type { Tenant, User } from "@prisma/client";
 
+// 開発モード: 認証をバイパスしてダミーユーザーを返す
+const DEV_MODE_NO_AUTH = true;
+
+// 開発用テナントID
+const DEV_TENANT_ID = "dev-tenant-001";
+const DEV_USER_ID = "dev-user-001";
+
 // Clerkが設定されているかチェック
 const isClerkConfigured =
+  !DEV_MODE_NO_AUTH &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
+
+/**
+ * 開発用テナントを取得または作成
+ */
+async function getOrCreateDevTenant(): Promise<Tenant> {
+  let tenant = await prisma.tenant.findUnique({
+    where: { id: DEV_TENANT_ID },
+  });
+
+  if (!tenant) {
+    tenant = await prisma.tenant.create({
+      data: {
+        id: DEV_TENANT_ID,
+        name: "開発用ワークスペース",
+        subdomain: "dev-workspace",
+        plan: "STARTER",
+      },
+    });
+  }
+
+  return tenant;
+}
 
 /**
  * 現在のユーザーとテナント情報を取得
@@ -15,13 +45,14 @@ export async function getCurrentUser(): Promise<{
   user: User | null;
   tenant: Tenant | null;
 } | null> {
-  if (!isClerkConfigured) {
-    // 開発用のダミーユーザー
+  if (!isClerkConfigured || DEV_MODE_NO_AUTH) {
+    // 開発用のダミーユーザー - テナントが存在することを保証
+    const tenant = await getOrCreateDevTenant();
     return {
-      userId: "dev-user-id",
-      tenantId: "dev-tenant-id",
+      userId: DEV_USER_ID,
+      tenantId: tenant.id,
       user: null,
-      tenant: null,
+      tenant,
     };
   }
 
