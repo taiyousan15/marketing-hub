@@ -13,7 +13,7 @@
 
 import { Resend } from "resend";
 
-// Resendクライアント（遅延初期化）
+// Resendクライアント初期化（遅延初期化）
 let resendClient: Resend | null = null;
 
 function getResendClient(): Resend {
@@ -26,6 +26,16 @@ function getResendClient(): Resend {
   }
   return resendClient;
 }
+
+// 後方互換性のためのエイリアス
+const resend = {
+  get emails() {
+    return getResendClient().emails;
+  },
+  get domains() {
+    return getResendClient().domains;
+  },
+};
 
 // メール送信オプション
 export interface EmailOptions {
@@ -83,7 +93,7 @@ export async function sendEmail(options: EmailOptions): Promise<SendResult> {
     if (options.text) emailPayload.text = options.text;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await getResendClient().emails.send(emailPayload as any);
+    const { data, error } = await resend.emails.send(emailPayload as any);
 
     if (error) {
       console.error("Email send error:", error);
@@ -149,7 +159,7 @@ export async function checkDomainStatus(
   domain: string
 ): Promise<DomainStatus | null> {
   try {
-    const { data, error } = await getResendClient().domains.list();
+    const { data, error } = await resend.domains.list();
 
     if (error || !data) {
       console.error("Domain check error:", error);
@@ -201,7 +211,7 @@ export async function addDomain(
   domain: string
 ): Promise<{ success: boolean; records?: Array<{ type: string; name: string; value: string }> }> {
   try {
-    const { data, error } = await getResendClient().domains.create({ name: domain });
+    const { data, error } = await resend.domains.create({ name: domain });
 
     if (error) {
       console.error("Domain add error:", error);
