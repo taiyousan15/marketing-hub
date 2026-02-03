@@ -1,0 +1,1099 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ==================== テナント ====================
+
+model Tenant {
+  id               String   @id @default(cuid())
+  name             String
+  subdomain        String   @unique
+  plan             Plan     @default(STARTER)
+  stripeCustomerId String?
+
+  // 設定
+  settings         Json     @default("{}")
+
+  // タイムスタンプ
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // リレーション
+  users            User[]
+  contacts         Contact[]
+  tags             Tag[]
+  campaigns        Campaign[]
+  funnels          Funnel[]
+  products         Product[]
+  orders           Order[]
+  subscriptions    Subscription[]
+  courses          Course[]
+  events           Event[]
+  partners         Partner[]
+  lineRichMenus    LineRichMenu[]
+  auditLogs        AuditLog[]
+
+  @@index([subdomain])
+}
+
+enum Plan {
+  STARTER
+  STANDARD
+  PRO
+  ENTERPRISE
+}
+
+// ==================== ユーザー（管理者） ====================
+
+model User {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email       String
+  name        String?
+  role        UserRole @default(MEMBER)
+  clerkUserId String   @unique
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([clerkUserId])
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  MEMBER
+  OPERATOR
+}
+
+// ==================== コンタクト（顧客） ====================
+
+model Contact {
+  id            String   @id @default(cuid())
+  tenantId      String
+  tenant        Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // 識別情報
+  email         String?
+  lineUserId    String?
+  phone         String?
+
+  // 基本情報
+  name          String?
+  firstName     String?
+  lastName      String?
+
+  // スコアリング
+  score         Int      @default(0)
+
+  // カスタムフィールド（最大100項目）
+  customFields  Json     @default("{}")
+
+  // 流入経路
+  source        String?
+  sourceDetail  Json?
+
+  // メール配信設定
+  emailOptIn    Boolean  @default(true)
+  emailOptInAt  DateTime?
+
+  // LINE配信設定
+  lineOptIn     Boolean  @default(true)
+  lineOptInAt   DateTime?
+
+  // タイムスタンプ
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // リレーション
+  tags          ContactTag[]
+  campaignContacts CampaignContact[]
+  orders        Order[]
+  subscriptions Subscription[]
+  courseEnrollments CourseEnrollment[]
+  eventRegistrations EventRegistration[]
+  messageHistories MessageHistory[]
+
+  @@unique([tenantId, email])
+  @@unique([tenantId, lineUserId])
+  @@index([tenantId])
+  @@index([tenantId, email])
+  @@index([tenantId, lineUserId])
+}
+
+// ==================== タグ ====================
+
+model Tag {
+  id        String   @id @default(cuid())
+  tenantId  String
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  color     String   @default("#6366f1")
+
+  createdAt DateTime @default(now())
+
+  contacts  ContactTag[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+model ContactTag {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, tagId])
+  @@index([contactId])
+  @@index([tagId])
+}
+
+// ==================== キャンペーン（配信） ====================
+
+model Campaign {
+  id        String         @id @default(cuid())
+  tenantId  String
+  tenant    Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  type      CampaignType
+  status    CampaignStatus @default(DRAFT)
+
+  // セグメント連携
+  segmentId String?
+  segment   Segment?       @relation(fields: [segmentId], references: [id])
+
+  // 送信最適化設定
+  useOptimalSendTime Boolean @default(false)
+  minScoreThreshold  Int?    // 最低スコア閾値
+
+  // 設定
+  settings  Json           @default("{}")
+
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  steps     CampaignStep[]
+  contacts  CampaignContact[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([segmentId])
+}
+
+enum CampaignType {
+  EMAIL_STEP
+  EMAIL_BROADCAST
+  LINE_STEP
+  LINE_BROADCAST
+  LINE_SEGMENT
+  SMS
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+model CampaignStep {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  order       Int
+  type        StepType
+
+  // タイミング
+  delayDays   Int      @default(0)
+  delayHours  Int      @default(0)
+  delayMinutes Int     @default(0)
+  sendTime    String?  // HH:mm形式
+
+  // コンテンツ
+  subject     String?  // メール件名
+  content     Json     // メッセージ内容
+
+  // 条件分岐
+  conditions  Json?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([campaignId, order])
+}
+
+enum StepType {
+  MESSAGE
+  WAIT
+  CONDITION
+  ACTION
+}
+
+model CampaignContact {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  currentStep Int      @default(0)
+  status      CampaignContactStatus @default(ACTIVE)
+
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([contactId])
+}
+
+enum CampaignContactStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  UNSUBSCRIBED
+}
+
+// ==================== メッセージ履歴 ====================
+
+model MessageHistory {
+  id          String        @id @default(cuid())
+  tenantId    String
+  contactId   String
+  contact     Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  channel     MessageChannel
+  direction   MessageDirection
+  content     Json
+
+  // ステータス
+  status      MessageStatus @default(PENDING)
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  errorMessage String?
+
+  // メタデータ
+  metadata    Json?
+
+  createdAt   DateTime      @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([tenantId, channel])
+}
+
+enum MessageChannel {
+  EMAIL
+  LINE
+  SMS
+}
+
+enum MessageDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  FAILED
+}
+
+// ==================== ファネル ====================
+
+model Funnel {
+  id        String       @id @default(cuid())
+  tenantId  String
+  tenant    Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name      String
+  domain    String?
+  status    FunnelStatus @default(DRAFT)
+
+  settings  Json         @default("{}")
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  pages     FunnelPage[]
+
+  @@index([tenantId])
+}
+
+enum FunnelStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model FunnelPage {
+  id        String   @id @default(cuid())
+  funnelId  String
+  funnel    Funnel   @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  name      String
+  slug      String
+
+  // ページコンテンツ（JSON形式でブロック構造を保存）
+  content   Json     @default("[]")
+
+  // 設定
+  seoTitle       String?
+  seoDescription String?
+  ogImage        String?
+
+  // A/Bテスト
+  isVariant      Boolean @default(false)
+  variantWeight  Int     @default(50)
+
+  order     Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  actions   FunnelAction[]
+
+  @@unique([funnelId, slug])
+  @@index([funnelId])
+}
+
+model FunnelAction {
+  id        String   @id @default(cuid())
+  pageId    String
+  page      FunnelPage @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  type      ActionType
+  trigger   String   // click, submit, exit等
+  config    Json
+
+  createdAt DateTime @default(now())
+
+  @@index([pageId])
+}
+
+enum ActionType {
+  ADD_TAG
+  REMOVE_TAG
+  START_CAMPAIGN
+  REDIRECT
+  POPUP
+  WEBHOOK
+  GOOGLE_SHEETS
+}
+
+// ==================== 商品・決済 ====================
+
+model Product {
+  id              String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name            String
+  description     String?
+
+  // 価格
+  price           Int
+  currency        String      @default("JPY")
+
+  // Stripe連携
+  stripeProductId String?
+  stripePriceId   String?
+
+  // 商品タイプ
+  type            ProductType @default(ONE_TIME)
+
+  // サブスク設定
+  recurringInterval RecurringInterval?
+
+  // 関連コース
+  courseId        String?
+  course          Course?     @relation(fields: [courseId], references: [id])
+
+  // ステータス
+  isActive        Boolean     @default(true)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  orders          Order[]
+  subscriptions   Subscription[]
+
+  @@index([tenantId])
+}
+
+enum ProductType {
+  ONE_TIME
+  SUBSCRIPTION
+  PAYMENT_PLAN
+}
+
+enum RecurringInterval {
+  MONTH
+  YEAR
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  tenantId        String
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId       String
+  contact         Contact     @relation(fields: [contactId], references: [id])
+  productId       String
+  product         Product     @relation(fields: [productId], references: [id])
+
+  amount          Int
+  currency        String      @default("JPY")
+  status          OrderStatus @default(PENDING)
+
+  // Stripe連携
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+
+  // メタデータ
+  metadata        Json?
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([tenantId])
+  @@index([contactId])
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+model Subscription {
+  id                  String             @id @default(cuid())
+  tenantId            String
+  tenant              Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId           String
+  contact             Contact            @relation(fields: [contactId], references: [id])
+  productId           String
+  product             Product            @relation(fields: [productId], references: [id])
+
+  // Stripe連携
+  stripeSubscriptionId String?
+
+  status              SubscriptionStatus @default(ACTIVE)
+
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  canceledAt          DateTime?
+
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([stripeSubscriptionId])
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  UNPAID
+  PAUSED
+}
+
+// ==================== 会員サイト ====================
+
+model Course {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  thumbnail   String?
+
+  isPublished Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lessons     Lesson[]
+  products    Product[]
+  enrollments CourseEnrollment[]
+
+  @@index([tenantId])
+}
+
+model Lesson {
+  id          String     @id @default(cuid())
+  courseId    String
+  course      Course     @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  // コンテンツ
+  content     Json       @default("{}")
+  videoUrl    String?
+  videoType   VideoType?
+  duration    Int?       // 秒
+
+  // 公開設定
+  isPublished Boolean    @default(false)
+  releaseDelay Int       @default(0) // 入会日からの日数
+
+  order       Int        @default(0)
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  progress    LessonProgress[]
+
+  @@index([courseId])
+  @@index([courseId, order])
+}
+
+enum VideoType {
+  UPLOAD
+  YOUTUBE
+  VIMEO
+}
+
+model CourseEnrollment {
+  id          String   @id @default(cuid())
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  enrolledAt  DateTime @default(now())
+  expiresAt   DateTime?
+
+  @@unique([courseId, contactId])
+  @@index([courseId])
+  @@index([contactId])
+}
+
+model LessonProgress {
+  id          String   @id @default(cuid())
+  lessonId    String
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  isCompleted Boolean  @default(false)
+  completedAt DateTime?
+
+  // 動画視聴進捗
+  watchedSeconds Int   @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([lessonId, contactId])
+  @@index([lessonId])
+  @@index([contactId])
+}
+
+// ==================== 予約・イベント ====================
+
+model Event {
+  id          String      @id @default(cuid())
+  tenantId    String
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+  type        EventType
+
+  // 日時
+  startAt     DateTime
+  endAt       DateTime
+  timezone    String      @default("Asia/Tokyo")
+
+  // 場所
+  location    String?
+  isOnline    Boolean     @default(true)
+  meetingUrl  String?
+
+  // 定員
+  capacity    Int?
+
+  // ステータス
+  status      EventStatus @default(SCHEDULED)
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  registrations EventRegistration[]
+
+  @@index([tenantId])
+  @@index([tenantId, startAt])
+}
+
+enum EventType {
+  SEMINAR
+  CONSULTATION
+  WEBINAR
+}
+
+enum EventStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELED
+}
+
+model EventRegistration {
+  id          String                    @id @default(cuid())
+  eventId     String
+  event       Event                     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  contactId   String
+  contact     Contact                   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  status      EventRegistrationStatus   @default(REGISTERED)
+
+  registeredAt DateTime                 @default(now())
+  attendedAt   DateTime?
+  canceledAt   DateTime?
+
+  @@unique([eventId, contactId])
+  @@index([eventId])
+  @@index([contactId])
+}
+
+enum EventRegistrationStatus {
+  REGISTERED
+  CONFIRMED
+  ATTENDED
+  NO_SHOW
+  CANCELED
+}
+
+// ==================== アフィリエイト ====================
+
+model Partner {
+  id          String        @id @default(cuid())
+  tenantId    String
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  email       String
+  name        String
+
+  // アフィリエイトコード
+  code        String        @unique
+
+  // 報酬設定
+  commissionRate Int        @default(30) // パーセント
+
+  status      PartnerStatus @default(PENDING)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  referrals   Referral[]
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([code])
+}
+
+enum PartnerStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+model Referral {
+  id          String         @id @default(cuid())
+  partnerId   String
+  partner     Partner        @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  type        ReferralType
+  referenceId String         // contactId or orderId
+
+  // 報酬
+  amount      Int
+  status      ReferralStatus @default(PENDING)
+
+  approvedAt  DateTime?
+  paidAt      DateTime?
+
+  createdAt   DateTime       @default(now())
+
+  @@index([partnerId])
+}
+
+enum ReferralType {
+  REGISTRATION
+  PURCHASE
+}
+
+enum ReferralStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+// ==================== LINE設定 ====================
+
+model LineRichMenu {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  name        String
+  lineRichMenuId String?
+
+  // メニュー設定
+  size        Json
+  areas       Json
+  imageUrl    String?
+
+  // セグメント条件（nullの場合はデフォルト）
+  conditions  Json?
+
+  isDefault   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ==================== AI自動化 ====================
+
+model AutomationRule {
+  id          String               @id @default(cuid())
+  tenantId    String
+
+  name        String
+  description String?
+
+  // 有効/無効
+  isActive    Boolean              @default(false)
+
+  // AI設定
+  aiEnabled   Boolean              @default(false)
+  aiConfig    Json?                // AI分析設定
+
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  triggers    AutomationTrigger[]
+  actions     AutomationAction[]
+  executions  AutomationExecution[]
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+}
+
+model AutomationTrigger {
+  id          String          @id @default(cuid())
+  ruleId      String
+  rule        AutomationRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  type        TriggerType
+  conditions  Json            @default("[]")  // 条件配列
+  logicalOp   String          @default("AND") // AND/OR
+
+  createdAt   DateTime        @default(now())
+
+  @@index([ruleId])
+}
+
+enum TriggerType {
+  LINE_FRIEND_ADDED
+  EMAIL_SUBSCRIBED
+  PAGE_VIEWED
+  PRODUCT_VIEWED
+  CART_ABANDONED
+  PURCHASE_COMPLETED
+  MESSAGE_OPENED
+  LINK_CLICKED
+  FORM_SUBMITTED
+  TAG_ADDED
+  TAG_REMOVED
+  SCORE_CHANGED
+  SEGMENT_CHANGED
+  INACTIVE_DAYS
+}
+
+model AutomationAction {
+  id          String          @id @default(cuid())
+  ruleId      String
+  rule        AutomationRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  type        AutomationActionType
+  config      Json            @default("{}")
+
+  // 遅延設定
+  delayDays   Int             @default(0)
+  delayHours  Int             @default(0)
+  delayMinutes Int            @default(0)
+
+  order       Int             @default(0)
+
+  createdAt   DateTime        @default(now())
+
+  @@index([ruleId])
+  @@index([ruleId, order])
+}
+
+enum AutomationActionType {
+  SEND_LINE_MESSAGE
+  SEND_EMAIL
+  ADD_TAG
+  REMOVE_TAG
+  UPDATE_SCORE
+  START_SEQUENCE
+  STOP_SEQUENCE
+  MOVE_TO_SEGMENT
+  NOTIFY_OPERATOR
+  WEBHOOK
+  AI_GENERATE_MESSAGE
+}
+
+model AutomationExecution {
+  id          String          @id @default(cuid())
+  ruleId      String
+  rule        AutomationRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  contactId   String
+
+  status      ExecutionStatus @default(PENDING)
+
+  // AI判断の記録
+  aiDecision  Json?           // AIの判断結果を保存
+  aiConfidence Float?         // AI信頼度
+
+  triggeredAt DateTime        @default(now())
+  completedAt DateTime?
+  errorMessage String?
+
+  @@index([ruleId])
+  @@index([contactId])
+  @@index([status])
+  @@index([triggeredAt])
+}
+
+enum ExecutionStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  SKIPPED
+}
+
+// ==================== コンタクトスコア ====================
+
+model ContactScore {
+  id          String   @id @default(cuid())
+  contactId   String   @unique
+  tenantId    String
+
+  // RFMスコア (1-5)
+  recency     Int      @default(1)
+  frequency   Int      @default(1)
+  monetary    Int      @default(1)
+
+  // セグメント
+  rfmSegment  String?  // champions, loyal_customers, etc.
+
+  // リードスコア (0-100)
+  leadScore   Int      @default(0)
+
+  // エンゲージメントスコア (0-100)
+  engagementScore Int  @default(0)
+
+  // チャーンスコア (0-100, 高いほど離脱リスク)
+  churnScore  Int      @default(0)
+
+  // ティア
+  tier        String   @default("cold") // hot, warm, cold, frozen
+
+  // 最終計算日時
+  calculatedAt DateTime @default(now())
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, rfmSegment])
+  @@index([tenantId, tier])
+  @@index([leadScore])
+}
+
+// ==================== 行動イベント ====================
+
+model BehaviorEvent {
+  id          String   @id @default(cuid())
+  tenantId    String
+  contactId   String
+
+  type        BehaviorEventType
+
+  // イベント詳細
+  data        Json     @default("{}")
+
+  // メタデータ
+  source      String?  // web, line, email
+  sessionId   String?
+  deviceType  String?
+  ipAddress   String?
+
+  occurredAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([tenantId, type])
+  @@index([occurredAt])
+}
+
+enum BehaviorEventType {
+  PAGE_VIEW
+  PRODUCT_VIEW
+  CART_ADD
+  CART_REMOVE
+  CART_ABANDON
+  CHECKOUT_START
+  PURCHASE
+  MESSAGE_OPEN
+  MESSAGE_CLICK
+  LINK_CLICK
+  FORM_SUBMIT
+  VIDEO_PLAY
+  VIDEO_COMPLETE
+  DOWNLOAD
+  SEARCH
+  SIGNUP
+  LOGIN
+  LOGOUT
+}
+
+// ==================== セグメント ====================
+
+model Segment {
+  id          String   @id @default(cuid())
+  tenantId    String
+
+  name        String
+  description String?
+  color       String   @default("#6366f1")
+
+  // ルール（JSON形式で条件を保存）
+  // 例: [{"field": "score", "operator": "gte", "value": 50}]
+  rules       Json     @default("[]")
+  rulesLogic  String   @default("AND") // AND/OR
+
+  // 自動更新
+  autoUpdate  Boolean  @default(true)
+  memberCount Int      @default(0)
+
+  // 優先度（セグメント適用順序）
+  priority    Int      @default(0)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // リレーション
+  contacts    ContactSegment[]
+  campaigns   Campaign[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@index([tenantId, autoUpdate])
+}
+
+model ContactSegment {
+  id          String   @id @default(cuid())
+  contactId   String
+  segmentId   String
+  addedAt     DateTime @default(now())
+
+  // 自動追加か手動追加か
+  isAuto      Boolean  @default(true)
+
+  // リレーション
+  segment     Segment  @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, segmentId])
+  @@index([contactId])
+  @@index([segmentId])
+}
+
+// ==================== 送信時間最適化 ====================
+
+model SendTimePreference {
+  id            String   @id @default(cuid())
+  contactId     String   @unique
+  tenantId      String
+
+  // 最適送信時間
+  optimalHour   Int      // 0-23
+  optimalDay    Int?     // 0-6 (日-土)
+  timezone      String   @default("Asia/Tokyo")
+
+  // 予測信頼度
+  confidence    Float    @default(0)
+  dataPoints    Int      @default(0)
+
+  // 開封パターン（時間帯別の開封率）
+  hourlyPattern Json?    // {0: 0.02, 1: 0.01, ..., 23: 0.05}
+
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, optimalHour])
+}
+
+// ==================== 監査ログ ====================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  tenantId    String
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userId      String?
+
+  action      String
+  entityType  String
+  entityId    String?
+
+  oldValue    Json?
+  newValue    Json?
+
+  ipAddress   String?
+  userAgent   String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, entityType])
+  @@index([createdAt])
+}
