@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import {
   Workflow,
   Play,
@@ -166,9 +167,11 @@ export default function AutomationPage() {
             トリガーベースの自動メッセージ配信とAI分岐
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          新規ワークフロー
+        <Button asChild>
+          <Link href="/automation/new">
+            <Plus className="mr-2 h-4 w-4" />
+            新規ワークフロー
+          </Link>
         </Button>
       </div>
 
