@@ -18,6 +18,7 @@ import {
   Square,
   Send,
   Trash2,
+  User,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,15 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 interface LiveStream {
@@ -79,6 +89,11 @@ export default function LiveStreamStudioPage({
   const [isCameraOn, setIsCameraOn] = useState(true);
   const [isMicOn, setIsMicOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  // 配信者設定
+  const [adminName, setAdminName] = useState("Admin");
+  const [tempAdminName, setTempAdminName] = useState("Admin");
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   useEffect(() => {
     fetchLivestream();
@@ -177,7 +192,7 @@ export default function LiveStreamStudioPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: newMessage,
-          senderName: "Admin",
+          senderName: adminName,
           messageType: "CHAT",
         }),
       });
@@ -319,9 +334,59 @@ export default function LiveStreamStudioPage({
 
                 <Separator orientation="vertical" className="h-8" />
 
-                <Button variant="outline" size="lg">
-                  <Settings className="h-5 w-5" />
-                </Button>
+                <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="lg"
+                      onClick={() => setTempAdminName(adminName)}
+                    >
+                      <Settings className="h-5 w-5" />
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>配信設定</DialogTitle>
+                      <DialogDescription>
+                        ライブ配信の設定を変更できます
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="adminName" className="flex items-center gap-2">
+                          <User className="h-4 w-4" />
+                          チャット表示名
+                        </Label>
+                        <Input
+                          id="adminName"
+                          value={tempAdminName}
+                          onChange={(e) => setTempAdminName(e.target.value)}
+                          placeholder="配信者の表示名"
+                        />
+                        <p className="text-xs text-muted-foreground">
+                          チャットでメッセージを送信する際に表示される名前です
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsSettingsOpen(false)}
+                      >
+                        キャンセル
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setAdminName(tempAdminName);
+                          setIsSettingsOpen(false);
+                          toast.success("設定を保存しました");
+                        }}
+                      >
+                        保存
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardContent>
           </Card>

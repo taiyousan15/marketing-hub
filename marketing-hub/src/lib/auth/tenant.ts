@@ -6,6 +6,77 @@ const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
 
+// 開発用テナントのID
+const DEV_TENANT_ID = "dev-tenant-id";
+const DEV_USER_ID = "dev-user-id";
+
+/**
+ * 開発用のダミーテナントとユーザーを取得または作成
+ */
+async function getOrCreateDevTenant(): Promise<{
+  userId: string;
+  tenantId: string;
+  user: User | null;
+  tenant: Tenant | null;
+}> {
+  try {
+    // upsertでテナントを取得または作成（ユニーク制約に対応）
+    const tenant = await prisma.tenant.upsert({
+      where: { id: DEV_TENANT_ID },
+      update: {}, // 既存の場合は何もしない
+      create: {
+        id: DEV_TENANT_ID,
+        name: "開発用ワークスペース",
+        subdomain: `dev-workspace-${Date.now()}`, // ユニーク性を保証
+        plan: "STARTER",
+      },
+    });
+
+    // upsertでユーザーを取得または作成
+    const user = await prisma.user.upsert({
+      where: { id: DEV_USER_ID },
+      update: {}, // 既存の場合は何もしない
+      create: {
+        id: DEV_USER_ID,
+        email: "dev@example.com",
+        name: "開発ユーザー",
+        tenantId: tenant.id,
+        role: "OWNER",
+        clerkUserId: `dev-clerk-${Date.now()}`, // ユニーク性を保証
+      },
+      include: { tenant: true },
+    });
+
+    return {
+      userId: DEV_USER_ID,
+      tenantId: tenant.id,
+      user,
+      tenant,
+    };
+  } catch (error) {
+    console.error("Failed to get/create dev tenant:", error);
+    // エラー時はnullを返さず、既存データを再取得
+    const existingTenant = await prisma.tenant.findFirst({
+      where: { name: "開発用ワークスペース" },
+    });
+    const existingUser = await prisma.user.findFirst({
+      where: { email: "dev@example.com" },
+      include: { tenant: true },
+    });
+
+    if (existingTenant && existingUser) {
+      return {
+        userId: existingUser.id,
+        tenantId: existingTenant.id,
+        user: existingUser,
+        tenant: existingTenant,
+      };
+    }
+
+    throw error;
+  }
+}
+
 /**
  * 現在のユーザーとテナント情報を取得
  */
@@ -16,13 +87,8 @@ export async function getCurrentUser(): Promise<{
   tenant: Tenant | null;
 } | null> {
   if (!isClerkConfigured) {
-    // 開発用のダミーユーザー
-    return {
-      userId: "dev-user-id",
-      tenantId: "dev-tenant-id",
-      user: null,
-      tenant: null,
-    };
+    // 開発用のダミーユーザーとテナントを取得または作成
+    return getOrCreateDevTenant();
   }
 
   try {
