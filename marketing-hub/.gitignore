@@ -42,3 +42,11 @@ next-env.d.ts
 
 /src/generated/prisma
 .env*.local
+
+# uploads
+/public/uploads
+
+# NanoBanana Pro (browser profile and auth data)
+/scripts/nanobanana-pro/data/browser_profile
+/scripts/nanobanana-pro/data/state.json
+/scripts/nanobanana-pro/data/auth_info.json

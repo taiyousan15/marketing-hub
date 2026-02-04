@@ -136,9 +136,46 @@ export default function ChatPage() {
   };
 
   const handleAIAssist = async (userMessage: string): Promise<string> => {
-    // Simulate AI response generation
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    return "ご質問ありがとうございます。発送は通常、ご注文から3営業日以内に行っております。詳細な配送状況はマイページからご確認いただけます。";
+    try {
+      // 会話履歴を構築
+      const conversationHistory = messages
+        .filter((m) => m.sender === "user" || m.sender === "ai")
+        .map((m) => ({
+          role: m.sender === "user" ? "user" : "assistant",
+          content: m.content,
+        }));
+
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory,
+          config: {
+            mode: "support",
+            temperature: 0.7,
+            maxTokens: 500,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("AI response failed");
+      }
+
+      const data = await response.json();
+
+      if (data.response?.shouldHandoff) {
+        return `[担当者へエスカレーション] ${data.response.content}`;
+      }
+
+      return data.response?.content || "申し訳ございません。応答の生成に失敗しました。";
+    } catch (error) {
+      console.error("AI assist error:", error);
+      return "申し訳ございません。AIサービスに接続できませんでした。しばらくしてからお試しください。";
+    }
   };
 
   const formatTime = (date: Date) => {

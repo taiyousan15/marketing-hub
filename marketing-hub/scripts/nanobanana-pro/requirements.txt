@@ -1,0 +1,3 @@
+# NanoBanana Pro Dependencies
+patchright>=1.49.0
+nanoid>=2.0.0

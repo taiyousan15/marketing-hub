@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -19,7 +19,17 @@ import {
   Send,
   Trash2,
   User,
+  AlertCircle,
 } from "lucide-react";
+import {
+  LiveKitRoom,
+  VideoTrack,
+  useTracks,
+  useRoomContext,
+  useLocalParticipant,
+} from "@livekit/components-react";
+import "@livekit/components-styles";
+import { Track, Room, RoomEvent } from "livekit-client";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -95,6 +105,15 @@ export default function LiveStreamStudioPage({
   const [tempAdminName, setTempAdminName] = useState("Admin");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // LiveKit接続状態
+  const [liveKitToken, setLiveKitToken] = useState<string | null>(null);
+  const [liveKitUrl, setLiveKitUrl] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
+  // 接続試行を追跡するref（無限ループ防止）
+  const connectionAttemptedRef = useRef(false);
+
   useEffect(() => {
     fetchLivestream();
     // チャットポーリング
@@ -139,6 +158,48 @@ export default function LiveStreamStudioPage({
       setIsLoading(false);
     }
   };
+
+  // LiveKitトークン取得と接続
+  const connectToLiveKit = useCallback(async () => {
+    // refで重複接続を防止
+    if (connectionAttemptedRef.current) return;
+    connectionAttemptedRef.current = true;
+
+    setIsConnecting(true);
+    setConnectionError(null);
+
+    try {
+      const res = await fetch(`/api/livestream/${eventId}/token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: adminName }),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || "トークン取得に失敗しました");
+      }
+
+      const data = await res.json();
+      setLiveKitToken(data.token);
+      setLiveKitUrl(data.url);
+      toast.success("LiveKitに接続しました");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "接続に失敗しました";
+      setConnectionError(message);
+      connectionAttemptedRef.current = false; // エラー時は再試行可能に
+      toast.error(message);
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [eventId, adminName]);
+
+  // ライブ配信取得後に自動接続（一度だけ）
+  useEffect(() => {
+    if (livestream && !connectionAttemptedRef.current) {
+      connectToLiveKit();
+    }
+  }, [livestream, connectToLiveKit]);
 
   const fetchChat = async () => {
     try {
@@ -277,15 +338,52 @@ export default function LiveStreamStudioPage({
           {/* プレビュー */}
           <Card className="overflow-hidden">
             <div className="aspect-video bg-black flex items-center justify-center">
-              {isCameraOn ? (
+              {liveKitToken && liveKitUrl ? (
+                <LiveKitRoom
+                  token={liveKitToken}
+                  serverUrl={liveKitUrl}
+                  connect={true}
+                  video={isCameraOn}
+                  audio={isMicOn}
+                  className="w-full h-full"
+                  onDisconnected={() => {
+                    setLiveKitToken(null);
+                    connectionAttemptedRef.current = false; // 再接続可能にリセット
+                    toast.info("LiveKitから切断されました");
+                  }}
+                  onError={(error) => {
+                    console.error("LiveKit error:", error);
+                    toast.error("LiveKit接続エラー");
+                  }}
+                >
+                  <VideoPreview />
+                </LiveKitRoom>
+              ) : isConnecting ? (
+                <div className="text-white text-center">
+                  <Loader2 className="h-16 w-16 mx-auto mb-4 animate-spin opacity-50" />
+                  <p className="text-sm opacity-75">LiveKitに接続中...</p>
+                </div>
+              ) : connectionError ? (
+                <div className="text-white text-center">
+                  <AlertCircle className="h-16 w-16 mx-auto mb-4 text-red-400" />
+                  <p className="text-sm text-red-400">{connectionError}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-4"
+                    onClick={() => {
+                      connectionAttemptedRef.current = false;
+                      connectToLiveKit();
+                    }}
+                  >
+                    再接続
+                  </Button>
+                </div>
+              ) : isCameraOn ? (
                 <div className="text-white text-center">
                   <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                  <p className="text-sm opacity-75">
-                    カメラプレビュー
-                  </p>
-                  <p className="text-xs opacity-50 mt-1">
-                    LiveKit接続後に表示されます
-                  </p>
+                  <p className="text-sm opacity-75">カメラプレビュー</p>
+                  <p className="text-xs opacity-50 mt-1">接続準備中...</p>
                 </div>
               ) : (
                 <div className="text-white text-center">
@@ -486,6 +584,40 @@ export default function LiveStreamStudioPage({
           </Card>
         </div>
       </div>
+    </div>
+  );
+}
+
+// LiveKitビデオプレビューコンポーネント
+function VideoPreview() {
+  const { localParticipant } = useLocalParticipant();
+  const tracks = useTracks([Track.Source.Camera], {
+    onlySubscribed: false,
+  });
+
+  const localVideoTrack = tracks.find(
+    (track) =>
+      track.participant.identity === localParticipant.identity &&
+      track.source === Track.Source.Camera
+  );
+
+  if (!localVideoTrack) {
+    return (
+      <div className="w-full h-full flex items-center justify-center text-white">
+        <div className="text-center">
+          <Video className="h-16 w-16 mx-auto mb-4 opacity-50" />
+          <p className="text-sm opacity-75">カメラを有効にしてください</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full h-full">
+      <VideoTrack
+        trackRef={localVideoTrack}
+        className="w-full h-full object-cover"
+      />
     </div>
   );
 }

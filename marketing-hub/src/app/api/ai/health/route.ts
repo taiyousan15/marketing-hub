@@ -1,40 +1,50 @@
-import { NextResponse } from "next/server";
-import { checkOllamaHealth } from "@/lib/ai/local-llm";
-
 /**
- * ローカルLLM（Ollama）のヘルスチェック
+ * AI ヘルスチェック API
+ * GET /api/ai/health - プロバイダーの状態確認
  */
+
+import { NextResponse } from 'next/server';
+import { getProvider } from '@/lib/ai/provider';
+import { OllamaClient } from '@/lib/ai/providers/ollama';
+
 export async function GET() {
-  try {
-    const health = await checkOllamaHealth();
+  const provider = getProvider();
+  const status: Record<string, unknown> = {
+    provider,
+    timestamp: new Date().toISOString(),
+  };
 
-    if (!health.available) {
-      return NextResponse.json(
-        {
-          status: "unavailable",
-          error: health.error,
-          setup: {
-            install: "curl -fsSL https://ollama.com/install.sh | sh",
-            pull: "ollama pull qwen2.5:7b",
-            start: "ollama serve",
-          },
-        },
-        { status: 503 }
-      );
+  if (provider === 'ollama') {
+    try {
+      const client = new OllamaClient();
+      const isAvailable = await client.isAvailable();
+      const models = isAvailable ? await client.listModels() : [];
+
+      status.ollama = {
+        available: isAvailable,
+        models,
+        baseUrl: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
+        defaultModel: process.env.OLLAMA_MODEL || 'qwen2.5:7b',
+      };
+    } catch (error) {
+      status.ollama = {
+        available: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
     }
-
-    return NextResponse.json({
-      status: "available",
-      models: health.models,
-      recommended: ["qwen2.5:7b", "qwen2.5:14b", "gemma2:9b"],
-    });
-  } catch (error) {
-    return NextResponse.json(
-      {
-        status: "error",
-        error: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
   }
+
+  if (provider === 'claude') {
+    status.claude = {
+      configured: !!process.env.ANTHROPIC_API_KEY,
+    };
+  }
+
+  if (provider === 'openai') {
+    status.openai = {
+      configured: !!process.env.OPENAI_API_KEY,
+    };
+  }
+
+  return NextResponse.json(status);
 }
