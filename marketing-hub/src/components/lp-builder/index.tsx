@@ -281,9 +281,6 @@ export function LPBuilder() {
   const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
   const isAiAssistEnabled = mode === 'ai-assist';
 
-  // Debug: Check mode and isAiAssistEnabled
-  console.log('LPBuilder mode:', mode, 'isAiAssistEnabled:', isAiAssistEnabled);
-
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       {/* トップバー */}

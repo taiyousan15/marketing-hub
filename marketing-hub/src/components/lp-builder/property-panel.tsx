@@ -176,9 +176,6 @@ function PropertyField({
  * プロパティパネルメインコンポーネント
  */
 export function PropertyPanel({ component, onPropertyChange, onClose, aiAssistEnabled = false, onAiGenerateImage }: PropertyPanelProps) {
-  // Debug: Check if aiAssistEnabled is being received correctly
-  console.log('PropertyPanel aiAssistEnabled:', aiAssistEnabled);
-
   const componentDef = component ? getComponentByType(component.componentType) : null;
 
   const handleChange = useCallback(

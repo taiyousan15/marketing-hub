@@ -29,9 +29,6 @@ export function ImageUploader({
   aiAssistEnabled = false,
   onAiGenerate,
 }: ImageUploaderProps) {
-  // Debug: Check if aiAssistEnabled is being passed correctly
-  console.log('ImageUploader aiAssistEnabled:', aiAssistEnabled, 'label:', label);
-
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [urlInput, setUrlInput] = useState('');
