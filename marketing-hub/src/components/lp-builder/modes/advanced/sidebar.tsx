@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * LP Builder サイドバーコンポーネント
+ * LP Builder サイドバーコンポーネント（Advanced Mode）
  * UTAGE互換 - 34要素を9カテゴリで表示
  */
 
@@ -29,8 +29,8 @@ import {
   getCategories,
   getComponentsByCategory,
   getComponentCount,
-} from './components-registry';
-import { ComponentCategory, LPComponent } from './types';
+} from '../../components-registry';
+import { ComponentCategory, LPComponent } from '../../types';
 
 interface SidebarProps {
   onAddComponent: (component: LPComponent) => void;
@@ -67,7 +67,7 @@ const CATEGORY_COLORS: Record<ComponentCategory, string> = {
 };
 
 /**
- * コンポーネントカード（シンプル版）
+ * コンポーネントカード
  */
 function ComponentCard({
   component,

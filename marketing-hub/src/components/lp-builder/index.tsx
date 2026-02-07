@@ -2,14 +2,15 @@
 
 /**
  * LP Builder メインコンポーネント
- * 手動モード + AIアシストモードのビジュアルLPビルダー
+ * 3モード戦略のモードルーター
+ * - AI Wizard: 初心者向け、質問に答えてLP自動生成
+ * - Template: 中級者向け、テンプレート選択→インライン編集
+ * - Advanced: 上級者向け、80+コンポーネントで自由構築
  */
 
 import { useState, useCallback } from 'react';
-import { nanoid } from 'nanoid';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,310 +19,142 @@ import {
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
   Save,
   Download,
   Eye,
   Undo,
   Redo,
   Settings,
-  Sparkles,
   MonitorSmartphone,
   Smartphone,
   Tablet,
   Monitor,
-  HelpCircle,
+  ArrowLeft,
 } from 'lucide-react';
-import { Sidebar } from './sidebar';
-import { Canvas } from './canvas';
-import { PropertyPanel } from './property-panel';
-import { BuilderMode, ComponentInstance, LPComponent, PreviewConfig } from './types';
 import { toast } from 'sonner';
+import { LPBuilderProvider, useLPBuilder } from './context/lp-builder-context';
+import { ModeSelector, CompactModeSelector } from './modes/mode-selector';
+import { AdvancedMode } from './modes/advanced';
+import { TemplateMode } from './modes/template';
+import { AIWizardMode } from './modes/ai-wizard';
+import { BuilderMode, ComponentInstance, BUILDER_MODE_LABELS } from './types';
+
+export interface LPBuilderProps {
+  /** 初期モード（省略時はモードセレクターを表示） */
+  initialMode?: BuilderMode;
+  /** 初期コンポーネント */
+  initialComponents?: ComponentInstance[];
+  /** カスタム保存関数 */
+  onSave?: (components: ComponentInstance[]) => Promise<void>;
+  /** ページタイトル */
+  pageTitle?: string;
+  /** ページサブタイトル（slug等） */
+  pageSubtitle?: string;
+  /** 戻るリンク先 */
+  backUrl?: string;
+  /** ファネルID */
+  funnelId?: string;
+  /** ページID */
+  pageId?: string;
+  /** モードセレクターをスキップするか */
+  skipModeSelector?: boolean;
+}
+
+interface LPBuilderInnerProps {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  backUrl?: string;
+  skipModeSelector?: boolean;
+}
 
 /**
- * LP Builder メインコンポーネント
+ * LP Builder メインコンポーネント（内部）
  */
-export function LPBuilder() {
-  // ビルダー状態
-  const [mode, setMode] = useState<BuilderMode>('manual');
-  const [components, setComponents] = useState<ComponentInstance[]>([]);
-  const [selectedComponentId, setSelectedComponentId] = useState<string | null>(null);
-  const [previewConfig, setPreviewConfig] = useState<PreviewConfig>({
-    device: 'desktop',
-    width: 1920,
-    height: 1080,
-  });
+function LPBuilderInner({
+  pageTitle,
+  pageSubtitle,
+  backUrl,
+  skipModeSelector = false,
+}: LPBuilderInnerProps) {
+  const { state, actions } = useLPBuilder();
+  // 既存コンテンツがある場合はモードセレクターをスキップしてAdvancedモードで開く
+  const hasExistingContent = state.components.length > 0;
+  const [showModeSelector, setShowModeSelector] = useState(!skipModeSelector && !hasExistingContent);
 
-  // 履歴管理（簡易版）
-  const [history, setHistory] = useState<ComponentInstance[][]>([[]]);
-  const [historyIndex, setHistoryIndex] = useState(0);
+  // モード選択
+  const handleSelectMode = useCallback((mode: BuilderMode) => {
+    actions.setMode(mode);
+    setShowModeSelector(false);
+  }, [actions]);
 
-  /**
-   * コンポーネント追加
-   */
-  const handleAddComponent = useCallback(
-    (component: LPComponent) => {
-      const newInstance: ComponentInstance = {
-        id: nanoid(),
-        componentType: component.type,
-        category: component.category,
-        order: components.length,
-        props: component.defaultProps.reduce(
-          (acc, prop) => {
-            acc[prop.key] = prop.value;
-            return acc;
-          },
-          {} as Record<string, string | number | boolean>
-        ),
-      };
-
-      const newComponents = [...components, newInstance];
-      setComponents(newComponents);
-      setSelectedComponentId(newInstance.id);
-
-      // 履歴に追加
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newComponents);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-
-      toast.success(`${component.name}を追加しました`);
-    },
-    [components, history, historyIndex]
-  );
-
-  /**
-   * コンポーネント変更
-   */
-  const handleComponentsChange = useCallback(
-    (newComponents: ComponentInstance[]) => {
-      setComponents(newComponents);
-
-      // 履歴に追加
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newComponents);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-    },
-    [history, historyIndex]
-  );
-
-  /**
-   * プロパティ変更
-   */
-  const handlePropertyChange = useCallback(
-    (componentId: string, key: string, value: string | number | boolean) => {
-      const newComponents = components.map((comp) =>
-        comp.id === componentId
-          ? {
-              ...comp,
-              props: {
-                ...comp.props,
-                [key]: value,
-              },
-            }
-          : comp
-      );
-      setComponents(newComponents);
-
-      // 履歴に追加（頻繁すぎるので省略可能）
-      const newHistory = history.slice(0, historyIndex + 1);
-      newHistory.push(newComponents);
-      setHistory(newHistory);
-      setHistoryIndex(newHistory.length - 1);
-    },
-    [components, history, historyIndex]
-  );
-
-  /**
-   * 元に戻す
-   */
-  const handleUndo = useCallback(() => {
-    if (historyIndex > 0) {
-      const newIndex = historyIndex - 1;
-      setHistoryIndex(newIndex);
-      setComponents(history[newIndex]);
-      toast.info('元に戻しました');
+  // モードセレクターに戻る
+  const handleBackToModeSelector = useCallback(() => {
+    if (skipModeSelector && backUrl) {
+      // 外部リンクに戻る
+      window.location.href = backUrl;
+    } else {
+      setShowModeSelector(true);
     }
-  }, [history, historyIndex]);
+  }, [skipModeSelector, backUrl]);
 
-  /**
-   * やり直す
-   */
-  const handleRedo = useCallback(() => {
-    if (historyIndex < history.length - 1) {
-      const newIndex = historyIndex + 1;
-      setHistoryIndex(newIndex);
-      setComponents(history[newIndex]);
-      toast.info('やり直しました');
-    }
-  }, [history, historyIndex]);
-
-  /**
-   * 保存
-   */
-  const handleSave = useCallback(() => {
-    // 実際の実装ではAPIに保存
-    const lpData = {
-      id: nanoid(),
-      name: 'マイLP',
-      mode,
-      components,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-
-    console.log('保存データ:', lpData);
-    localStorage.setItem('lp-builder-draft', JSON.stringify(lpData));
-    toast.success('保存しました');
-  }, [mode, components]);
-
-  /**
-   * エクスポート
-   */
-  const handleExport = useCallback(
-    (format: 'html' | 'react' | 'json') => {
-      const data = {
-        mode,
-        components,
-        exportedAt: new Date().toISOString(),
-      };
-
-      let content = '';
-      let filename = '';
-      let mimeType = '';
-
-      switch (format) {
-        case 'json':
-          content = JSON.stringify(data, null, 2);
-          filename = 'landing-page.json';
-          mimeType = 'application/json';
-          break;
-        case 'html':
-          content = generateHTML(components);
-          filename = 'landing-page.html';
-          mimeType = 'text/html';
-          break;
-        case 'react':
-          content = generateReact(components);
-          filename = 'LandingPage.tsx';
-          mimeType = 'text/plain';
-          break;
-      }
-
-      // ダウンロード
-      const blob = new Blob([content], { type: mimeType });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      toast.success(`${format.toUpperCase()}形式でエクスポートしました`);
-    },
-    [mode, components]
-  );
-
-  /**
-   * プレビュー
-   */
+  // プレビューを開く
   const handlePreview = useCallback(() => {
-    // 新しいウィンドウでプレビューを開く
     const previewWindow = window.open('', '_blank');
     if (previewWindow) {
-      previewWindow.document.write(generateHTML(components));
+      const html = generatePreviewHTML(state.components);
+      previewWindow.document.write(html);
       previewWindow.document.close();
     }
     toast.info('プレビューを開きました');
-  }, [components]);
+  }, [state.components]);
 
-  /**
-   * デバイス変更
-   */
-  const handleDeviceChange = useCallback((device: 'desktop' | 'tablet' | 'mobile') => {
-    const configs = {
-      desktop: { device, width: 1920, height: 1080 },
-      tablet: { device, width: 768, height: 1024 },
-      mobile: { device, width: 375, height: 667 },
-    };
-    setPreviewConfig(configs[device] as PreviewConfig);
-  }, []);
-
-  /**
-   * AI画像生成（NanoBanana Pro連携）
-   */
-  const handleAiGenerateImage = useCallback(async (prompt: string): Promise<string | null> => {
-    try {
-      const res = await fetch('/api/ai/generate-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || '画像生成に失敗しました');
-      }
-
-      return data.url;
-    } catch (err) {
-      console.error('AI image generation error:', err);
-      toast.error(err instanceof Error ? err.message : '画像生成に失敗しました');
-      return null;
-    }
-  }, []);
-
-  const selectedComponent = components.find((c) => c.id === selectedComponentId) || null;
-  const isAiAssistEnabled = mode === 'ai-assist';
+  // モードセレクター表示中
+  if (showModeSelector) {
+    return <ModeSelector onSelectMode={handleSelectMode} />;
+  }
 
   return (
     <div className="flex h-screen flex-col bg-gray-50">
       {/* トップバー */}
-      <div className="flex items-center justify-between border-b border-gray-200 bg-white px-6 py-4">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-bold text-gray-900">LP Builder</h1>
+      <div className="flex flex-shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          {/* 戻るボタン */}
+          {backUrl ? (
+            <Button variant="ghost" size="sm" asChild className="flex-shrink-0 gap-2">
+              <Link href={backUrl}>
+                <ArrowLeft className="h-4 w-4" />
+                戻る
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleBackToModeSelector}
+              className="flex-shrink-0 gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              戻る
+            </Button>
+          )}
 
-          {/* モード切替 */}
-          <TooltipProvider>
-            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-              <Sparkles className={`h-4 w-4 ${mode === 'ai-assist' ? 'text-purple-600' : 'text-gray-400'}`} />
-              <Label htmlFor="mode-toggle" className="cursor-pointer text-sm font-medium">
-                AIアシスト
-              </Label>
-              <Switch
-                id="mode-toggle"
-                checked={mode === 'ai-assist'}
-                onCheckedChange={(checked) => {
-                  setMode(checked ? 'ai-assist' : 'manual');
-                  toast.info(
-                    checked
-                      ? 'AIアシストモード有効: 画像アップロード時にAI生成タブが使えます'
-                      : '手動モードに切り替えました'
-                  );
-                }}
-              />
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="h-4 w-4 text-gray-400 cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="font-medium mb-1">AIアシスト機能</p>
-                  <ul className="text-xs space-y-1">
-                    <li>• 画像プロパティでAI生成タブが有効に</li>
-                    <li>• NanoBanana Proで画像を自動生成</li>
-                    <li>• プロンプトを入力するだけでOK</li>
-                  </ul>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
+          <div className="hidden h-6 w-px bg-gray-200 sm:block" />
+
+          {/* ページタイトル */}
+          <div className="hidden min-w-0 sm:block">
+            <h1 className="truncate text-lg font-bold text-gray-900">
+              {pageTitle || 'LP Builder'}
+            </h1>
+            {pageSubtitle && (
+              <p className="truncate text-xs text-muted-foreground">{pageSubtitle}</p>
+            )}
+          </div>
+
+          {/* モードセレクター（コンパクト版） */}
+          <CompactModeSelector
+            currentMode={state.mode}
+            onChangeMode={(mode) => actions.setMode(mode)}
+          />
         </div>
 
         {/* アクションボタン */}
@@ -331,21 +164,21 @@ export function LPBuilder() {
             <DropdownMenuTrigger asChild>
               <Button variant="outline" size="sm">
                 <MonitorSmartphone className="mr-2 h-4 w-4" />
-                {previewConfig.device === 'desktop' && 'デスクトップ'}
-                {previewConfig.device === 'tablet' && 'タブレット'}
-                {previewConfig.device === 'mobile' && 'モバイル'}
+                {state.previewConfig.device === 'desktop' && 'デスクトップ'}
+                {state.previewConfig.device === 'tablet' && 'タブレット'}
+                {state.previewConfig.device === 'mobile' && 'モバイル'}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleDeviceChange('desktop')}>
+              <DropdownMenuItem onClick={() => actions.setPreviewDevice('desktop')}>
                 <Monitor className="mr-2 h-4 w-4" />
                 デスクトップ
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDeviceChange('tablet')}>
+              <DropdownMenuItem onClick={() => actions.setPreviewDevice('tablet')}>
                 <Tablet className="mr-2 h-4 w-4" />
                 タブレット
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleDeviceChange('mobile')}>
+              <DropdownMenuItem onClick={() => actions.setPreviewDevice('mobile')}>
                 <Smartphone className="mr-2 h-4 w-4" />
                 モバイル
               </DropdownMenuItem>
@@ -357,16 +190,16 @@ export function LPBuilder() {
             <Button
               variant="outline"
               size="sm"
-              onClick={handleUndo}
-              disabled={historyIndex === 0}
+              onClick={actions.undo}
+              disabled={state.historyIndex === 0}
             >
               <Undo className="h-4 w-4" />
             </Button>
             <Button
               variant="outline"
               size="sm"
-              onClick={handleRedo}
-              disabled={historyIndex === history.length - 1}
+              onClick={actions.redo}
+              disabled={state.historyIndex === state.history.length - 1}
             >
               <Redo className="h-4 w-4" />
             </Button>
@@ -387,22 +220,22 @@ export function LPBuilder() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onClick={() => handleExport('html')}>
+              <DropdownMenuItem onClick={() => actions.exportAs('html')}>
                 HTML形式
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('react')}>
+              <DropdownMenuItem onClick={() => actions.exportAs('react')}>
                 React形式
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExport('json')}>
+              <DropdownMenuItem onClick={() => actions.exportAs('json')}>
                 JSON形式
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {/* 保存 */}
-          <Button onClick={handleSave}>
+          <Button onClick={actions.save} disabled={state.isSaving}>
             <Save className="mr-2 h-4 w-4" />
-            保存
+            {state.isSaving ? '保存中...' : '保存'}
           </Button>
 
           {/* 設定 */}
@@ -412,101 +245,93 @@ export function LPBuilder() {
         </div>
       </div>
 
-      {/* メインコンテンツ */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* サイドバー */}
-        <div className="w-80 flex-shrink-0">
-          <Sidebar onAddComponent={handleAddComponent} />
-        </div>
-
-        {/* キャンバス */}
-        <div className="flex-1">
-          <Canvas
-            components={components}
-            selectedId={selectedComponentId}
-            onComponentsChange={handleComponentsChange}
-            onSelectComponent={setSelectedComponentId}
-          />
-        </div>
-
-        {/* プロパティパネル */}
-        <div className="w-96 flex-shrink-0">
-          <PropertyPanel
-            component={selectedComponent}
-            onPropertyChange={handlePropertyChange}
-            onClose={() => setSelectedComponentId(null)}
-            aiAssistEnabled={isAiAssistEnabled}
-            onAiGenerateImage={handleAiGenerateImage}
-          />
-        </div>
-      </div>
+      {/* メインコンテンツ（モードに応じて切り替え） */}
+      {state.mode === 'advanced' && <AdvancedMode />}
+      {state.mode === 'template' && <TemplateMode />}
+      {state.mode === 'ai-wizard' && <AIWizardMode />}
     </div>
   );
 }
 
 /**
- * HTML生成（簡易版）
+ * LP Builder メインコンポーネント
  */
-function generateHTML(components: ComponentInstance[]): string {
+export function LPBuilder({
+  initialMode,
+  initialComponents,
+  onSave,
+  pageTitle,
+  pageSubtitle,
+  backUrl,
+  funnelId,
+  pageId,
+  skipModeSelector = false,
+}: LPBuilderProps = {}) {
+  return (
+    <LPBuilderProvider
+      initialMode={initialMode}
+      initialComponents={initialComponents}
+      onSave={onSave}
+      pageTitle={pageTitle}
+      funnelId={funnelId}
+      pageId={pageId}
+    >
+      <LPBuilderInner
+        pageTitle={pageTitle}
+        pageSubtitle={pageSubtitle}
+        backUrl={backUrl}
+        skipModeSelector={skipModeSelector}
+      />
+    </LPBuilderProvider>
+  );
+}
+
+/**
+ * プレビュー用HTML生成
+ */
+function generatePreviewHTML(components: any[]): string {
   return `<!DOCTYPE html>
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ランディングページ</title>
+  <title>LP プレビュー</title>
+  <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: sans-serif; line-height: 1.6; }
-    .component { padding: 60px 20px; }
+    .component { padding: 0; }
+    .component-with-padding { padding: 60px 20px; }
     .container { max-width: 1200px; margin: 0 auto; }
-    h1 { font-size: 3rem; margin-bottom: 1rem; }
-    p { font-size: 1.25rem; margin-bottom: 1rem; }
-    button { padding: 16px 32px; font-size: 1.125rem; cursor: pointer; }
+    .full-width-image { width: 100%; display: block; }
   </style>
 </head>
-<body>
+<body class="bg-white">
 ${components
   .map(
-    (comp) => `
+    (comp) => {
+      // 画像コンポーネント
+      if (comp.componentType === 'image' && comp.props.imageUrl) {
+        return `
   <section class="component">
+    <img src="${comp.props.imageUrl}" alt="${comp.props.alt || ''}" class="full-width-image" style="width: ${comp.props.width || '100%'}; margin: 0 auto; display: block;" />
+  </section>`;
+      }
+      // テキストベースのコンポーネント
+      return `
+  <section class="component component-with-padding bg-white border-b">
     <div class="container">
-      <h1>${comp.props.headline || comp.props.logoText || ''}</h1>
-      <p>${comp.props.description || comp.props.subheadline || ''}</p>
-      ${comp.props.ctaText || comp.props.buttonText ? `<button>${comp.props.ctaText || comp.props.buttonText}</button>` : ''}
+      ${comp.props.headline ? `<h1 class="text-4xl font-bold mb-4">${comp.props.headline}</h1>` : ''}
+      ${comp.props.logoText ? `<h1 class="text-2xl font-bold mb-4">${comp.props.logoText}</h1>` : ''}
+      ${comp.props.subheadline ? `<p class="text-xl text-gray-600 mb-4">${comp.props.subheadline}</p>` : ''}
+      ${comp.props.description ? `<p class="text-lg text-gray-600 mb-6">${comp.props.description}</p>` : ''}
+      ${comp.props.ctaText ? `<button class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700">${comp.props.ctaText}</button>` : ''}
+      ${comp.props.buttonText ? `<button class="bg-blue-600 text-white px-8 py-4 rounded-lg font-semibold text-lg hover:bg-blue-700">${comp.props.buttonText}</button>` : ''}
     </div>
-  </section>
-`
+  </section>`;
+    }
   )
   .join('\n')}
 </body>
 </html>`;
 }
 
-/**
- * React生成（簡易版）
- */
-function generateReact(components: ComponentInstance[]): string {
-  return `import React from 'react';
-
-export function LandingPage() {
-  return (
-    <div>
-${components
-  .map(
-    (comp) => `
-      <section className="component">
-        <div className="container">
-          <h1>${comp.props.headline || comp.props.logoText || ''}</h1>
-          <p>${comp.props.description || comp.props.subheadline || ''}</p>
-          ${comp.props.ctaText || comp.props.buttonText ? `<button>${comp.props.ctaText || comp.props.buttonText}</button>` : ''}
-        </div>
-      </section>
-`
-  )
-  .join('\n')}
-    </div>
-  );
-}
-
-export default LandingPage;`;
-}
+export default LPBuilder;
