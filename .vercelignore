@@ -1,0 +1,9 @@
+marketing-hub/
+docs/
+research/
+scripts/
+logs/
+.agent-trace/
+.kiro/
+*.md
+!README.md
