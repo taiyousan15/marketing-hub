@@ -1,15 +1,16 @@
+"use client";
+
 import Link from "next/link";
+import { SignIn } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
-// Clerkが設定されているかチェック
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
 
 export default function LoginPage() {
   if (isClerkConfigured) {
-    const { SignIn } = require("@clerk/nextjs");
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <SignIn
