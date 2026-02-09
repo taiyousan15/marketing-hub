@@ -1,22 +1,19 @@
 "use client";
 
 import { Bell, Search, User } from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-// Clerkが設定されているかチェック
 const isClerkConfigured =
-  typeof window !== "undefined" &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
 
 function UserAvatar() {
   if (isClerkConfigured) {
-    // 動的にインポートしてClerkが設定されている場合のみ使用
-    const { UserButton } = require("@clerk/nextjs");
     return (
       <UserButton
         afterSignOutUrl="/"
@@ -29,7 +26,6 @@ function UserAvatar() {
     );
   }
 
-  // Clerkが設定されていない場合はダミーアバター
   return (
     <Avatar className="h-8 w-8">
       <AvatarFallback>
