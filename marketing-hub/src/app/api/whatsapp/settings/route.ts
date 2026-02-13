@@ -29,23 +29,20 @@ export async function GET(req: NextRequest) {
     if (!settings) {
       // デフォルト設定を返す
       return NextResponse.json({
-        provider: "twilio",
-        accountSid: null,
-        authToken: null,
-        whatsappNumber: null,
-        enabled: false,
-        sendingHoursStart: 9,
-        sendingHoursEnd: 21,
-        maxPerMinute: 60,
-        maxPerDay: 1000,
+        isActive: false,
+        phoneNumberId: null,
+        accessToken: null,
+        businessAccountId: null,
+        webhookUrl: null,
+        webhookToken: null,
       });
     }
 
     // 機密情報をマスク
     return NextResponse.json({
       ...settings,
-      authToken: settings.authToken ? "********" : null,
-      metaAccessToken: settings.metaAccessToken ? "********" : null,
+      accessToken: settings.accessToken ? "********" : null,
+      webhookToken: settings.webhookToken ? "********" : null,
     });
   } catch (error) {
     console.error("Failed to get WhatsApp settings:", error);
@@ -80,46 +77,25 @@ export async function PUT(req: NextRequest) {
     });
 
     // 更新データを準備
-    const updateData: Record<string, unknown> = {
-      provider: body.provider || "twilio",
-      enabled: body.enabled ?? false,
-      sendingHoursStart: body.sendingHoursStart ?? 9,
-      sendingHoursEnd: body.sendingHoursEnd ?? 21,
-      maxPerMinute: body.maxPerMinute ?? 60,
-      maxPerDay: body.maxPerDay ?? 1000,
-    };
+    const updateData: Record<string, unknown> = {};
 
-    // Twilio設定
-    if (body.accountSid !== undefined) {
-      updateData.accountSid = body.accountSid || null;
+    if (body.isActive !== undefined) {
+      updateData.isActive = body.isActive;
     }
-    if (body.authToken && body.authToken !== "********") {
-      updateData.authToken = body.authToken;
+    if (body.phoneNumberId !== undefined) {
+      updateData.phoneNumberId = body.phoneNumberId || null;
     }
-    if (body.whatsappNumber !== undefined) {
-      // whatsapp: プレフィックスを自動追加
-      const num = body.whatsappNumber;
-      updateData.whatsappNumber = num
-        ? num.startsWith("whatsapp:")
-          ? num
-          : `whatsapp:${num}`
-        : null;
+    if (body.businessAccountId !== undefined) {
+      updateData.businessAccountId = body.businessAccountId || null;
     }
-
-    // Meta Cloud API設定（将来用）
-    if (body.metaAccessToken && body.metaAccessToken !== "********") {
-      updateData.metaAccessToken = body.metaAccessToken;
+    if (body.accessToken && body.accessToken !== "********") {
+      updateData.accessToken = body.accessToken;
     }
-    if (body.metaPhoneNumberId !== undefined) {
-      updateData.metaPhoneNumberId = body.metaPhoneNumberId || null;
+    if (body.webhookUrl !== undefined) {
+      updateData.webhookUrl = body.webhookUrl || null;
     }
-    if (body.metaBusinessId !== undefined) {
-      updateData.metaBusinessId = body.metaBusinessId || null;
-    }
-
-    // テンプレート設定
-    if (body.welcomeTemplateId !== undefined) {
-      updateData.welcomeTemplateId = body.welcomeTemplateId || null;
+    if (body.webhookToken && body.webhookToken !== "********") {
+      updateData.webhookToken = body.webhookToken;
     }
 
     // Upsert
@@ -127,6 +103,8 @@ export async function PUT(req: NextRequest) {
       where: { tenantId },
       create: {
         tenantId,
+        phoneNumberId: body.phoneNumberId || "",
+        accessToken: body.accessToken || "",
         ...updateData,
       },
       update: updateData,
@@ -136,8 +114,8 @@ export async function PUT(req: NextRequest) {
       success: true,
       settings: {
         ...settings,
-        authToken: settings.authToken ? "********" : null,
-        metaAccessToken: settings.metaAccessToken ? "********" : null,
+        accessToken: settings.accessToken ? "********" : null,
+        webhookToken: settings.webhookToken ? "********" : null,
       },
     });
   } catch (error) {

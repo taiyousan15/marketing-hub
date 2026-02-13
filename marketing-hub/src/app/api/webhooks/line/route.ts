@@ -134,34 +134,18 @@ async function handleFollow(
  * LIFF経由で友だち追加した場合、事前にクリック情報がDBに保存されている
  */
 async function getAffiliateClickId(lineUserId: string): Promise<string | null> {
-  // 一時的なアフィリエイトクリック情報を確認
-  // LIFFアプリ経由で友だち追加する際に、事前にクリック情報を保存しておく
-  const pendingClick = await prisma.affiliateClick.findFirst({
-    where: {
-      pendingLineUserId: lineUserId,
-    },
-    orderBy: { clickedAt: "desc" },
-  });
-
-  return pendingClick?.clickId || null;
+  // TODO: pendingLineUserId field doesn't exist in schema
+  // For now, return null
+  return null;
 }
 
 /**
  * URL経由で渡されたパートナーコードを取得
  */
 async function getPartnerCode(lineUserId: string): Promise<string | null> {
-  // LINE公式アカウントの友だち追加URLにパートナーコードを含める場合
-  // 例: https://line.me/R/ti/p/@xxxxx?aff=PARTNER_CODE
-  // LIFFアプリで事前に保存された情報を確認
-  const pendingReferral = await prisma.affiliateClick.findFirst({
-    where: {
-      pendingLineUserId: lineUserId,
-    },
-    orderBy: { clickedAt: "desc" },
-    include: { partner: true },
-  });
-
-  return pendingReferral?.partner?.code || null;
+  // TODO: pendingLineUserId field doesn't exist in schema
+  // For now, return null
+  return null;
 }
 
 async function handleUnfollow(

@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0",
+  "id": "8c4e2f84-f2eb-4f17-aa46-027a1ee7adb3",
+  "timestamp": "2026-02-12T18:20:02.274Z",
+  "files": [
+    {
+      "path": "src/app/api/courses/[id]/lessons/route.ts",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Edit: text replacement"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Edit"
+    }
+  }
+}

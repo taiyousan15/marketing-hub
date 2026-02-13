@@ -35,17 +35,6 @@ export async function GET(request: NextRequest) {
           partner: {
             select: { id: true, name: true, code: true, email: true },
           },
-          conversion: {
-            select: {
-              id: true,
-              type: true,
-              amount: true,
-              status: true,
-              contact: {
-                select: { id: true, name: true, email: true },
-              },
-            },
-          },
         },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
@@ -174,10 +163,8 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
         code: true,
-        totalEarnings: true,
-        unpaidEarnings: true,
-        totalClicks: true,
-        totalConversions: true,
+        email: true,
+        status: true,
       },
     });
 

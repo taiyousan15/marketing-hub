@@ -1,0 +1,38 @@
+{
+  "version": "0.1.0",
+  "id": "b15af431-5809-4701-af76-a1fec9db229f",
+  "timestamp": "2026-02-12T13:39:16.710Z",
+  "files": [
+    {
+      "path": "prisma/schema.prisma",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Edit: text replacement"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Edit"
+    }
+  },
+  "vcs": {
+    "type": "git",
+    "commit": "a2c78e91fb14440890fa761de064f8e50d65a0aa",
+    "branch": "main"
+  }
+}

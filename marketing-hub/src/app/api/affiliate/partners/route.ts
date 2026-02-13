@@ -31,13 +31,10 @@ export async function GET(request: NextRequest) {
       prisma.partner.findMany({
         where,
         include: {
-          parentPartner: {
-            select: { id: true, name: true, code: true },
-          },
           _count: {
             select: {
               affiliateConversions: true,
-              referredContacts: true,
+              affiliateLinks: true,
             },
           },
         },
@@ -127,21 +124,10 @@ export async function POST(request: NextRequest) {
         tenantId,
         email,
         name,
-        companyName,
-        phone,
         code,
-        parentPartnerId,
-        defaultOptinCommission,
-        defaultFrontendCommission,
-        defaultBackendCommission,
-        tier2CommissionRate,
         status: autoApprove ? "ACTIVE" : "PENDING",
-        approvedAt: autoApprove ? new Date() : null,
-      },
-      include: {
-        parentPartner: {
-          select: { id: true, name: true, code: true },
-        },
+        commissionRate: 30,
+        minimumPayoutAmount: 5000,
       },
     });
 

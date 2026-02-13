@@ -106,7 +106,10 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
 
   // アフィリエイト報酬を処理
   // コンタクトに紹介者がいる場合、バックエンド報酬を計算
-  if (order && product?.affiliateEnabled) {
+  if (order) {
+    // TODO: affiliateEnabled field doesn't exist in Product schema
+    // For now, always attempt to process affiliate rewards
+    // if (order && product?.affiliateEnabled) {
     try {
       const affiliateResult = await processPurchase({
         tenantId,

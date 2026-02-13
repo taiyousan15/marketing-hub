@@ -46,7 +46,7 @@ import { Badge } from "@/components/ui/badge";
 const sampleCampaigns = [
   {
     id: "1",
-    name: "新規登録者向けステップメール",
+    name: "新規登録者向けウェルカムシーケンス",
     type: "step",
     channel: "email",
     status: "active",

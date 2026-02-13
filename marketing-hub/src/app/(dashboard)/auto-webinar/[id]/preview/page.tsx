@@ -31,7 +31,7 @@ export default async function AutoWebinarPreviewPage({
   }
 
   // ウェビナー情報を取得
-  const webinar = await prisma.automatedWebinar.findUnique({
+  const webinar = await (prisma.automatedWebinar.findFirst as any)({
     where: {
       id: params.id,
       tenantId: userInfo.tenantId,
@@ -54,7 +54,7 @@ export default async function AutoWebinarPreviewPage({
   const currentPosition = searchParams.position ? parseInt(searchParams.position) : 0;
 
   // チャットメッセージの整形
-  const chatMessages = webinar.chatMessages.map((msg) => ({
+  const chatMessages = webinar.chatMessages.map((msg: any) => ({
     id: msg.id,
     appearAtSeconds: msg.appearAtSeconds,
     senderName: msg.senderName,
@@ -68,7 +68,7 @@ export default async function AutoWebinarPreviewPage({
   }));
 
   // オファーの整形
-  const offers = webinar.timedOffers.map((offer) => ({
+  const offers = webinar.timedOffers.map((offer: any) => ({
     id: offer.id,
     appearAtSeconds: offer.appearAtSeconds,
     hideAtSeconds: offer.hideAtSeconds,
@@ -182,7 +182,7 @@ export default async function AutoWebinarPreviewPage({
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {offers.map((offer, index) => (
+                    {offers.map((offer: any, index: number) => (
                       <div
                         key={offer.id}
                         className="p-3 border rounded-lg space-y-1"

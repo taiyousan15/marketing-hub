@@ -1,10 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
+import Anthropic from '@anthropic-ai/sdk';
+import {
+  type TaiyoStyleConfig,
+  generateHeadlinePrompt,
+  generateBodyPrompt,
+  generateBulletPrompt,
+  generateCTAPrompt,
+  LP_GENERATION_SYSTEM_PROMPT,
+} from '@/lib/ai/taiyo-style';
+import {
+  generateTaiyoHeadline,
+  generateTaiyoBody,
+  generateTaiyoBullets,
+  generateTaiyoCTA,
+  checkOllamaHealth,
+  type TaiyoHeadlineResult,
+  type TaiyoBodyResult,
+  type TaiyoBulletResult,
+  type TaiyoCTAResult,
+} from '@/lib/ai/local-llm';
 
 /**
  * LP生成API
  * AIウィザードの回答を元にLPコンポーネントを生成
+ *
+ * AIプロバイダー:
+ * - "ollama" (デフォルト): ローカルLLM、コストゼロ
+ * - "claude": Claude API、高品質だが有料
+ * - "auto": Ollama優先、失敗時Claude
  */
+
+const anthropic = new Anthropic();
+
+type AIProvider = 'ollama' | 'claude' | 'auto';
 
 interface WizardAnswers {
   productName: string;
@@ -18,6 +47,8 @@ interface WizardAnswers {
   testimonials?: string;
   pricing?: string;
   style?: string;
+  useAI?: boolean; // AI生成を使用するかどうか
+  aiProvider?: AIProvider; // AIプロバイダー選択
 }
 
 interface ComponentInstance {
@@ -26,6 +57,31 @@ interface ComponentInstance {
   category: string;
   order: number;
   props: Record<string, string | number | boolean>;
+}
+
+interface HeadlineResult {
+  headlines: Array<{ text: string; type: string }>;
+  recommended: number;
+}
+
+interface BodyResult {
+  empathy: string;
+  problem: string;
+  solution: string;
+  benefits: string;
+  proof: string;
+  cta: string;
+}
+
+interface BulletResult {
+  bullets: Array<{ text: string; emotion: string }>;
+}
+
+interface CTAResult {
+  buttonText: string;
+  subText: string;
+  urgencyText: string;
+  reassurance: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -39,13 +95,62 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 回答を元にLPコンポーネントを生成
+    // AI生成を使用する場合
+    if (answers.useAI !== false) {
+      const provider = answers.aiProvider || 'ollama'; // デフォルトはOllama（コストゼロ）
+
+      try {
+        if (provider === 'ollama' || provider === 'auto') {
+          // Ollamaで生成を試行
+          const ollamaHealth = await checkOllamaHealth();
+          if (ollamaHealth.available) {
+            const components = await generateLPWithOllama(answers);
+            return NextResponse.json({
+              success: true,
+              components,
+              message: 'Ollama（ローカルAI）でLPを生成しました',
+              aiGenerated: true,
+              aiProvider: 'ollama',
+              cost: 0,
+            });
+          } else if (provider === 'ollama') {
+            // Ollamaが利用不可で、明示的にollamaを指定している場合
+            return NextResponse.json(
+              { error: 'Ollamaサーバーに接続できません。ollama serveを実行してください。' },
+              { status: 503 }
+            );
+          }
+          // autoの場合はClaudeにフォールバック
+        }
+
+        if (provider === 'claude' || provider === 'auto') {
+          // Claude APIで生成
+          const components = await generateLPWithClaude(answers);
+          return NextResponse.json({
+            success: true,
+            components,
+            message: 'Claude APIでLPを生成しました',
+            aiGenerated: true,
+            aiProvider: 'claude',
+            cost: 'paid',
+          });
+        }
+      } catch (aiError) {
+        console.error('AI generation failed, falling back to templates:', aiError);
+        // AI生成に失敗した場合はテンプレートにフォールバック
+      }
+    }
+
+    // テンプレートベースの生成（フォールバック）
     const components = generateLPComponents(answers);
 
     return NextResponse.json({
       success: true,
       components,
-      message: 'LPを生成しました',
+      message: 'テンプレートからLPを生成しました',
+      aiGenerated: false,
+      aiProvider: 'template',
+      cost: 0,
     });
   } catch (error) {
     console.error('LP generation error:', error);
@@ -57,7 +162,277 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * 回答を元にLPコンポーネントを生成
+ * Ollamaでコピーを生成し、LPコンポーネントを構築（コストゼロ）
+ */
+async function generateLPWithOllama(answers: WizardAnswers): Promise<ComponentInstance[]> {
+  // TaiyoStyleConfigに変換
+  const config: TaiyoStyleConfig = {
+    type: 'headline',
+    targetAudience: answers.targetAudience,
+    productName: answers.productName,
+    painPoints: answers.problems || [],
+    benefits: answers.benefits || [],
+    tone: 'professional',
+  };
+
+  // 並列でAIコピーを生成（Ollama）
+  const [headlineResult, bodyResult, bulletResult, ctaResult] = await Promise.all([
+    generateTaiyoHeadline(config),
+    generateTaiyoBody(config),
+    generateTaiyoBullets(config),
+    generateTaiyoCTA(config),
+  ]);
+
+  return buildLPComponents(answers, headlineResult, bodyResult, bulletResult, ctaResult);
+}
+
+/**
+ * Claude APIでコピーを生成し、LPコンポーネントを構築（有料）
+ */
+async function generateLPWithClaude(answers: WizardAnswers): Promise<ComponentInstance[]> {
+  // TaiyoStyleConfigに変換
+  const config: TaiyoStyleConfig = {
+    type: 'headline',
+    targetAudience: answers.targetAudience,
+    productName: answers.productName,
+    painPoints: answers.problems || [],
+    benefits: answers.benefits || [],
+    tone: 'professional',
+  };
+
+  // 並列でAIコピーを生成
+  const [headlineResult, bodyResult, bulletResult, ctaResult] = await Promise.all([
+    generateWithClaude(generateHeadlinePrompt(config)) as Promise<HeadlineResult>,
+    generateWithClaude(generateBodyPrompt(config)) as Promise<BodyResult>,
+    generateWithClaude(generateBulletPrompt(config)) as Promise<BulletResult>,
+    generateWithClaude(generateCTAPrompt(config)) as Promise<CTAResult>,
+  ]);
+
+  return buildLPComponents(answers, headlineResult, bodyResult, bulletResult, ctaResult);
+}
+
+/**
+ * AIコピーからLPコンポーネントを構築（OllamaとClaude共通）
+ */
+function buildLPComponents(
+  answers: WizardAnswers,
+  headlineResult: HeadlineResult | TaiyoHeadlineResult,
+  bodyResult: BodyResult | TaiyoBodyResult,
+  bulletResult: BulletResult | TaiyoBulletResult,
+  ctaResult: CTAResult | TaiyoCTAResult
+): ComponentInstance[] {
+  const components: ComponentInstance[] = [];
+  let order = 0;
+
+  // 1. ヘッダー
+  components.push({
+    id: nanoid(),
+    componentType: 'header-simple',
+    category: 'header',
+    order: order++,
+    props: {
+      logoText: answers.productName,
+      ctaText: ctaResult.buttonText || getCTAText(answers.ctaType),
+      backgroundColor: '#ffffff',
+    },
+  });
+
+  // 2. ヒーローセクション（AIヘッドライン使用）
+  const recommendedHeadline = headlineResult.headlines[headlineResult.recommended] || headlineResult.headlines[0];
+  components.push({
+    id: nanoid(),
+    componentType: 'hero-classic',
+    category: 'hero',
+    order: order++,
+    props: {
+      headline: recommendedHeadline?.text || `${answers.productName}で理想の結果を`,
+      subheadline: bodyResult.empathy || `${answers.targetAudience}のあなたへ`,
+      ctaPrimary: ctaResult.buttonText || getCTAText(answers.ctaType),
+      ctaSecondary: ctaResult.reassurance || '詳しく見る',
+      backgroundColor: '#f3f4f6',
+    },
+  });
+
+  // 3. 問題提起（AIボディ使用）
+  components.push({
+    id: nanoid(),
+    componentType: 'problem-list',
+    category: 'problem',
+    order: order++,
+    props: {
+      headline: 'こんなお悩みありませんか？',
+      content: bodyResult.problem || answers.problems?.join('\n') || '',
+    },
+  });
+
+  // 4. 解決策（AIベネフィット使用）
+  const bulletTexts = bulletResult.bullets?.map(b => b.text).join('\n') ||
+                       answers.benefits?.join('\n') || '';
+  components.push({
+    id: nanoid(),
+    componentType: 'solution-features',
+    category: 'solution',
+    order: order++,
+    props: {
+      headline: `${answers.productName}で得られること`,
+      content: bulletTexts,
+      columns: 3,
+    },
+  });
+
+  // 5. ベネフィット深掘り
+  components.push({
+    id: nanoid(),
+    componentType: 'solution-benefits',
+    category: 'solution',
+    order: order++,
+    props: {
+      headline: bodyResult.solution ? '解決策' : `${answers.targetAudience}のあなたへ`,
+      content: bodyResult.solution || bodyResult.benefits || '',
+    },
+  });
+
+  // 6. 信頼性セクション
+  if (bodyResult.proof) {
+    components.push({
+      id: nanoid(),
+      componentType: 'testimonial-simple',
+      category: 'testimonial',
+      order: order++,
+      props: {
+        headline: 'なぜ信頼できるのか',
+        content: bodyResult.proof,
+      },
+    });
+  }
+
+  // 7. CTA（行動喚起）タイプに応じたセクション
+  if (answers.ctaType === 'optin') {
+    components.push({
+      id: nanoid(),
+      componentType: 'form-newsletter',
+      category: 'form',
+      order: order++,
+      props: {
+        headline: ctaResult.urgencyText || '今すぐ無料で受け取る',
+        description: ctaResult.subText || 'メールアドレスを入力するだけで、すぐに始められます',
+        submitText: ctaResult.buttonText || '無料で受け取る',
+      },
+    });
+  } else if (answers.ctaType === 'webinar') {
+    components.push({
+      id: nanoid(),
+      componentType: 'form-registration',
+      category: 'form',
+      order: order++,
+      props: {
+        headline: ctaResult.urgencyText || 'ウェビナーに無料参加',
+        fields: '名前\nメールアドレス',
+        submitText: ctaResult.buttonText || '無料で参加登録する',
+      },
+    });
+  } else if (answers.ctaType === 'contact') {
+    components.push({
+      id: nanoid(),
+      componentType: 'form-contact',
+      category: 'form',
+      order: order++,
+      props: {
+        headline: ctaResult.urgencyText || '無料相談を申し込む',
+        fields: '名前\nメールアドレス\n電話番号\nご相談内容',
+        submitText: ctaResult.buttonText || '無料相談を申し込む',
+      },
+    });
+  } else {
+    // purchase
+    components.push({
+      id: nanoid(),
+      componentType: 'cta-simple',
+      category: 'cta',
+      order: order++,
+      props: {
+        headline: ctaResult.urgencyText || '今すぐ始めよう',
+        description: ctaResult.subText || '30日間の返金保証付き。リスクなしで始められます。',
+        buttonText: ctaResult.buttonText || '今すぐ申し込む',
+        buttonColor: '#3b82f6',
+      },
+    });
+  }
+
+  // 8. FAQ
+  components.push({
+    id: nanoid(),
+    componentType: 'faq-accordion',
+    category: 'faq',
+    order: order++,
+    props: {
+      headline: 'よくある質問',
+      items: generateFAQ(answers),
+    },
+  });
+
+  // 9. 最終CTA（AIテキスト使用）
+  components.push({
+    id: nanoid(),
+    componentType: 'cta-urgency',
+    category: 'cta',
+    order: order++,
+    props: {
+      headline: bodyResult.cta || '今すぐ行動を！',
+      urgencyText: ctaResult.urgencyText || '今日が一番若い日です',
+      buttonText: ctaResult.buttonText || getCTAText(answers.ctaType),
+      backgroundColor: '#dc2626',
+    },
+  });
+
+  // 10. フッター
+  components.push({
+    id: nanoid(),
+    componentType: 'footer-simple',
+    category: 'footer',
+    order: order++,
+    props: {
+      copyright: `© ${new Date().getFullYear()} ${answers.productName}. All rights reserved.`,
+      links: 'プライバシーポリシー\n特定商取引法に基づく表記',
+    },
+  });
+
+  return components;
+}
+
+/**
+ * Claude APIでプロンプトを実行
+ */
+async function generateWithClaude(prompt: string): Promise<unknown> {
+  const message = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 2048,
+    system: LP_GENERATION_SYSTEM_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ],
+  });
+
+  // レスポンスからテキストを抽出
+  const textContent = message.content.find((c) => c.type === 'text');
+  if (!textContent || textContent.type !== 'text') {
+    throw new Error('No text content in response');
+  }
+
+  // JSONを抽出してパース
+  const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) {
+    throw new Error('No JSON found in response');
+  }
+
+  return JSON.parse(jsonMatch[0]);
+}
+
+/**
+ * 回答を元にLPコンポーネントを生成（テンプレートベース・フォールバック）
  */
 function generateLPComponents(answers: WizardAnswers): ComponentInstance[] {
   const components: ComponentInstance[] = [];

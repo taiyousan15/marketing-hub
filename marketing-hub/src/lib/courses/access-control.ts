@@ -8,6 +8,7 @@ export const RANK_LEVELS: Record<MemberRank, number> = {
   SILVER: 2,
   GOLD: 3,
   PLATINUM: 4,
+  VIP: 5,
 };
 
 // ランク表示情報
@@ -38,6 +39,12 @@ export const RANK_INFO: Record<
     color: "#E5E4E2",
     icon: "💎",
     bgColor: "bg-purple-100",
+  },
+  VIP: {
+    label: "VIP",
+    color: "#FF1493",
+    icon: "👑",
+    bgColor: "bg-red-100",
   },
 };
 
@@ -156,7 +163,7 @@ export function checkLessonAccess(
   // 3. 公開コースの場合、受講登録不要
   if (course.isPublicCourse) {
     // 公開コースでもランク制限がある場合
-    if (course.accessMode === "RANK_BASED" && enrollment) {
+    if ((course.accessMode as string) === "RANK_BASED" && enrollment) {
       if (!canAccessByRank(enrollment.memberRank, lesson.requiredRank)) {
         return {
           allowed: false,
@@ -186,7 +193,7 @@ export function checkLessonAccess(
     }
 
     // 5. ランクチェック（RANK_BASEDモードの場合のみ）
-    if (course.accessMode === "RANK_BASED") {
+    if ((course.accessMode as string) === "RANK_BASED") {
       if (!canAccessByRank(enrollment.memberRank, lesson.requiredRank)) {
         return {
           allowed: false,

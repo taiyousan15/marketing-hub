@@ -69,8 +69,6 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         subject: subject || null,
         content: content || {},
         conditions: conditions || null,
-        trueBranchOrder: trueBranchOrder ?? null,
-        falseBranchOrder: falseBranchOrder ?? null,
       },
     });
 

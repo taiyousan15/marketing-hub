@@ -28,8 +28,6 @@ export async function GET(
           select: {
             tenantId: true,
             name: true,
-            accessMode: true,
-            isPublicCourse: true,
           },
         },
       },

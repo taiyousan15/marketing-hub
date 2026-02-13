@@ -9,7 +9,8 @@ import {
   processLineOptin,
   processPurchase,
 } from "@/lib/affiliate/service";
-import { AffiliateConversionType } from "@prisma/client";
+
+type AffiliateConversionType = "SIGNUP" | "PURCHASE" | "LEAD";
 
 // コンバージョン一覧取得
 export async function GET(request: NextRequest) {
@@ -41,14 +42,8 @@ export async function GET(request: NextRequest) {
           partner: {
             select: { id: true, name: true, code: true },
           },
-          contact: {
-            select: { id: true, name: true, email: true, lineUserId: true },
-          },
-          commissions: {
-            select: { id: true, amount: true, tier: true, status: true },
-          },
         },
-        orderBy: { convertedAt: "desc" },
+        orderBy: { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -126,7 +121,7 @@ export async function POST(request: NextRequest) {
           tenantId,
           clickId,
           partnerCode,
-          type: AffiliateConversionType.EMAIL_OPTIN,
+          type: "SIGNUP" as AffiliateConversionType,
           contactId,
         });
         break;
@@ -190,7 +185,6 @@ export async function PATCH(request: NextRequest) {
 
     const conversion = await prisma.affiliateConversion.findUnique({
       where: { id: conversionId },
-      include: { commissions: true },
     });
 
     if (!conversion) {
@@ -206,16 +200,6 @@ export async function PATCH(request: NextRequest) {
         where: { id: conversionId },
         data: {
           status: "APPROVED",
-          approvedAt: new Date(),
-        },
-      });
-
-      // 関連するコミッションも承認
-      await prisma.affiliateCommission.updateMany({
-        where: { conversionId },
-        data: {
-          status: "APPROVED",
-          approvedAt: new Date(),
         },
       });
     } else if (action === "reject") {
@@ -224,29 +208,8 @@ export async function PATCH(request: NextRequest) {
         where: { id: conversionId },
         data: {
           status: "REJECTED",
-          rejectedAt: new Date(),
-          rejectionReason,
         },
       });
-
-      // 関連するコミッションもキャンセル
-      await prisma.affiliateCommission.updateMany({
-        where: { conversionId },
-        data: {
-          status: "CANCELLED",
-        },
-      });
-
-      // パートナーの未払い報酬を減算
-      for (const commission of conversion.commissions) {
-        await prisma.partner.update({
-          where: { id: commission.partnerId },
-          data: {
-            totalEarnings: { decrement: commission.amount },
-            unpaidEarnings: { decrement: commission.amount },
-          },
-        });
-      }
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
@@ -254,7 +217,6 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.affiliateConversion.findUnique({
       where: { id: conversionId },
       include: {
-        commissions: true,
         partner: {
           select: { id: true, name: true, code: true },
         },

@@ -36,6 +36,7 @@ model Tenant {
   courses          Course[]
   events           Event[]
   partners         Partner[]
+  conversations    Conversation[]
   lineRichMenus    LineRichMenu[]
   auditLogs        AuditLog[]
 
@@ -87,6 +88,7 @@ model Contact {
   email         String?
   lineUserId    String?
   phone         String?
+  whatsappNumber String?
 
   // 基本情報
   name          String?
@@ -111,6 +113,17 @@ model Contact {
   lineOptIn     Boolean  @default(true)
   lineOptInAt   DateTime?
 
+  // SMS配信設定
+  smsOptIn      Boolean  @default(true)
+  smsOptInAt    DateTime?
+
+  // WhatsApp配信設定
+  whatsappOptIn Boolean  @default(true)
+  whatsappOptInAt DateTime?
+
+  // アフィリエイト
+  referredByPartnerId String?
+
   // タイムスタンプ
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -122,6 +135,7 @@ model Contact {
   subscriptions Subscription[]
   courseEnrollments CourseEnrollment[]
   eventRegistrations EventRegistration[]
+  conversations   Conversation[]
   messageHistories MessageHistory[]
 
   @@unique([tenantId, email])
@@ -276,14 +290,19 @@ enum CampaignContactStatus {
 // ==================== メッセージ履歴 ====================
 
 model MessageHistory {
-  id          String        @id @default(cuid())
-  tenantId    String
-  contactId   String
-  contact     Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  id              String        @id @default(cuid())
+  tenantId        String
+  contactId       String
+  contact         Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  conversationId  String?
+  conversation    Conversation? @relation(fields: [conversationId], references: [id])
 
   channel     MessageChannel
   direction   MessageDirection
   content     Json
+
+  // 送信者種別
+  senderType  SenderType    @default(USER)
 
   // ステータス
   status      MessageStatus @default(PENDING)
@@ -300,7 +319,15 @@ model MessageHistory {
 
   @@index([tenantId])
   @@index([contactId])
+  @@index([conversationId])
   @@index([tenantId, channel])
+}
+
+enum SenderType {
+  USER
+  OPERATOR
+  AI
+  SYSTEM
 }
 
 enum MessageChannel {
@@ -660,6 +687,7 @@ enum EventType {
   SEMINAR
   CONSULTATION
   WEBINAR
+  LIVESTREAM
 }
 
 enum EventStatus {
@@ -711,6 +739,7 @@ model Partner {
 
   // 報酬設定
   commissionRate Int        @default(30) // パーセント
+  minimumPayoutAmount Int   @default(5000)
 
   status      PartnerStatus @default(PENDING)
 
@@ -718,6 +747,10 @@ model Partner {
   updatedAt   DateTime      @updatedAt
 
   referrals   Referral[]
+  affiliateLinks AffiliateLink[]
+  affiliateConversions AffiliateConversion[]
+  affiliateCommissions AffiliateCommission[]
+  affiliatePayouts AffiliatePayout[]
 
   @@unique([tenantId, email])
   @@index([tenantId])
@@ -760,6 +793,44 @@ enum ReferralStatus {
   APPROVED
   REJECTED
   PAID
+}
+
+// ==================== 会話（チャット） ====================
+
+model Conversation {
+  id              String             @id @default(cuid())
+  tenantId        String
+  tenant          Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactId       String
+  contact         Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  channel         MessageChannel
+  status          ConversationStatus @default(ACTIVE)
+
+  // AI応答制御
+  isAIHandling    Boolean            @default(false)
+
+  // オペレーター割り当て
+  assignedUserId  String?
+
+  lastMessageAt   DateTime           @default(now())
+
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  messages        MessageHistory[]
+
+  @@unique([tenantId, contactId, channel])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@index([tenantId, channel])
+  @@index([lastMessageAt])
+}
+
+enum ConversationStatus {
+  ACTIVE
+  CLOSED
+  ARCHIVED
 }
 
 // ==================== LINE設定 ====================
@@ -1096,4 +1167,359 @@ model AuditLog {
   @@index([tenantId])
   @@index([tenantId, entityType])
   @@index([createdAt])
+}
+
+// ==================== WhatsApp ====================
+
+model WhatsAppLog {
+  id              String   @id @default(cuid())
+  tenantId        String
+  contactId       String
+
+  waNumber        String
+  messageId       String?
+  status          WhatsAppStatus @default(PENDING)
+
+  content         String
+  direction       MessageDirection
+
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  readAt          DateTime?
+
+  errorMessage    String?
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([status])
+}
+
+enum WhatsAppStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model WhatsAppSettings {
+  id              String   @id @default(cuid())
+  tenantId        String   @unique
+
+  phoneNumberId   String
+  accessToken     String
+  businessAccountId String?
+
+  webhookUrl      String?
+  webhookToken    String?
+
+  isActive        Boolean  @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+// ==================== SMS ====================
+
+model SMSLog {
+  id              String   @id @default(cuid())
+  tenantId        String
+  contactId       String
+
+  phoneNumber     String
+  messageId       String?
+  status          SMSStatus @default(PENDING)
+
+  content         String
+  direction       MessageDirection
+
+  sentAt          DateTime?
+  deliveredAt     DateTime?
+  queuedAt        DateTime?
+
+  segments        Json?   // Audience segments
+
+  errorMessage    String?
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([status])
+}
+
+enum SMSStatus {
+  PENDING
+  SENT
+  DELIVERED
+  FAILED
+  UNDELIVERABLE
+}
+
+enum DeliveryChannel {
+  EMAIL
+  SMS
+  LINE
+  WHATSAPP
+}
+
+// ==================== Course Models ====================
+
+enum MemberRank {
+  BRONZE
+  SILVER
+  GOLD
+  PLATINUM
+  VIP
+}
+
+enum CourseAccessMode {
+  PUBLIC
+  MEMBERS_ONLY
+  PASSWORD_PROTECTED
+  PRIVATE
+}
+
+model CourseSettings {
+  id              String   @id @default(cuid())
+  courseId        String   @unique
+
+  accessMode      CourseAccessMode @default(MEMBERS_ONLY)
+  password        String?
+
+  allowDownload   Boolean  @default(false)
+  allowSharing    Boolean  @default(false)
+
+  certificateEnabled Boolean @default(false)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([courseId])
+}
+
+// ==================== Auto-Webinar ====================
+
+model AutomatedWebinar {
+  id              String   @id @default(cuid())
+  tenantId        String
+
+  name            String
+  description     String?
+
+  videoUrl        String
+  videoType       String?  // upload, youtube, vimeo
+  videoDuration   Int      // 秒
+
+  status          WebinarStatus @default(DRAFT)
+
+  // Chat simulation
+  simulatedChatEnabled Boolean @default(false)
+  chatMessages    Json     @default("[]")
+
+  // Timed offers/CTAs
+  timedOffers     Json     @default("[]")
+
+  // Fake attendees
+  fakeAttendeesEnabled Boolean @default(false)
+  fakeAttendeesMin Int     @default(5)
+  fakeAttendeesMax Int     @default(50)
+
+  // Replay and scheduling
+  replayEnabled   Boolean  @default(true)
+  scheduleType    String   @default("evergreen") // live, scheduled, evergreen
+
+  // Page settings
+  title           String?
+  pageTitle       String?
+  pageDescription String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+enum WebinarStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+model LiveStream {
+  id              String   @id @default(cuid())
+  tenantId        String
+
+  name            String
+  description     String?
+  roomName        String?
+
+  status          LiveStreamStatus @default(SCHEDULED)
+
+  startAt         DateTime
+  endAt           DateTime?
+
+  platform        String   // youtube, facebook, jitsi, etc
+  platformStreamId String?
+  roomId          String?
+
+  metadata        Json?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+enum LiveStreamStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELED
+}
+
+// ==================== Affiliate ====================
+
+model AffiliateLink {
+  id              String   @id @default(cuid())
+  tenantId        String
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  url             String
+  linkCode        String   @unique
+  code            String?  // Alternative code field
+  productId       String?
+
+  clicks          Int      @default(0)
+  conversions     Int      @default(0)
+  revenue         Int      @default(0)
+
+  isActive        Boolean  @default(true)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  affiliateClicks AffiliateClick[]
+  affiliateConversions AffiliateConversion[]
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([linkCode])
+}
+
+model AffiliateClick {
+  id              String   @id @default(cuid())
+  tenantId        String
+  linkId          String
+  link            AffiliateLink @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  partnerId       String?
+
+  ipAddress       String?
+  userAgent       String?
+  referrer        String?
+  clickedAt       DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([linkId])
+}
+
+model AffiliateConversion {
+  id              String   @id @default(cuid())
+  tenantId        String
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  linkId          String?
+  link            AffiliateLink? @relation(fields: [linkId], references: [id])
+
+  orderId         String?
+  amount          Int
+
+  commissions     Json?   // Store commission breakdown
+
+  status          AffiliateStatus @default(PENDING)
+  approvedAt      DateTime?
+
+  createdAt       DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+model AffiliateCommission {
+  id              String   @id @default(cuid())
+  tenantId        String
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  amount          Int
+  percentage      Int
+  type            String?  // commission type
+  tier            String?  // tier level
+
+  status          CommissionStatus @default(PENDING)
+  paidAt          DateTime?
+  paymentMethod   String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+enum AffiliateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum CommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  FAILED
+}
+
+model AffiliatePayout {
+  id              String   @id @default(cuid())
+  tenantId        String
+  partnerId       String
+  partner         Partner  @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  amount          Int
+  currency        String   @default("JPY")
+
+  status          PayoutStatus @default(PENDING)
+  paymentMethod   String?
+  paymentDetails  Json?
+
+  paidAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([partnerId])
+  @@index([status])
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  PROCESSING
+  COMPLETED
+  FAILED
 }

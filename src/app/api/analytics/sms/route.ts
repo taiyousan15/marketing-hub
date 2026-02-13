@@ -45,15 +45,15 @@ export async function GET(req: NextRequest) {
       (log) => log.status === "DELIVERED" || log.status === "SENT"
     ).length;
     const failed = smsLogs.filter(
-      (log) => log.status === "FAILED" || log.status === "UNDELIVERED"
+      (log) => log.status === "UNDELIVERABLE"
     ).length;
     const pending = smsLogs.filter(
-      (log) => log.status === "QUEUED" || log.status === "SENDING"
+      (log) => log.status === "PENDING"
     ).length;
 
     // コスト計算（1セグメント約10円として概算）
     const totalSegments = smsLogs.reduce(
-      (sum, log) => sum + (log.segments || 1),
+      (sum, log) => sum + ((typeof log.segments === 'number' ? log.segments : 1) || 1),
       0
     );
     const estimatedCost = totalSegments * 10;
@@ -74,16 +74,16 @@ export async function GET(req: NextRequest) {
     }
 
     for (const log of smsLogs) {
-      const date = format(log.queuedAt, "yyyy-MM-dd");
+      const date = log.queuedAt ? format(log.queuedAt, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
       if (dailyStats[date]) {
         dailyStats[date].sent++;
         if (log.status === "DELIVERED" || log.status === "SENT") {
           dailyStats[date].delivered++;
         }
-        if (log.status === "FAILED" || log.status === "UNDELIVERED") {
+        if (log.status === "UNDELIVERABLE") {
           dailyStats[date].failed++;
         }
-        dailyStats[date].cost += (log.segments || 1) * 10;
+        dailyStats[date].cost += ((typeof log.segments === 'number' ? log.segments : 1) || 1) * 10;
       }
     }
 
@@ -141,8 +141,10 @@ export async function GET(req: NextRequest) {
       hourlyStats[h] = 0;
     }
     for (const log of smsLogs) {
-      const hour = log.queuedAt.getHours();
-      hourlyStats[hour]++;
+      if (log.queuedAt) {
+        const hour = log.queuedAt.getHours();
+        hourlyStats[hour]++;
+      }
     }
 
     const hourlyStatsArray = Object.entries(hourlyStats).map(([hour, count]) => ({
@@ -152,12 +154,10 @@ export async function GET(req: NextRequest) {
 
     // ステータス別内訳
     const statusBreakdown = {
-      QUEUED: smsLogs.filter((l) => l.status === "QUEUED").length,
-      SENDING: smsLogs.filter((l) => l.status === "SENDING").length,
+      PENDING: smsLogs.filter((l) => l.status === "PENDING").length,
       SENT: smsLogs.filter((l) => l.status === "SENT").length,
       DELIVERED: smsLogs.filter((l) => l.status === "DELIVERED").length,
-      FAILED: smsLogs.filter((l) => l.status === "FAILED").length,
-      UNDELIVERED: smsLogs.filter((l) => l.status === "UNDELIVERED").length,
+      UNDELIVERABLE: smsLogs.filter((l) => l.status === "UNDELIVERABLE").length,
     };
 
     return NextResponse.json({

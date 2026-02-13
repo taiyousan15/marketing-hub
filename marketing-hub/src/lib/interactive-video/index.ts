@@ -11,9 +11,10 @@ export {
   type VideoEvent,
 } from './state-machine';
 
-// Component exports
-export { SmartVSLPlayer } from '@/components/interactive-video/smart-vsl-player';
-export { BranchingOverlay } from '@/components/interactive-video/branching-overlay';
-export { HotspotComponent } from '@/components/interactive-video/hotspot';
-export { CTAOverlay } from '@/components/interactive-video/cta-overlay';
-export { DecisionTimer } from '@/components/interactive-video/decision-timer';
+// Component exports - commented out to prevent circular dependencies
+// These components depend on xstate state machine configuration
+// export { SmartVSLPlayer } from '@/components/interactive-video/smart-vsl-player';
+// export { BranchingOverlay } from '@/components/interactive-video/branching-overlay';
+// export { HotspotComponent } from '@/components/interactive-video/hotspot';
+// export { CTAOverlay } from '@/components/interactive-video/cta-overlay';
+// export { DecisionTimer } from '@/components/interactive-video/decision-timer';

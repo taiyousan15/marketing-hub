@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0",
+  "id": "b081060a-83d3-4cc2-bc55-97a54a99762d",
+  "timestamp": "2026-02-12T18:45:25.516Z",
+  "files": [
+    {
+      "path": "src/lib/auto-webinar/branching.ts",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Write: file creation/overwrite"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Write"
+    }
+  }
+}

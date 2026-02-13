@@ -28,14 +28,6 @@ export async function GET(
             actions: true,
           },
         },
-        steps: {
-          orderBy: { order: "asc" },
-          include: {
-            page: {
-              select: { id: true, name: true, slug: true },
-            },
-          },
-        },
       },
     });
 
@@ -80,7 +72,6 @@ export async function PATCH(
       },
       include: {
         pages: { orderBy: { order: "asc" } },
-        steps: { orderBy: { order: "asc" } },
       },
     });
 

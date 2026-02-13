@@ -2,21 +2,20 @@
  * Auto Webinar System - TypeScript型定義
  */
 
-import type {
-  AutoWebinarScheduleType,
-  AutoWebinarStatus,
-  AutoWebinarRegStatus,
-  SimChatMessageType,
-  OfferActionType,
-  VideoType,
-  ABTestStatus,
-  ABTestAlgorithm,
-  WebinarRewardType,
-  WebinarRewardDeliveryType,
-  WebinarNotificationType,
-  NotificationChannel,
-  NotificationStatus,
-} from "@prisma/client";
+// Local type definitions (not in Prisma schema)
+type AutoWebinarScheduleType = "LIVE" | "EVERGREEN" | "JUST_IN_TIME";
+type AutoWebinarStatus = "DRAFT" | "ACTIVE" | "PAUSED" | "ARCHIVED";
+type AutoWebinarRegStatus = "REGISTERED" | "ATTENDED" | "WATCHED" | "COMPLETED" | "ABANDONED";
+type SimChatMessageType = "COMMENT" | "QUESTION" | "REACTION" | "TESTIMONIAL";
+type OfferActionType = "EMAIL" | "LINE" | "PURCHASE" | "DOWNLOAD" | "TAG";
+type VideoType = "YOUTUBE" | "VIMEO" | "CUSTOM" | "INTERACTIVE";
+type ABTestStatus = "DRAFT" | "RUNNING" | "COMPLETED" | "ARCHIVED";
+type ABTestAlgorithm = "SEQUENTIAL" | "RANDOM" | "WEIGHTED";
+type WebinarRewardType = "WATCH_TIME" | "ENGAGEMENT" | "PURCHASE" | "SURVEY" | "KEYWORD" | "TIMED_INPUT";
+type WebinarRewardDeliveryType = "DOWNLOAD" | "COUPON" | "EMAIL" | "LINE" | "TAG_ADD" | "UNLOCK_CONTENT";
+type WebinarNotificationType = "REMINDER_30MIN" | "REMINDER_5MIN" | "REMINDER_1MIN" | "STARTING_NOW" | "REPLAY_AVAILABLE" | "REPLAY_EXPIRING";
+type NotificationChannel = "EMAIL" | "LINE" | "SMS" | "PUSH";
+type NotificationStatus = "SCHEDULED" | "SENT" | "FAILED" | "BOUNCED";
 
 // ==================== ウェビナー ====================
 

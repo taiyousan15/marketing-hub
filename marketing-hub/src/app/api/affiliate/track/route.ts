@@ -26,12 +26,7 @@ export async function GET(request: NextRequest) {
 
       // クリック情報を取得
       const click = await prisma.affiliateClick.findUnique({
-        where: { clickId },
-        include: {
-          partner: {
-            select: { id: true, name: true, code: true },
-          },
-        },
+        where: { id: clickId },
       });
 
       return NextResponse.json({
@@ -39,7 +34,6 @@ export async function GET(request: NextRequest) {
         click: click
           ? {
               partnerId: click.partnerId,
-              partnerCode: click.partner.code,
               clickedAt: click.clickedAt,
             }
           : null,
@@ -50,18 +44,12 @@ export async function GET(request: NextRequest) {
     const clickIdFromParam = searchParams.get("aff_click");
     if (clickIdFromParam) {
       const click = await prisma.affiliateClick.findUnique({
-        where: { clickId: clickIdFromParam },
-        include: {
-          partner: {
-            select: { id: true, code: true },
-          },
-        },
+        where: { id: clickIdFromParam },
       });
 
       return NextResponse.json({
         clickId: clickIdFromParam,
         valid: !!click,
-        partnerCode: click?.partner.code,
       });
     }
 
@@ -109,24 +97,23 @@ export async function POST(request: NextRequest) {
 
     // リンクコードを生成
     let code = generateLinkCode();
-    while (await prisma.affiliateLink.findUnique({ where: { code } })) {
+    while (await prisma.affiliateLink.findUnique({ where: { linkCode: code } })) {
       code = generateLinkCode();
     }
 
     // リンクを作成
     const link = await prisma.affiliateLink.create({
       data: {
+        tenantId: partner.tenantId,
         partnerId,
-        code,
-        targetUrl,
-        name,
-        customParams: customParams || null,
+        linkCode: code,
+        url: targetUrl,
       },
     });
 
     // 完全なリンクURLを構築
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-    const affiliateUrl = `${baseUrl}/r/${link.code}`;
+    const affiliateUrl = `${baseUrl}/r/${link.linkCode}`;
 
     return NextResponse.json({
       link: {

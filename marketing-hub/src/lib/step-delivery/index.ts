@@ -3,24 +3,19 @@
 
 export {
   canDeliverTo,
-  selectOptimalChannel,
-  deliverMessage,
-  executeStepDelivery,
-  deliverWithFallback,
+  deliver,
+  deliverMultiChannel,
   type DeliveryPayload,
   type DeliveryResult,
 } from './engine';
 
 export {
   optimizeDelivery,
-  optimizeBulkDelivery,
-  getChannelStats,
+  getChannelCandidates,
+  recommendOptimalHour,
 } from './ai-optimizer';
 
 export {
-  deliverWithIntelligentFallback,
-  deliverByPriority,
-  deliverWithAIOptimization,
-  batchDeliverWithFallback,
-  calculateSuccessRate,
+  deliverWithFallback,
+  determineDeliveryOrder,
 } from './fallback';

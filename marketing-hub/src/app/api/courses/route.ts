@@ -71,28 +71,10 @@ export async function POST(request: NextRequest) {
       description,
       thumbnail,
       isPublished,
-      accessMode,
-      isPublicCourse,
     } = body;
 
     if (!name) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
-    }
-
-    // 公開コースの場合はshareCodeを生成
-    let shareCode: string | undefined;
-    if (isPublicCourse) {
-      shareCode = generateShareCode();
-      // 重複チェック
-      let attempts = 0;
-      while (attempts < 5) {
-        const existing = await prisma.course.findUnique({
-          where: { shareCode },
-        });
-        if (!existing) break;
-        shareCode = generateShareCode();
-        attempts++;
-      }
     }
 
     const course = await prisma.course.create({
@@ -102,9 +84,6 @@ export async function POST(request: NextRequest) {
         description: description || null,
         thumbnail: thumbnail || null,
         isPublished: isPublished || false,
-        accessMode: accessMode || "PUBLIC",
-        isPublicCourse: isPublicCourse || false,
-        shareCode: shareCode || null,
       },
       include: {
         _count: {

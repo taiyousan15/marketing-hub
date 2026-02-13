@@ -1,32 +1,6 @@
 'use client';
 
-import { SmartVSLPlayer } from '@/components/interactive-video/smart-vsl-player';
-import { defaultVideoConfig } from '@/lib/interactive-video/state-machine';
-
 export default function InteractiveVideoDemo() {
-  const handleStateChange = (state: string) => {
-    console.log('State changed to:', state);
-  };
-
-  const handleTrackingEvent = (event: {
-    type: string;
-    timestamp: number;
-    data: unknown;
-  }) => {
-    console.log('Tracking event:', event);
-
-    // Send to API
-    fetch('/api/interactive-video/track', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(event),
-    }).catch((error) => {
-      console.error('Failed to send tracking event:', error);
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 py-12 px-4">
       <div className="max-w-6xl mx-auto">
@@ -39,12 +13,11 @@ export default function InteractiveVideoDemo() {
           </p>
         </div>
 
-        <SmartVSLPlayer
-          config={defaultVideoConfig}
-          autoPlay={false}
-          onStateChange={handleStateChange}
-          onTrackingEvent={handleTrackingEvent}
-        />
+        <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700 mb-8">
+          <p className="text-gray-300">
+            Interactive video player component is not yet available in this build.
+          </p>
+        </div>
 
         <div className="mt-12 grid gap-6 md:grid-cols-3">
           <div className="p-6 bg-gray-800/50 rounded-lg border border-gray-700">

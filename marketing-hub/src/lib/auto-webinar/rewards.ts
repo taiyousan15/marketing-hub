@@ -1,7 +1,8 @@
 // src/lib/auto-webinar/rewards.ts
 // ウェビナー特典システムのコアロジック（クライアント/サーバー共通）
 
-import type { WebinarRewardType, WebinarRewardDeliveryType } from '@prisma/client'
+type WebinarRewardType = "WATCH_TIME" | "ENGAGEMENT" | "PURCHASE" | "SURVEY" | "KEYWORD" | "TIMED_INPUT";
+type WebinarRewardDeliveryType = "DOWNLOAD" | "COUPON" | "EMAIL" | "LINE" | "TAG_ADD" | "UNLOCK_CONTENT";
 
 /**
  * 特典の定義

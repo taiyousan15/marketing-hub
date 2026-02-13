@@ -1,0 +1,33 @@
+{
+  "version": "0.1.0",
+  "id": "e7b9245f-a00d-48c7-a64a-1fea49b68c6c",
+  "timestamp": "2026-02-12T18:42:13.270Z",
+  "files": [
+    {
+      "path": "src/components/interactive-video/hotspot.tsx",
+      "conversations": [
+        {
+          "contributor_type": "ai",
+          "model": "anthropic/claude-opus-4-5-20251101",
+          "ranges": [
+            {
+              "start_line": 1,
+              "end_line": -1
+            }
+          ],
+          "description": "Write: file creation/overwrite"
+        }
+      ]
+    }
+  ],
+  "tool": {
+    "name": "taisun-agent",
+    "version": "2.10.1"
+  },
+  "metadata": {
+    "dev.taisun": {
+      "hook": "agent-trace-capture",
+      "tool_used": "Write"
+    }
+  }
+}

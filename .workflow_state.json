@@ -1,0 +1,302 @@
+{
+  "version": "2.0.0",
+  "meta": {
+    "workflowId": "user_request",
+    "strict": true,
+    "currentPhase": 1,
+    "startedAt": "2026-02-08T01:10:46.991Z",
+    "lastUpdated": "2026-02-12T15:45:31.401Z"
+  },
+  "intentContractRef": null,
+  "activeSkillId": null,
+  "activeSkillStepId": null,
+  "baseline": {
+    "files": {}
+  },
+  "registeredInputs": {
+    "referenceAssets": []
+  },
+  "locks": {
+    "referenceAssets": []
+  },
+  "evidence": {
+    "skills_used": {},
+    "read_log": [],
+    "approved_deviations": [],
+    "skillEvidence": [],
+    "skillEvidenceIndexByStepId": {},
+    "required_skills": {
+      "clerk-react": {
+        "requestedAt": "2026-02-08T01:13:20.849Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "docs": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "components": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk-provider": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Users": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "matsumototoshihiko": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Desktop": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "dev": {
+        "requestedAt": "2026-02-08T02:48:45.822Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "marketing-hub": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "static": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "chunks": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node_modules_": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node_modules_next_dist_compiled_react-dom_1e674e59": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node_modules_next_dist_compiled_react-dom_chunks": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node_modules_next_dist_compiled_a0e4c7b4": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "src_64af2340": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "React": {
+        "requestedAt": "2026-02-08T01:10:46.992Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Server": {
+        "requestedAt": "2026-02-08T01:10:46.992Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "file": {
+        "requestedAt": "2026-02-08T01:10:46.992Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "server": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ssr": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "src_f1b1757d": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "mnkbccinkbalkmmnmbcicdobcmgggmfc": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "assets": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "js": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "bundle": {
+        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "localhost": {
+        "requestedAt": "2026-02-08T01:28:20.446Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "dashboard": {
+        "requestedAt": "2026-02-08T01:28:20.447Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "taisun_agent": {
+        "requestedAt": "2026-02-08T02:48:45.821Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "github": {
+        "requestedAt": "2026-02-08T03:10:18.184Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "taiyousan15": {
+        "requestedAt": "2026-02-08T03:10:18.184Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "jsystem2026": {
+        "requestedAt": "2026-02-08T02:48:45.822Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "tmp": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "context-guard": {
+        "requestedAt": "2026-02-08T03:10:18.184Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "null": {
+        "requestedAt": "2026-02-08T02:48:45.822Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "install": {
+        "requestedAt": "2026-02-08T02:48:45.822Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "jsyste": {
+        "requestedAt": "2026-02-08T03:10:18.184Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "insta": {
+        "requestedAt": "2026-02-08T03:10:18.184Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "task-id": {
+        "requestedAt": "2026-02-12T15:01:07.087Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "private": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "claude-501": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "-Users-matsumototoshihiko-Desktop-dev-marketinghub": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "tasks": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "b7a88aa": {
+        "requestedAt": "2026-02-12T14:33:05.434Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "output-file": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "status": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "summary": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "task-notification": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "b3233fe": {
+        "requestedAt": "2026-02-12T14:33:18.358Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "bab30ce": {
+        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "CD": {
+        "requestedAt": "2026-02-12T15:45:31.401Z",
+        "used": false,
+        "autoMapped": false
+      }
+    }
+  },
+  "decisions": {
+    "assetReuse": []
+  },
+  "approvals": {
+    "deviations": []
+  },
+  "validations": {
+    "lastResults": []
+  },
+  "completed_phases": [],
+  "blockers": []
+}

@@ -89,7 +89,7 @@ export function LiveChat({
               <div
                 key={message.id || index}
                 className={`flex gap-3 p-2 rounded-lg transition-all duration-300 animate-in fade-in slide-in-from-bottom-2 ${
-                  MESSAGE_TYPE_STYLES[message.messageType]
+                  MESSAGE_TYPE_STYLES[message.messageType as keyof typeof MESSAGE_TYPE_STYLES] || ""
                 }`}
               >
                 <Avatar className="w-8 h-8 shrink-0">

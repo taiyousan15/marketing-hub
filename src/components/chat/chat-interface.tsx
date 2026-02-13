@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export interface Message {
   id: string;
   content: string;
-  sender: "user" | "operator" | "bot" | "ai";
+  sender: "user" | "operator" | "bot" | "ai" | "system";
   timestamp: Date;
   status?: "sending" | "sent" | "delivered" | "read" | "error";
 }
@@ -106,6 +106,8 @@ export function ChatInterface({
         return "Bot";
       case "ai":
         return "AI";
+      case "system":
+        return "システム";
       default:
         return "";
     }
@@ -130,6 +132,8 @@ export function ChatInterface({
                       ? "bg-green-100"
                       : message.sender === "ai"
                       ? "bg-purple-100"
+                      : message.sender === "system"
+                      ? "bg-yellow-100"
                       : "bg-blue-100"
                   }
                 >
@@ -146,9 +150,9 @@ export function ChatInterface({
                   <span className="text-xs text-muted-foreground">
                     {getSenderLabel(message.sender)}
                   </span>
-                  {(message.sender === "bot" || message.sender === "ai") && (
+                  {(message.sender === "bot" || message.sender === "ai" || message.sender === "system") && (
                     <Badge variant="secondary" className="text-xs py-0">
-                      {message.sender === "ai" ? "AI" : "Bot"}
+                      {message.sender === "ai" ? "AI" : message.sender === "system" ? "システム" : "Bot"}
                     </Badge>
                   )}
                 </div>
@@ -159,6 +163,8 @@ export function ChatInterface({
                       ? "bg-green-100"
                       : message.sender === "ai"
                       ? "bg-purple-100"
+                      : message.sender === "system"
+                      ? "bg-yellow-50 border border-yellow-200"
                       : "bg-muted")
                   }
                 >

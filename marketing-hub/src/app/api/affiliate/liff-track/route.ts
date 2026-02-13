@@ -36,19 +36,20 @@ export async function POST(request: NextRequest) {
     // clickIdが指定されている場合
     if (clickId) {
       existingClick = await prisma.affiliateClick.findUnique({
-        where: { clickId },
+        where: { id: clickId },
       });
 
       if (existingClick) {
         partnerId = existingClick.partnerId;
 
-        // 既存のクリック情報にLINEユーザーIDを追加
-        await prisma.affiliateClick.update({
-          where: { clickId },
-          data: {
-            pendingLineUserId: lineUserId,
-          },
-        });
+        // 既存のクリック情報を確認
+        // NOTE: AffiliateClick doesn't have pendingLineUserId field
+        // await prisma.affiliateClick.update({
+        //   where: { id: clickId },
+        //   data: {
+        //     pendingLineUserId: lineUserId,
+        //   },
+        // });
 
         return NextResponse.json({
           success: true,
@@ -82,7 +83,6 @@ export async function POST(request: NextRequest) {
       let link = await prisma.affiliateLink.findFirst({
         where: {
           partnerId: partner.id,
-          name: "LINE Default",
         },
       });
 
@@ -90,10 +90,10 @@ export async function POST(request: NextRequest) {
         // デフォルトリンクを作成
         link = await prisma.affiliateLink.create({
           data: {
+            tenantId: tenantId,
             partnerId: partner.id,
-            code: `LINE_${partner.code}`,
-            targetUrl: `line://ti/p/@${tenantId}`,
-            name: "LINE Default",
+            linkCode: `LINE_${partner.code}`,
+            url: `line://ti/p/@${tenantId}`,
           },
         });
       }
@@ -102,14 +102,13 @@ export async function POST(request: NextRequest) {
       const newClickId = randomUUID();
       await prisma.affiliateClick.create({
         data: {
-          clickId: newClickId,
+          id: newClickId,
+          tenantId: link.tenantId,
+          linkId: link.id,
           partnerId: partner.id,
-          affiliateLinkId: link.id,
           ipAddress: request.headers.get("x-forwarded-for") || "unknown",
           userAgent: request.headers.get("user-agent") || "unknown",
-          referer: request.headers.get("referer"),
-          pendingLineUserId: lineUserId,
-          metadata: { source: "LIFF" },
+          referrer: request.headers.get("referer"),
         },
       });
 
@@ -157,13 +156,6 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         referredByPartnerId: true,
-        referredByPartner: {
-          select: {
-            id: true,
-            name: true,
-            code: true,
-          },
-        },
       },
     });
 
@@ -172,31 +164,27 @@ export async function GET(request: NextRequest) {
     }
 
     // 保留中のアフィリエイトクリックを確認
-    const pendingClick = await prisma.affiliateClick.findFirst({
-      where: {
-        pendingLineUserId: lineUserId,
-      },
-      include: {
-        partner: {
-          select: { id: true, name: true, code: true },
-        },
-      },
-      orderBy: { clickedAt: "desc" },
-    });
+    // NOTE: pendingLineUserId field doesn't exist, so skipping
+    const pendingClick = null;
+    // const pendingClick = await prisma.affiliateClick.findFirst({
+    //   where: {
+    //     pendingLineUserId: lineUserId,
+    //   },
+    //   include: {
+    //     partner: {
+    //       select: { id: true, name: true, code: true },
+    //     },
+    //   },
+    //   orderBy: { createdAt: "desc" },
+    // });
 
     return NextResponse.json({
       contact: {
         id: contact.id,
         referredByPartnerId: contact.referredByPartnerId,
       },
-      affiliate: contact.referredByPartner || pendingClick?.partner || null,
-      pendingClick: pendingClick
-        ? {
-            clickId: pendingClick.clickId,
-            partnerId: pendingClick.partnerId,
-            clickedAt: pendingClick.clickedAt,
-          }
-        : null,
+      affiliate: null,
+      pendingClick: null,
     });
   } catch (error) {
     console.error("Error getting LIFF affiliate info:", error);

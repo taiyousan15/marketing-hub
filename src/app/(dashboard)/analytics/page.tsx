@@ -68,7 +68,7 @@ const recentActivity = [
 ];
 
 const topCampaigns = [
-  { name: "新規登録者向けステップメール", sent: 12450, openRate: 45.2, clickRate: 12.8 },
+  { name: "新規登録者向けウェルカムシーケンス", sent: 12450, openRate: 45.2, clickRate: 12.8 },
   { name: "セミナー告知LINE配信", sent: 5670, openRate: 78.5, clickRate: 23.1 },
   { name: "商品リリース告知", sent: 8900, openRate: 38.9, clickRate: 9.4 },
   { name: "休眠顧客フォローアップ", sent: 3200, openRate: 22.1, clickRate: 5.2 },

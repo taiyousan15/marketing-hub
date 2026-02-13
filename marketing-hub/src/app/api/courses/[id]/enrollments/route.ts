@@ -156,7 +156,6 @@ export async function POST(
       data: {
         courseId,
         contactId,
-        memberRank: (memberRank as MemberRank) || "BRONZE",
         expiresAt: expiresAt ? new Date(expiresAt) : null,
       },
       include: {

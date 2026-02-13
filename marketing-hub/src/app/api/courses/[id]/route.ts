@@ -35,10 +35,6 @@ export async function GET(
             videoUrl: true,
             videoType: true,
             isPublished: true,
-            requiredRank: true,
-            isSequentialStart: true,
-            requireCompletion: true,
-            completionThreshold: true,
             releaseDelay: true,
           },
         },
@@ -86,7 +82,7 @@ export async function PATCH(
     // コース存在確認
     const existingCourse = await prisma.course.findUnique({
       where: { id },
-      select: { tenantId: true, shareCode: true, isPublicCourse: true },
+      select: { tenantId: true },
     });
 
     if (!existingCourse) {
@@ -102,33 +98,7 @@ export async function PATCH(
       description,
       thumbnail,
       isPublished,
-      accessMode,
-      isPublicCourse,
-      regenerateCode,
     } = body;
-
-    // shareCode処理
-    let shareCode = existingCourse.shareCode;
-
-    // 公開コースに変更で、まだshareCodeがない場合
-    if (isPublicCourse && !shareCode) {
-      shareCode = generateShareCode();
-      let attempts = 0;
-      while (attempts < 5) {
-        const existing = await prisma.course.findUnique({
-          where: { shareCode },
-        });
-        if (!existing) break;
-        shareCode = generateShareCode();
-        attempts++;
-      }
-    }
-
-    // shareCodeの再生成要求
-    if (regenerateCode && existingCourse.shareCode) {
-      const result = await regenerateShareCode(id);
-      shareCode = result.shareCode;
-    }
 
     const course = await prisma.course.update({
       where: { id },
@@ -137,9 +107,6 @@ export async function PATCH(
         ...(description !== undefined && { description }),
         ...(thumbnail !== undefined && { thumbnail }),
         ...(isPublished !== undefined && { isPublished }),
-        ...(accessMode !== undefined && { accessMode }),
-        ...(isPublicCourse !== undefined && { isPublicCourse }),
-        ...(shareCode !== existingCourse.shareCode && { shareCode }),
       },
       include: {
         lessons: {

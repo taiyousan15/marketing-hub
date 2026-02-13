@@ -43,6 +43,13 @@ const RANK_CONFIG: Record<
     textClass: "text-purple-800",
     borderClass: "border-purple-400",
   },
+  VIP: {
+    label: "VIP",
+    icon: "👑",
+    bgClass: "bg-red-100",
+    textClass: "text-red-800",
+    borderClass: "border-red-400",
+  },
 };
 
 interface RankBadgeProps {
