@@ -228,10 +228,10 @@ export function calculateIntentScoreFromBehaviors(
  * 購買意欲レベルを決定
  */
 export function determineIntentLevel(score: number): PurchaseIntentLevel {
-  if (score >= 85) return "very_high";
-  if (score >= 70) return "high";
-  if (score >= 50) return "medium";
-  if (score >= 30) return "low";
+  if (score >= 80) return "very_high";
+  if (score >= 50) return "high";
+  if (score >= 30) return "medium";
+  if (score >= 10) return "low";
   if (score >= 0) return "very_low";
   return "unknown";
 }

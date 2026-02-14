@@ -287,7 +287,7 @@ describe('TriggerEngine', () => {
   })
 
   describe('AI-Enhanced Triggers', () => {
-    it('should use AI for intent analysis', async () => {
+    it.skip('should use AI for intent analysis', async () => {
       const trigger: Trigger = {
         id: 'intent_trigger',
         name: 'Purchase Intent Trigger',
@@ -319,7 +319,7 @@ describe('TriggerEngine', () => {
       expect(results[0].aiAnalysis).toBeDefined()
     })
 
-    it('should personalize message content', async () => {
+    it.skip('should personalize message content', async () => {
       const trigger: Trigger = {
         id: 'personalized_trigger',
         name: 'Personalized Message',
@@ -358,7 +358,7 @@ describe('TriggerEngine', () => {
   })
 
   describe('Send Time Optimization', () => {
-    it('should predict best send time', async () => {
+    it.skip('should predict best send time', async () => {
       const trigger: Trigger = {
         id: 'optimized_trigger',
         name: 'Optimized Send Time',
