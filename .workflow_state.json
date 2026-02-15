@@ -4,8 +4,39 @@
     "workflowId": "user_request",
     "strict": true,
     "currentPhase": 1,
-    "startedAt": "2026-02-08T01:10:46.991Z",
-    "lastUpdated": "2026-02-12T15:45:31.401Z"
+    "startedAt": "2026-02-13T05:39:38.115Z",
+    "lastUpdated": "2026-02-13T20:46:18.885Z",
+    "autoMappedSkills": [
+      {
+        "name": "深層リサーチ（GPT Researcher）",
+        "required_skills": [
+          "gpt-researcher"
+        ],
+        "strict": false
+      },
+      {
+        "name": "リードスコアリング",
+        "required_skills": [
+          "lead-scoring"
+        ],
+        "strict": false
+      },
+      {
+        "name": "アウトリーチメッセージ作成",
+        "required_skills": [
+          "outreach-composer"
+        ],
+        "strict": false
+      },
+      {
+        "name": "LP作成・分析",
+        "required_skills": [
+          "lp-analysis",
+          "taiyo-style-lp"
+        ],
+        "strict": false
+      }
+    ]
   },
   "intentContractRef": null,
   "activeSkillId": null,
@@ -26,263 +57,1873 @@
     "skillEvidence": [],
     "skillEvidenceIndexByStepId": {},
     "required_skills": {
-      "clerk-react": {
-        "requestedAt": "2026-02-08T01:13:20.849Z",
+      "21": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
         "used": false,
         "autoMapped": false
       },
-      "clerk": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "22": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
         "used": false,
         "autoMapped": false
       },
-      "docs": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "192": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
-      "components": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "970": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
         "used": false,
         "autoMapped": false
       },
-      "clerk-provider": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "2021": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2025": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2026": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
         "used": false,
         "autoMapped": false
       },
       "Users": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "requestedAt": "2026-02-13T20:46:18.884Z",
         "used": false,
         "autoMapped": false
       },
       "matsumototoshihiko": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "requestedAt": "2026-02-13T20:46:18.885Z",
         "used": false,
         "autoMapped": false
       },
       "Desktop": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "requestedAt": "2026-02-13T20:46:18.885Z",
         "used": false,
         "autoMapped": false
       },
       "dev": {
-        "requestedAt": "2026-02-08T02:48:45.822Z",
+        "requestedAt": "2026-02-13T18:59:28.277Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "marketinghub": {
+        "requestedAt": "2026-02-13T18:59:28.277Z",
         "used": false,
         "autoMapped": false
       },
       "marketing-hub": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+        "requestedAt": "2026-02-13T18:59:28.277Z",
         "used": false,
         "autoMapped": false
       },
-      "static": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "package-lock": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
-      "chunks": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "nextjs": {
+        "requestedAt": "2026-02-13T06:55:30.179Z",
         "used": false,
         "autoMapped": false
       },
-      "node_modules_": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "docs": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
         "used": false,
         "autoMapped": false
       },
-      "node_modules_next_dist_compiled_react-dom_1e674e59": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "app": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
         "used": false,
         "autoMapped": false
       },
-      "node_modules_next_dist_compiled_react-dom_chunks": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "api-reference": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
-      "node_modules_next_dist_compiled_a0e4c7b4": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "config": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
-      "src_64af2340": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "next-config-js": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
-      "React": {
-        "requestedAt": "2026-02-08T01:10:46.992Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "Server": {
-        "requestedAt": "2026-02-08T01:10:46.992Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "file": {
-        "requestedAt": "2026-02-08T01:10:46.992Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "server": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "ssr": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "src_f1b1757d": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "mnkbccinkbalkmmnmbcicdobcmgggmfc": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "assets": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "js": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "bundle": {
-        "requestedAt": "2026-02-08T01:13:20.850Z",
+      "turbopack": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
       "localhost": {
-        "requestedAt": "2026-02-08T01:28:20.446Z",
+        "requestedAt": "2026-02-13T15:55:15.829Z",
         "used": false,
         "autoMapped": false
       },
-      "dashboard": {
-        "requestedAt": "2026-02-08T01:28:20.447Z",
+      "lock": {
+        "requestedAt": "2026-02-13T06:44:11.948Z",
         "used": false,
         "autoMapped": false
       },
-      "taisun_agent": {
-        "requestedAt": "2026-02-08T02:48:45.821Z",
+      "messages": {
+        "requestedAt": "2026-02-13T06:34:24.498Z",
         "used": false,
         "autoMapped": false
       },
-      "github": {
-        "requestedAt": "2026-02-08T03:10:18.184Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "taiyousan15": {
-        "requestedAt": "2026-02-08T03:10:18.184Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "jsystem2026": {
-        "requestedAt": "2026-02-08T02:48:45.822Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "tmp": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "context-guard": {
-        "requestedAt": "2026-02-08T03:10:18.184Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "null": {
-        "requestedAt": "2026-02-08T02:48:45.822Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "install": {
-        "requestedAt": "2026-02-08T02:48:45.822Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "jsyste": {
-        "requestedAt": "2026-02-08T03:10:18.184Z",
-        "used": false,
-        "autoMapped": false
-      },
-      "insta": {
-        "requestedAt": "2026-02-08T03:10:18.184Z",
+      "middleware-to-proxy": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
         "used": false,
         "autoMapped": false
       },
       "task-id": {
-        "requestedAt": "2026-02-12T15:01:07.087Z",
+        "requestedAt": "2026-02-13T18:59:28.277Z",
         "used": false,
         "autoMapped": false
       },
       "private": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "tmp": {
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
       "claude-501": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
       "-Users-matsumototoshihiko-Desktop-dev-marketinghub": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
       "tasks": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
-      "b7a88aa": {
-        "requestedAt": "2026-02-12T14:33:05.434Z",
+      "b5ff994": {
+        "requestedAt": "2026-02-13T05:54:11.462Z",
         "used": false,
         "autoMapped": false
       },
       "output-file": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.277Z",
         "used": false,
         "autoMapped": false
       },
       "status": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.277Z",
         "used": false,
         "autoMapped": false
       },
       "summary": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
       "task-notification": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       },
-      "b3233fe": {
-        "requestedAt": "2026-02-12T14:33:18.358Z",
+      "login": {
+        "requestedAt": "2026-02-13T06:54:50.023Z",
         "used": false,
         "autoMapped": false
       },
-      "bab30ce": {
-        "requestedAt": "2026-02-12T15:01:07.096Z",
+      "schema": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
         "used": false,
         "autoMapped": false
       },
-      "CD": {
-        "requestedAt": "2026-02-12T15:45:31.401Z",
+      "lp-analysis": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "taiyo-style-lp": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "connectors": {
+        "requestedAt": "2026-02-13T06:37:24.074Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "sql-schema-connector": {
+        "requestedAt": "2026-02-13T06:37:24.074Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "src": {
+        "requestedAt": "2026-02-13T06:53:19.490Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "apply_migration": {
+        "requestedAt": "2026-02-13T06:37:24.074Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "core": {
+        "requestedAt": "2026-02-13T06:37:24.074Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "state": {
+        "requestedAt": "2026-02-13T06:37:24.074Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node_modules": {
+        "requestedAt": "2026-02-13T06:40:55.887Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "client": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "pris": {
+        "requestedAt": "2026-02-13T06:40:55.887Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "d": {
+        "requestedAt": "2026-02-13T06:40:55.887Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "importing-client": {
+        "requestedAt": "2026-02-13T06:40:55.887Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "inghub": {
+        "requestedAt": "2026-02-13T06:41:24.398Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "shared": {
+        "requestedAt": "2026-02-13T06:54:50.023Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk": {
+        "requestedAt": "2026-02-13T18:47:35.966Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "components": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk-provider": {
+        "requestedAt": "2026-02-13T06:55:30.179Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "signup": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "page": {
+        "requestedAt": "2026-02-13T06:54:50.023Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "dnghub": {
+        "requestedAt": "2026-02-13T06:44:11.948Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "sages": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk-provi": {
+        "requestedAt": "2026-02-13T06:45:12.090Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "localizations": {
+        "requestedAt": "2026-02-13T06:48:37.395Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "types": {
+        "requestedAt": "2026-02-13T06:48:37.395Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "backend": {
+        "requestedAt": "2026-02-13T06:48:37.395Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clerk-react": {
+        "requestedAt": "2026-02-13T06:55:30.179Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "layout": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "header": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "react": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "link": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "hydration-mismatch": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "marketing": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "side": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "avatar": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "div": {
+        "requestedAt": "2026-02-13T06:56:45.787Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "deployments": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "overview": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "youtube-thumbnail": {
+        "requestedAt": "2026-02-13T07:01:24.415Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "api": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "courses": {
+        "requestedAt": "2026-02-13T07:29:50.347Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Vitest": {
+        "requestedAt": "2026-02-13T07:49:13.927Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "products": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "new": {
+        "requestedAt": "2026-02-13T15:55:15.830Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "funnels": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "b6a1a7a": {
+        "requestedAt": "2026-02-13T16:22:01.803Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lead-scoring": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "n8n": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "workflows": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "3100-analyze-landing-page-with-openai-and-get-optimization-tips": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "LINE": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Instagram": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "11805-recover-shopify-abandoned-carts-with-email-sms-whatsapp-and-facebook-retargeting": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Frequency": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Monetary": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4880-segment-woocommerce-customers-for-targeted-marketing-with-rfm-analysis": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Gemini": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "1996-ai-customer-feedback-sentiment-analysis": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "mpiresolutions": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "blog": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "what-is-n8n-email-marketing-automation": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4242-enrich-crm-contact-data-with-linkedin-profiles-using-gpt-and-multi-crm-support": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "B": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "5953-automate-email-campaign-analysis-and-smart-follow-ups-with-bright-data-and-openai": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Notion": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Facebook": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "X": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "LinkedIn": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4352-ai-powered-multi-social-media-post-automation-google-trends-and-perplexity-ai": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "5948-automated-competitor-pricing-monitor-with-bright-data-mcp-and-openai": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2549-automate-google-analytics-reporting": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "marketingagent": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "01": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-for-marketing-in-2026-the-automation-fabric-behind-ai-first-growth-with-real-workflow-examples": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "integrations": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "builtin": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "core-nodes": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-nodes-base": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "9385-automate-linkedin-engagement-with-gpt-4o-sentiment-analysis-and-smart-comments": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "YouTube": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "10000-auto-create-tiktok-videos-with-veedio-ai-avatars-elevenlabs-and-gpt-4": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "5962-track-seo-keyword-rankings-with-bright-data-mcp-and-gpt-52-ai-analysis": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "11632-automated-product-review-monitoring-with-sentiment-analysis-via-decodo-gemini-and-telegram": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Salesforce": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "supercharge-your-crm": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "categories": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-chatbot": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "marketingadvice": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "customer-journey-automation-building-workflows-with-n8n": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "5966-analyze-and-target-high-value-customers-with-gpt-4-and-bright-data-mcp": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "koanthic": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "en": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "advanced-n8n-workflows-ai-agents-marketing-guide-2026": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "social-media": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "restflow": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "automate-kpi-dashboards-n8n-2": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-sentiment-analysis": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "pub": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "building-an-automated-sales-kpi-engine-with-n8n-f058a6814e37": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8nlab": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-for-crm-automation": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "result": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "usage": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "a536d70": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "interactive-video-platform": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "pdf-processing": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "youtube_channel_summary": {
+        "requestedAt": "2026-02-13T17:25:14.742Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "apify-research": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "video-agent": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "meta-ads": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "meta-ads-analyze": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "meta-ads-optimize": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "voice-ai": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "meta-ads-competitors": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "research-free": {
+        "requestedAt": "2026-02-13T18:13:32.883Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "WhatsApp": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Telegram": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "SMS": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Meta": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4396-smart-shopify-agent-ai-powered-abandoned-cart-recovery": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Push": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "webhooks": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "line": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "3600-line-chatbot-with-google-sheets-memory-and-gemini-ai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "AI": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Email": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "6579-send-personalized-product-recommendations-via-email-after-shopify-purchases": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Airtable": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ERP": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "10531-ai-driven-inventory-management-with-openai-forecasting-and-erp-integration": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Prisma": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Analytics": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4001-automated-daily-customer-win-back-campaign-with-ai-offers": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Google": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "9108-automated-4-stage-email-follow-up-system-with-ai-personalization-and-database-tracking": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "WooCommerce": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "orders": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "6362-automate-e-commerce-orders-inventory-and-feedback-with-slack-sheets-and-gmail": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Microsoft": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "OneDrive": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "3413-line-messages-with-gpt-save-notes-namecard-data-and-tasks": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "contact": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "10114-manage-customer-inquiries-from-email-and-web-forms-with-slack-and-google-sheets": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "webhook": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "and": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "slack": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "json": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lib": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "automation": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "actions": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-webhook": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "server-n8n": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "settings": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-data": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "home": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "node": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "webhook-client": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "executor": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "OAuth2": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "v1": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "executions": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "a3e9850": {
+        "requestedAt": "2026-02-13T17:47:32.157Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "outreach-composer": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "2462-angie-personal-ai-assistant-with-telegram-voice-and-text": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2090-chat-with-a-database-using-ai": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2753-rag-chatbot-for-company-documents-using-google-drive-and-gemini": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2740-basic-automatic-gmail-email-labelling-with-openai-and-gmail-api": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "CVR": {
+        "requestedAt": "2026-02-13T18:44:26.256Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "8270-generate-ai-viral-videos-with-nanobanana-and-veo3-shared-on-socials-via-blotato": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "6983-automate-lead-generation-and-personalized-outreach-with-apollo-ai-and-instantlyai": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2950-ai-powered-social-media-content-generator-and-publisher": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "3066-automate-multi-platform-social-media-content-creation-with-ai": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "support-chatbot": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "2833-smart-email-outreach-sequence-ai-powered-and-customizable": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "11008-customer-feedback-automation-with-sentiment-analysis-using-gpt-41-jira-and-slack": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Slack": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "6630-automate-real-estate-marketing-with-llama-ai-vapi-calls-and-gmail-campaigns": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "B2C": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "10427-analyze-facebook-ads-and-send-insights-to-google-sheets-with-gemini-ai": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "API": {
+        "requestedAt": "2026-02-13T20:46:18.885Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "aa10803": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "instagram-shorts-generator": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "taiyo-style-step-mail": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "nanobanana-pro": {
+        "requestedAt": "2026-02-13T17:47:52.202Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "bcc3978": {
+        "requestedAt": "2026-02-13T17:48:04.281Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "be11ee8": {
+        "requestedAt": "2026-02-13T17:49:21.089Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "bert-base-japanese-sentiment": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "MessageHistory": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "1K": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "sentiment": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "analyzer": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "transformers": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "insight7": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "sentiment-analysis-dashboard-best-practices": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Zendesk": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "intent": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "chatbot": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "db": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "providers": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ollama": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "cobbai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "chatbot-escalation-best-practices": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "mcp": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "server": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "crypto-sentiment-mcp": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "kukapay": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lobehub": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lokeshpanthangi-doc_mcp": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "huggingface": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "daigo": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "luke-japanese-sentiment-wrime": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Mizuiro-sakura": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "luke-japanese-large-sentiment-analysis-wrime": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "multilingual-sentiment": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "tabularisai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "multilingual-sentiment-analysis": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "karakuri": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "service": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "cs": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Recharts": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "myaskai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "zendesk-ai-vs-intercom-fin-ai": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "support": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "hc": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "en-us": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "articles": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "4550640560538-Automatically-detecting-customer-intent-sentiment-and-language": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "www": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "intercom": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "notes": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Introduction-to-OpenAI": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Text-Generation": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "Sentiment-Analysis-With-OpenAI": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "luke-japanese-sentiment": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "crm": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-crm": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "best-ai-sentiment-tools-that-sync-with-salesforce-and-hubspot": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "real-time-brand-sentiment-dashboard": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "vistasocial": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "insights": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "social-media-sentiment-analysis-dashboard": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "developers": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "messaging-api": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "receiving-messages": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "first-contact": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "article": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "linebot-case-study": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "linext-media": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "03": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "aichatbot": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-chatbot-with-human-handoff": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "standardbeagle": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "chatbot-handoff-ux": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "when-to-hand-off-to-a-human-how-to-set-effective-ai-escalation-rules": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "learn": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "azure": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "architecture": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-ml": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "baseline-azure-ai-foundry-chat": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "medium": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "unified-chat-history-and-logging-system-a-comprehensive-approach-to-ai-conversation-management-dc3b5d75499f": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "getstream": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-chat-memory": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "guides": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "ai-sdk-nextjs": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "wcag-2-1-aa-the-standard-for-accessible-web-design": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "TR": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "WCAG21": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "best-practices": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "mecab-python": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "axinc": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "bertjapanesetokenizer-": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "a66d6a1": {
+        "requestedAt": "2026-02-13T18:44:12.533Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "gpt-researcher": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": true
+      },
+      "F": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "M": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "help": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "115002779411": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "abandoned-cart-email": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "codecrew": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "klaviyo-abandoned-cart-flows-best-practices-and-practical-examples": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "line-case-study-how-sabon-uses-line-to-increase-e-commerce-sales": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "line-ads-case-study-how-loccitane-grew-online-sales-during-the-pandemic": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "blogs": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "wiki": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "understanding-the-shopify-abandoned-checkout-webhook": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "shopify": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "admin-rest": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "latest": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "resources": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "abandoned-checkouts": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "library": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "cartmailpoint": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "useful_info_ec": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "20211021-2": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "6111-automated-abandoned-cart-recovery-emails-for-shopify-stores": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "groovetechnology": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "software-development": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "n8n-shopify-integration-automate-e-commerce-operations-with-smart-workflows": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "woocommerce-abandoned-cart-plugins": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "webappick": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "woocommerce-database-schema-explained": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "documentation": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "engagement": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "rfm-segmentation": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "rfm": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "clevertap": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "rfm-analysis": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "knowledgebase": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "predictive-rfm-segmentation": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "customer-segmentation": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "tracking-methods": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "segment": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "community-posts": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "using-rfm-aum-and-k-means-clustering-customers-segmentation": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "07": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "customer-segmentation-using-rfm-analysis": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "malna": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "aboutlstep": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "linestep": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lp": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "liskul": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "line-marketing-102163": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "lme": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "orend": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "mag": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "a0271": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "af0b07a": {
+        "requestedAt": "2026-02-13T18:44:26.257Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "MarketingHub_": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "a449aed": {
+        "requestedAt": "2026-02-13T18:44:34.398Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "dashboard": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "cm": {
+        "requestedAt": "2026-02-13T18:47:35.967Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "b63ff49": {
+        "requestedAt": "2026-02-13T18:52:58.932Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "b61e694": {
+        "requestedAt": "2026-02-13T18:59:28.278Z",
+        "used": false,
+        "autoMapped": false
+      },
+      "null": {
+        "requestedAt": "2026-02-13T18:59:28.278Z",
         "used": false,
         "autoMapped": false
       }
