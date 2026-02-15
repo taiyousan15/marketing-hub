@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ABOptimizer } from '../ab-optimizer'
-import type { ABTest, ABVariant } from '../ab-optimizer'
 
 describe('ABOptimizer', () => {
   let optimizer: ABOptimizer
@@ -11,7 +10,7 @@ describe('ABOptimizer', () => {
 
   describe('Test Setup', () => {
     it('should create a new A/B test', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_1',
         name: 'Email Subject Line Test',
         type: 'email',
@@ -44,7 +43,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should pause a test', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_2',
         name: 'Test 2',
         type: 'email',
@@ -62,7 +61,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should archive a test', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_3',
         name: 'Test 3',
         type: 'email',
@@ -82,7 +81,7 @@ describe('ABOptimizer', () => {
 
   describe('Epsilon Greedy Algorithm', () => {
     it('should select variant using epsilon greedy', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_epsilon',
         name: 'Epsilon Test',
         type: 'email',
@@ -117,7 +116,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should explore less frequently with low epsilon', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_low_epsilon',
         name: 'Low Epsilon Test',
         type: 'email',
@@ -157,7 +156,7 @@ describe('ABOptimizer', () => {
 
   describe('UCB1 Algorithm', () => {
     it('should select variant using UCB1', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_ucb1',
         name: 'UCB1 Test',
         type: 'email',
@@ -191,7 +190,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should explore undersampled variants with UCB1', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_ucb1_explore',
         name: 'UCB1 Exploration Test',
         type: 'email',
@@ -230,7 +229,7 @@ describe('ABOptimizer', () => {
 
   describe('Thompson Sampling Algorithm', () => {
     it('should select variant using Thompson Sampling', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_thompson',
         name: 'Thompson Test',
         type: 'email',
@@ -264,7 +263,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should favor better performing variants over time', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_thompson_favor',
         name: 'Thompson Favor Test',
         type: 'email',
@@ -303,7 +302,7 @@ describe('ABOptimizer', () => {
 
   describe('Recording Results', () => {
     it('should record impression', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_impression',
         name: 'Impression Test',
         type: 'email',
@@ -325,13 +324,13 @@ describe('ABOptimizer', () => {
       optimizer.recordImpression('test_impression', 'variant_a')
 
       const updatedTest = optimizer.getTest('test_impression')
-      const variant = updatedTest.variants.find(v => v.id === 'variant_a')
+      const variant = updatedTest.variants.find((v: any) => v.id === 'variant_a')
 
       expect(variant.impressions).toBe(1)
     })
 
     it('should record conversion', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_conversion',
         name: 'Conversion Test',
         type: 'email',
@@ -353,13 +352,13 @@ describe('ABOptimizer', () => {
       optimizer.recordConversion('test_conversion', 'variant_a')
 
       const updatedTest = optimizer.getTest('test_conversion')
-      const variant = updatedTest.variants.find(v => v.id === 'variant_a')
+      const variant = updatedTest.variants.find((v: any) => v.id === 'variant_a')
 
       expect(variant.conversions).toBe(1)
     })
 
     it('should calculate conversion rate', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_rate',
         name: 'Rate Test',
         type: 'email',
@@ -380,15 +379,15 @@ describe('ABOptimizer', () => {
       optimizer.createTest(test)
 
       const stats = optimizer.getTestStats('test_rate')
-      const variantStats = stats.variants.find(v => v.id === 'variant_a')
+      const variantStats = stats.variants.find((v: any) => v.id === 'variant_a')
 
-      expect(variantStats.conversionRate).toBe(0.2)
+      expect(variantStats!.conversionRate).toBe(0.2)
     })
   })
 
   describe('Winner Detection', () => {
     it('should detect clear winner with statistical significance', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_winner',
         name: 'Winner Test',
         type: 'email',
@@ -418,11 +417,11 @@ describe('ABOptimizer', () => {
       const winner = optimizer.detectWinner('test_winner', 0.95)
 
       expect(winner).toBeDefined()
-      expect(winner.id).toBe('variant_b')
+      expect(winner!.id).toBe('variant_b')
     })
 
     it('should not declare winner without sufficient data', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_insufficient',
         name: 'Insufficient Data Test',
         type: 'email',
@@ -457,7 +456,7 @@ describe('ABOptimizer', () => {
 
   describe('Multi-Variant Tests', () => {
     it('should handle tests with 3+ variants', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_multi',
         name: 'Multi-Variant Test',
         type: 'email',
@@ -504,7 +503,7 @@ describe('ABOptimizer', () => {
 
   describe('Performance Metrics', () => {
     it('should calculate lift percentage', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_lift',
         name: 'Lift Test',
         type: 'email',
@@ -537,7 +536,7 @@ describe('ABOptimizer', () => {
     })
 
     it('should track cumulative regret', () => {
-      const test: ABTest = {
+      const test: any = {
         id: 'test_regret',
         name: 'Regret Test',
         type: 'email',

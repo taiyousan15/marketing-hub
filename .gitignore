@@ -1,68 +1,57 @@
-# Dependencies
-node_modules/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
 /node_modules
 /.pnp
 .pnp.*
-.pnpm-store/
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
 
-# Environment
-.env
-.env*
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# testing
+/coverage
 
-# Build / Next.js
-.next/
+# next.js
 /.next/
-out/
 /out/
-build/
-/build
-dist/
 
-# Debug
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# OS
-.DS_Store
-Thumbs.db
-*.pem
+# env files (can opt-in for committing if needed)
+.env*
 
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
+# vercel
+.vercel
 
-# Cache
-.cache/
+# typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# Vercel
-.vercel
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-
-# Testing
-/coverage
-
-# Prisma
 /src/generated/prisma
+.env*.local
 
-# Environment - Production
-.env.production
-.env.production.template
+# uploads
+/public/uploads
+
+# NanoBanana Pro (browser profile and auth data)
+/scripts/nanobanana-pro/data/browser_profile
+/scripts/nanobanana-pro/data/state.json
+/scripts/nanobanana-pro/data/auth_info.json
+
+# agent/workflow state files
+.agent-trace/
+.agent_usage_state.json
+.workflow_state.json

@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { TriggerEngine } from '../trigger-engine'
-import type { Trigger, TriggerEvent } from '../trigger-engine'
 
 describe('TriggerEngine', () => {
   let engine: TriggerEngine
@@ -11,7 +10,7 @@ describe('TriggerEngine', () => {
 
   describe('Trigger Registration', () => {
     it('should register a new trigger', () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'trigger_1',
         name: 'Cart Abandonment Trigger',
         type: 'cart_abandoned',
@@ -40,7 +39,7 @@ describe('TriggerEngine', () => {
     })
 
     it('should disable a trigger', () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'trigger_2',
         name: 'Test Trigger',
         type: 'cart_abandoned',
@@ -57,7 +56,7 @@ describe('TriggerEngine', () => {
     })
 
     it('should remove a trigger', () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'trigger_3',
         name: 'Test Trigger',
         type: 'cart_abandoned',
@@ -76,7 +75,7 @@ describe('TriggerEngine', () => {
 
   describe('Event Processing', () => {
     it('should process cart abandonment event', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'cart_trigger',
         name: 'Cart Recovery',
         type: 'cart_abandoned',
@@ -99,7 +98,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_123',
         data: {
@@ -117,7 +116,7 @@ describe('TriggerEngine', () => {
     })
 
     it('should not trigger when conditions not met', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'high_value_trigger',
         name: 'High Value Cart',
         type: 'cart_abandoned',
@@ -140,7 +139,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_456',
         data: {
@@ -157,7 +156,7 @@ describe('TriggerEngine', () => {
     })
 
     it('should process multiple matching triggers', async () => {
-      const trigger1: Trigger = {
+      const trigger1: any = {
         id: 'trigger_email',
         name: 'Email Trigger',
         type: 'cart_abandoned',
@@ -178,7 +177,7 @@ describe('TriggerEngine', () => {
         ],
       }
 
-      const trigger2: Trigger = {
+      const trigger2: any = {
         id: 'trigger_line',
         name: 'LINE Trigger',
         type: 'cart_abandoned',
@@ -202,7 +201,7 @@ describe('TriggerEngine', () => {
       engine.registerTrigger(trigger1)
       engine.registerTrigger(trigger2)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_789',
         data: {
@@ -288,7 +287,7 @@ describe('TriggerEngine', () => {
 
   describe('AI-Enhanced Triggers', () => {
     it.skip('should use AI for intent analysis', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'intent_trigger',
         name: 'Purchase Intent Trigger',
         type: 'page_view',
@@ -304,7 +303,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'page_view',
         contactId: 'contact_ai',
         data: {
@@ -320,7 +319,7 @@ describe('TriggerEngine', () => {
     })
 
     it.skip('should personalize message content', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'personalized_trigger',
         name: 'Personalized Message',
         type: 'cart_abandoned',
@@ -337,7 +336,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_personal',
         data: {
@@ -359,7 +358,7 @@ describe('TriggerEngine', () => {
 
   describe('Send Time Optimization', () => {
     it.skip('should predict best send time', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'optimized_trigger',
         name: 'Optimized Send Time',
         type: 'cart_abandoned',
@@ -376,7 +375,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_optimized',
         data: {
@@ -401,7 +400,7 @@ describe('TriggerEngine', () => {
 
   describe('Event Statistics', () => {
     it('should track trigger execution count', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'stats_trigger',
         name: 'Stats Trigger',
         type: 'cart_abandoned',
@@ -417,7 +416,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_stats',
         data: {
@@ -436,7 +435,7 @@ describe('TriggerEngine', () => {
     })
 
     it('should track success rate', async () => {
-      const trigger: Trigger = {
+      const trigger: any = {
         id: 'success_trigger',
         name: 'Success Trigger',
         type: 'cart_abandoned',
@@ -452,7 +451,7 @@ describe('TriggerEngine', () => {
 
       engine.registerTrigger(trigger)
 
-      const event: TriggerEvent = {
+      const event: any = {
         type: 'cart_abandoned',
         contactId: 'contact_success',
         data: {
