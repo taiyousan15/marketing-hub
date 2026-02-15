@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -75,7 +75,20 @@ interface ABTest {
   currentSampleSize: number;
 }
 
+function formatDateJP(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}/${month}/${day}`;
+}
+
 export default function ABTestsPage() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const [tests, setTests] = useState<ABTest[]>([
     {
       id: "1",
@@ -403,7 +416,7 @@ export default function ABTestsPage() {
                         </span>
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
-                          開始: {test.startDate.toLocaleDateString()}
+                          開始: {isClient ? formatDateJP(test.startDate) : "--/--/--"}
                         </span>
                       </CardDescription>
                     </div>
@@ -539,7 +552,7 @@ export default function ABTestsPage() {
                         </Badge>
                       </CardTitle>
                       <CardDescription>
-                        {test.startDate.toLocaleDateString()} - {test.endDate?.toLocaleDateString()}
+                        {isClient ? formatDateJP(test.startDate) : "--/--/--"} - {isClient && test.endDate ? formatDateJP(test.endDate) : "--/--/--"}
                       </CardDescription>
                     </div>
                     <Button variant="outline" size="sm">

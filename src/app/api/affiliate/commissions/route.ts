@@ -163,6 +163,9 @@ export async function POST(request: NextRequest) {
         id: true,
         name: true,
         code: true,
+        email: true,
+        status: true,
+        commissionRate: true,
       },
     });
 

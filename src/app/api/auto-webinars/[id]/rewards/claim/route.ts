@@ -1,29 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export async function GET(request: NextRequest) {
-  return NextResponse.json({
-    success: false,
-    error: "This endpoint is not implemented"
-  });
+interface RouteParams {
+  params: Promise<{ id: string }>;
 }
 
-export async function POST(request: NextRequest) {
-  return NextResponse.json({
-    success: false,
-    error: "This endpoint is not implemented"
-  });
-}
-
-export async function PATCH(request: NextRequest) {
-  return NextResponse.json({
-    success: false,
-    error: "This endpoint is not implemented"
-  });
-}
-
-export async function DELETE(request: NextRequest) {
-  return NextResponse.json({
-    success: false,
-    error: "This endpoint is not implemented"
-  });
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  return NextResponse.json(
+    { error: "Not implemented", message: "Auto-webinar reward claiming feature is under development" },
+    { status: 501 }
+  );
 }

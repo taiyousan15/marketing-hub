@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   MessageSquare,
   Search,
   Bot,
+  User,
   Clock,
+  CheckCheck,
   Sparkles,
-  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,398 +19,221 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ChatInterface, Message } from "@/components/chat/chat-interface";
-import { useTenant } from "@/hooks/use-tenant";
-import {
-  useConversationMessages,
-  useConversationList,
-} from "@/hooks/use-pusher";
+import { useAIAutoResponse } from "@/hooks/use-ai-auto-response";
 
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
-
-interface ApiLastMessage {
-  id: string;
-  content: unknown;
-  direction: string;
-  senderType: string;
-  createdAt: string;
-}
-
-interface ApiConversation {
+interface Conversation {
   id: string;
   contactId: string;
   contactName: string;
-  channel: string;
-  status: string;
+  lastMessage: string;
+  lastMessageAt: Date;
+  unreadCount: number;
   isAIHandling: boolean;
-  lastMessage: ApiLastMessage | null;
-  lastMessageAt: string;
+  status: "active" | "waiting" | "resolved";
 }
 
-interface ApiMessage {
-  id: string;
-  content: unknown;
-  direction: string;
-  senderType: string;
-  status: string;
-  createdAt: string;
-  metadata?: unknown;
-}
+const sampleConversations: Conversation[] = [
+  {
+    id: "1",
+    contactId: "c1",
+    contactName: "田中 太郎",
+    lastMessage: "商品の発送はいつ頃になりますか？",
+    lastMessageAt: new Date(Date.now() - 5 * 60000),
+    unreadCount: 2,
+    isAIHandling: false,
+    status: "waiting",
+  },
+  {
+    id: "2",
+    contactId: "c2",
+    contactName: "鈴木 花子",
+    lastMessage: "ありがとうございます！",
+    lastMessageAt: new Date(Date.now() - 30 * 60000),
+    unreadCount: 0,
+    isAIHandling: true,
+    status: "active",
+  },
+  {
+    id: "3",
+    contactId: "c3",
+    contactName: "佐藤 一郎",
+    lastMessage: "セミナーの日程について教えてください",
+    lastMessageAt: new Date(Date.now() - 2 * 3600000),
+    unreadCount: 1,
+    isAIHandling: false,
+    status: "waiting",
+  },
+];
 
-// ---------------------------------------------------------------------------
-// Helpers (pure functions)
-// ---------------------------------------------------------------------------
-
-function extractText(content: unknown): string {
-  if (typeof content === "string") return content;
-  if (content && typeof content === "object" && "text" in content) {
-    return String((content as { text: unknown }).text);
-  }
-  return "[メディアメッセージ]";
-}
-
-function toMessage(apiMsg: ApiMessage): Message {
-  return {
-    id: apiMsg.id,
-    content: extractText(apiMsg.content),
-    sender:
-      apiMsg.direction === "INBOUND"
-        ? "user"
-        : apiMsg.senderType === "AI"
-          ? "ai"
-          : apiMsg.senderType === "SYSTEM"
-            ? "system"
-            : "operator",
-    timestamp: new Date(apiMsg.createdAt),
-    status:
-      apiMsg.status === "SENT"
-        ? "sent"
-        : apiMsg.status === "DELIVERED"
-          ? "delivered"
-          : "read",
-  };
-}
-
-function formatTime(date: Date): string {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-
-  if (diff < 60000) return "たった今";
-  if (diff < 3600000) return Math.floor(diff / 60000) + "分前";
-  if (diff < 86400000) return Math.floor(diff / 3600000) + "時間前";
-  return date.toLocaleDateString("ja-JP");
-}
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
+const sampleMessages: Message[] = [
+  {
+    id: "m1",
+    content: "こんにちは！商品について質問があります。",
+    sender: "user",
+    timestamp: new Date(Date.now() - 10 * 60000),
+    status: "read",
+  },
+  {
+    id: "m2",
+    content: "こんにちは！ご質問ありがとうございます。どのような内容でしょうか？",
+    sender: "ai",
+    timestamp: new Date(Date.now() - 9 * 60000),
+    status: "read",
+  },
+  {
+    id: "m3",
+    content: "オンラインコースの内容について詳しく知りたいです。",
+    sender: "user",
+    timestamp: new Date(Date.now() - 8 * 60000),
+    status: "read",
+  },
+  {
+    id: "m4",
+    content: "オンラインコースは全12回のレッスンで構成されており、マーケティングの基礎から応用まで学べます。動画は何度でも視聴可能で、質問フォーラムもご利用いただけます。",
+    sender: "ai",
+    timestamp: new Date(Date.now() - 7 * 60000),
+    status: "read",
+  },
+  {
+    id: "m5",
+    content: "商品の発送はいつ頃になりますか？",
+    sender: "user",
+    timestamp: new Date(Date.now() - 5 * 60000),
+    status: "delivered",
+  },
+];
 
 export default function ChatPage() {
-  const { tenantId, loading: tenantLoading } = useTenant();
-
-  // ---- Conversations state ----
-  const [conversations, setConversations] = useState<ApiConversation[]>([]);
-  const [conversationsLoading, setConversationsLoading] = useState(false);
-  const [conversationsError, setConversationsError] = useState<string | null>(null);
-
-  // ---- Selected conversation ----
-  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-
-  // ---- Messages state ----
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [messagesLoading, setMessagesLoading] = useState(false);
-
-  // ---- UI state ----
+  const [isClient, setIsClient] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [aiToggleLoading, setAiToggleLoading] = useState(false);
-
-  // ---- Pusher hooks ----
-  const { messages: pusherMessages, clearMessages: clearPusherMessages } =
-    useConversationMessages(selectedConversationId);
-  const { latestUpdate } = useConversationList(tenantId);
-
-  // ---- Derived: selected conversation object ----
-  const selectedConversation = useMemo(
-    () => conversations.find((c) => c.id === selectedConversationId) ?? null,
-    [conversations, selectedConversationId]
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(
+    sampleConversations[0]
   );
-
-  // ---- Derived: counts ----
-  const aiHandlingCount = useMemo(
-    () => conversations.filter((c) => c.isAIHandling).length,
-    [conversations]
-  );
-  const waitingCount = useMemo(
-    () => conversations.filter((c) => c.status === "ACTIVE" && !c.isAIHandling).length,
-    [conversations]
-  );
-
-  // ---- Derived: filtered conversations ----
-  const filteredConversations = useMemo(
-    () =>
-      conversations.filter((conv) =>
-        conv.contactName.toLowerCase().includes(searchQuery.toLowerCase())
-      ),
-    [conversations, searchQuery]
-  );
-
-  // ---- Fetch conversations ----
-  const fetchConversations = useCallback(async () => {
-    if (!tenantId) return;
-
-    setConversationsLoading(true);
-    setConversationsError(null);
-    try {
-      const res = await fetch(
-        `/api/conversations?tenantId=${encodeURIComponent(tenantId)}&status=ACTIVE`
-      );
-      if (!res.ok) {
-        throw new Error(`Failed to fetch conversations: ${res.status}`);
-      }
-      const data = await res.json();
-      setConversations(data.conversations ?? []);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setConversationsError(message);
-    } finally {
-      setConversationsLoading(false);
-    }
-  }, [tenantId]);
+  const [messages, setMessages] = useState<Message[]>(sampleMessages);
+  const [conversations, setConversations] = useState<Conversation[]>(sampleConversations);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    setIsClient(true);
+  }, []);
 
-  // ---- Fetch messages when conversation selected ----
-  const fetchMessages = useCallback(async (conversationId: string) => {
-    setMessagesLoading(true);
+  const filteredConversations = conversations.filter((conv) =>
+    conv.contactName.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleToggleAI = async () => {
+    if (!selectedConversation) return;
+    const updated = conversations.map((conv) =>
+      conv.id === selectedConversation.id
+        ? { ...conv, isAIHandling: !conv.isAIHandling }
+        : conv
+    );
+    setConversations(updated);
+    const updatedConv = updated.find((c) => c.id === selectedConversation.id);
+    if (updatedConv) {
+      setSelectedConversation(updatedConv);
+    }
+  };
+
+  const handleSendMessage = async (content: string) => {
+    const newMessage: Message = {
+      id: "m" + Date.now(),
+      content,
+      sender: "operator",
+      timestamp: new Date(),
+      status: "sending",
+    };
+    setMessages((prev) => [...prev, newMessage]);
+
+    // Simulate sending
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setMessages((prev) =>
+      prev.map((m) => (m.id === newMessage.id ? { ...m, status: "sent" } : m))
+    );
+  };
+
+  const handleAIAssist = useCallback(async (userMessage: string): Promise<string> => {
     try {
-      const res = await fetch(
-        `/api/conversations/${encodeURIComponent(conversationId)}/messages?limit=50`
-      );
-      if (!res.ok) {
-        throw new Error(`Failed to fetch messages: ${res.status}`);
+      const response = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          conversationHistory: [],
+          config: {
+            mode: "support",
+            temperature: 0.7,
+            maxTokens: 500,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("AI response failed");
       }
-      const data = await res.json();
-      const apiMessages: ApiMessage[] = data.messages ?? [];
-      setMessages(apiMessages.map(toMessage));
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setConversationsError(message);
-      setMessages([]);
-    } finally {
-      setMessagesLoading(false);
+
+      const data = await response.json();
+
+      if (data.response?.shouldHandoff) {
+        return `[担当者へエスカレーション] ${data.response.content}`;
+      }
+
+      return data.response?.content || "申し訳ございません。応答の生成に失敗しました。";
+    } catch (error) {
+      console.error("AI assist error:", error);
+      return "申し訳ございません。AIサービスに接続できませんでした。しばらくしてからお試しください。";
     }
   }, []);
 
-  useEffect(() => {
-    if (selectedConversationId) {
-      clearPusherMessages();
-      fetchMessages(selectedConversationId);
-    } else {
-      setMessages([]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedConversationId, fetchMessages]);
+  const handleAddMessage = useCallback((message: Message) => {
+    setMessages((prev) => [...prev, message]);
 
-  // ---- Merge Pusher real-time messages (avoid duplicates) ----
-  useEffect(() => {
-    if (pusherMessages.length === 0) return;
-
-    setMessages((prev) => {
-      const existingIds = new Set(prev.map((m) => m.id));
-      const newMessages = pusherMessages
-        .filter((pm) => !existingIds.has(pm.id))
-        .map((pm) =>
-          toMessage({
-            id: pm.id,
-            content: pm.content,
-            direction: pm.direction,
-            senderType: pm.senderType,
-            status: "SENT",
-            createdAt: pm.createdAt,
-          })
-        );
-
-      if (newMessages.length === 0) return prev;
-      return [...prev, ...newMessages];
-    });
-  }, [pusherMessages]);
-
-  // ---- Merge Pusher conversation-list updates ----
-  useEffect(() => {
-    if (!latestUpdate) return;
-
+    // Update conversation lastMessage
     setConversations((prev) =>
-      prev.map((conv) => {
-        if (conv.id !== latestUpdate.conversationId) return conv;
-
-        const updated = { ...conv };
-
-        if (latestUpdate.status !== undefined) {
-          updated.status = latestUpdate.status;
-        }
-        if (latestUpdate.isAIHandling !== undefined) {
-          updated.isAIHandling = latestUpdate.isAIHandling;
-        }
-        if (latestUpdate.lastMessage) {
-          const lm = latestUpdate.lastMessage as ApiLastMessage;
-          updated.lastMessage = lm;
-          updated.lastMessageAt = lm.createdAt;
-        }
-
-        return updated;
-      })
+      prev.map((conv) =>
+        conv.id === selectedConversation?.id
+          ? { ...conv, lastMessage: message.content, lastMessageAt: new Date() }
+          : conv
+      )
     );
-  }, [latestUpdate]);
+  }, [selectedConversation?.id]);
 
-  // ---- Send message ----
-  const handleSendMessage = useCallback(
-    async (content: string) => {
-      if (!selectedConversationId) return;
-
-      // Optimistic update
-      const optimisticId = `optimistic-${Date.now()}`;
-      const optimisticMessage: Message = {
-        id: optimisticId,
-        content,
-        sender: "operator",
-        timestamp: new Date(),
-        status: "sending",
-      };
-      setMessages((prev) => [...prev, optimisticMessage]);
-
-      try {
-        const res = await fetch(
-          `/api/conversations/${encodeURIComponent(selectedConversationId)}/messages`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: content }),
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`Failed to send message: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        // Replace optimistic message with server response
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === optimisticId
-              ? {
-                  ...m,
-                  id: data.message?.id ?? optimisticId,
-                  status: "sent" as const,
-                }
-              : m
-          )
-        );
-      } catch (err) {
-        // Mark as error
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === optimisticId ? { ...m, status: "error" as const } : m
-          )
-        );
-        throw err;
-      }
-    },
-    [selectedConversationId]
-  );
-
-  // ---- Toggle AI mode ----
-  const handleToggleAI = useCallback(
-    async (enabled: boolean) => {
-      if (!selectedConversationId) return;
-
-      setAiToggleLoading(true);
-      try {
-        const res = await fetch(
-          `/api/conversations/${encodeURIComponent(selectedConversationId)}/ai`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ enabled }),
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`Failed to toggle AI: ${res.status}`);
-        }
-
-        // Optimistically update local state
-        setConversations((prev) =>
-          prev.map((conv) =>
-            conv.id === selectedConversationId
-              ? { ...conv, isAIHandling: enabled }
-              : conv
-          )
-        );
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setConversationsError(message);
-      } finally {
-        setAiToggleLoading(false);
-      }
-    },
-    [selectedConversationId]
-  );
-
-  // ---- AI assist (sparkle button in ChatInterface) ----
-  const handleAIAssist = useCallback(
-    async (userMessage: string): Promise<string> => {
-      if (!selectedConversationId) {
-        return "会話が選択されていません";
-      }
-
-      try {
-        const res = await fetch(
-          `/api/conversations/${encodeURIComponent(selectedConversationId)}/ai/respond`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userMessage }),
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error(`AI respond failed: ${res.status}`);
-        }
-
-        const data = await res.json();
-
-        if (data.responded && data.message) {
-          return extractText(data.message.content ?? data.message);
-        }
-        if (data.handoff) {
-          return `[引き継ぎ] ${data.reason ?? "AIが対応できない内容です"}`;
-        }
-        return "AIからの提案はありません";
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        throw new Error(`AI提案の取得に失敗しました: ${message}`);
-      }
-    },
-    [selectedConversationId]
-  );
-
-  // ---- Select conversation handler ----
-  const handleSelectConversation = useCallback((convId: string) => {
-    setSelectedConversationId(convId);
-  }, []);
-
-  // ---- Loading state ----
-  if (tenantLoading) {
-    return (
-      <div className="h-[calc(100vh-8rem)] flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-      </div>
+  const handleHandoff = useCallback(() => {
+    if (!selectedConversation) return;
+    setConversations((prev) =>
+      prev.map((conv) =>
+        conv.id === selectedConversation.id
+          ? { ...conv, isAIHandling: false }
+          : conv
+      )
     );
-  }
+    setSelectedConversation((prev) =>
+      prev ? { ...prev, isAIHandling: false } : prev
+    );
+  }, [selectedConversation]);
+
+  const { isAITyping } = useAIAutoResponse({
+    messages,
+    isAIHandling: selectedConversation?.isAIHandling ?? false,
+    onAIAssist: handleAIAssist,
+    onAddMessage: handleAddMessage,
+    onHandoff: handleHandoff,
+  });
+
+  const formatTime = (date: Date) => {
+    if (!isClient) return "--";
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+
+    if (diff < 60000) return "たった今";
+    if (diff < 3600000) return Math.floor(diff / 60000) + "分前";
+    if (diff < 86400000) return Math.floor(diff / 3600000) + "時間前";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}/${month}/${day}`;
+  };
 
   return (
     <div className="h-[calc(100vh-8rem)]">
@@ -423,11 +247,11 @@ export default function ChatPage() {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1">
             <Bot className="h-3 w-3" />
-            AI対応中: {aiHandlingCount}
+            AI対応中: {conversations.filter((c) => c.isAIHandling).length}
           </Badge>
           <Badge variant="outline" className="gap-1">
             <Clock className="h-3 w-3" />
-            待機中: {waitingCount}
+            待機中: {conversations.filter((c) => c.status === "waiting").length}
           </Badge>
         </div>
       </div>
@@ -448,85 +272,56 @@ export default function ChatPage() {
           </CardHeader>
           <CardContent className="flex-1 p-0 overflow-hidden">
             <ScrollArea className="h-full">
-              {conversationsLoading && conversations.length === 0 ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : conversationsError && conversations.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <p className="text-sm text-destructive">{conversationsError}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-2"
-                    onClick={fetchConversations}
+              {filteredConversations.map((conv) => (
+                <div key={conv.id}>
+                  <button
+                    className={
+                      "w-full p-4 text-left hover:bg-muted/50 transition-colors " +
+                      (selectedConversation?.id === conv.id ? "bg-muted" : "")
+                    }
+                    onClick={() => setSelectedConversation(conv)}
                   >
-                    再試行
-                  </Button>
-                </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground">
-                  <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">会話がありません</p>
-                </div>
-              ) : (
-                filteredConversations.map((conv) => (
-                  <div key={conv.id}>
-                    <button
-                      className={
-                        "w-full p-4 text-left hover:bg-muted/50 transition-colors " +
-                        (selectedConversationId === conv.id ? "bg-muted" : "")
-                      }
-                      onClick={() => handleSelectConversation(conv.id)}
-                    >
-                      <div className="flex items-start gap-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-green-100">
-                            {conv.contactName.slice(0, 2)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium truncate">
-                              {conv.contactName}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatTime(new Date(conv.lastMessageAt))}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {conv.isAIHandling && (
-                              <Sparkles className="h-3 w-3 text-purple-500 flex-shrink-0" />
-                            )}
-                            <p className="text-sm text-muted-foreground truncate">
-                              {conv.lastMessage
-                                ? extractText(conv.lastMessage.content)
-                                : "メッセージなし"}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 mt-1">
-                            {conv.isAIHandling ? (
-                              <Badge
-                                variant="secondary"
-                                className="text-xs py-0 bg-purple-100 text-purple-700"
-                              >
-                                AI対応中
-                              </Badge>
-                            ) : (
-                              conv.status === "ACTIVE" && (
-                                <Badge variant="destructive" className="text-xs py-0">
-                                  対応待ち
-                                </Badge>
-                              )
-                            )}
-                          </div>
+                    <div className="flex items-start gap-3">
+                      <Avatar className="h-10 w-10">
+                        <AvatarFallback className="bg-green-100">
+                          {conv.contactName.slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium truncate">
+                            {conv.contactName}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {formatTime(conv.lastMessageAt)}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {conv.isAIHandling && (
+                            <Sparkles className="h-3 w-3 text-purple-500 flex-shrink-0" />
+                          )}
+                          <p className="text-sm text-muted-foreground truncate">
+                            {conv.lastMessage}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          {conv.status === "waiting" && (
+                            <Badge variant="destructive" className="text-xs py-0">
+                              対応待ち
+                            </Badge>
+                          )}
+                          {conv.unreadCount > 0 && (
+                            <Badge className="text-xs py-0">
+                              {conv.unreadCount}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                    </button>
-                    <Separator />
-                  </div>
-                ))
-              )}
+                    </div>
+                  </button>
+                  <Separator />
+                </div>
+              ))}
             </ScrollArea>
           </CardContent>
         </Card>
@@ -547,36 +342,21 @@ export default function ChatPage() {
                       <CardTitle className="text-base">
                         {selectedConversation.contactName}
                       </CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {selectedConversation.channel ?? "LINE"}
-                      </p>
+                      <p className="text-xs text-muted-foreground">LINE</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {selectedConversation.isAIHandling ? (
                       <Badge
-                        className="bg-purple-100 text-purple-700 cursor-pointer hover:bg-purple-200 transition-colors"
-                        onClick={() => handleToggleAI(false)}
+                        className="bg-purple-100 text-purple-700 cursor-pointer hover:bg-purple-200"
+                        onClick={handleToggleAI}
                       >
-                        {aiToggleLoading ? (
-                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                        ) : (
-                          <Sparkles className="h-3 w-3 mr-1" />
-                        )}
+                        <Sparkles className="h-3 w-3 mr-1" />
                         AI対応中
                       </Badge>
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleToggleAI(true)}
-                        disabled={aiToggleLoading}
-                      >
-                        {aiToggleLoading ? (
-                          <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                        ) : (
-                          <Bot className="h-4 w-4 mr-1" />
-                        )}
+                      <Button variant="outline" size="sm" onClick={handleToggleAI}>
+                        <Bot className="h-4 w-4 mr-1" />
                         AIに任せる
                       </Button>
                     )}
@@ -584,20 +364,15 @@ export default function ChatPage() {
                 </div>
               </CardHeader>
               <CardContent className="flex-1 p-0 overflow-hidden">
-                {messagesLoading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  </div>
-                ) : (
-                  <ChatInterface
-                    contactId={selectedConversation.contactId}
-                    contactName={selectedConversation.contactName}
-                    messages={messages}
-                    onSendMessage={handleSendMessage}
-                    onAIAssist={handleAIAssist}
-                    isAIEnabled={true}
-                  />
-                )}
+                <ChatInterface
+                  contactId={selectedConversation.contactId}
+                  contactName={selectedConversation.contactName}
+                  messages={messages}
+                  onSendMessage={handleSendMessage}
+                  onAIAssist={handleAIAssist}
+                  isAIEnabled={true}
+                  isAITyping={isAITyping}
+                />
               </CardContent>
             </>
           ) : (

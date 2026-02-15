@@ -12,7 +12,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export interface Message {
   id: string;
   content: string;
-  sender: "user" | "operator" | "bot" | "ai" | "system";
+  sender: "user" | "operator" | "bot" | "ai";
   timestamp: Date;
   status?: "sending" | "sent" | "delivered" | "read" | "error";
 }
@@ -24,6 +24,13 @@ interface ChatInterfaceProps {
   onSendMessage: (content: string) => Promise<void>;
   onAIAssist?: (content: string) => Promise<string>;
   isAIEnabled?: boolean;
+  isAITyping?: boolean;
+}
+
+function formatTimeJP(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
 }
 
 export function ChatInterface({
@@ -32,18 +39,24 @@ export function ChatInterface({
   onSendMessage,
   onAIAssist,
   isAIEnabled = false,
+  isAITyping = false,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isAIThinking, setIsAIThinking] = useState(false);
   const [aiSuggestion, setAiSuggestion] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, isAITyping]);
 
   const handleSend = async () => {
     if (!input.trim() || isSending) return;
@@ -106,8 +119,6 @@ export function ChatInterface({
         return "Bot";
       case "ai":
         return "AI";
-      case "system":
-        return "システム";
       default:
         return "";
     }
@@ -132,8 +143,6 @@ export function ChatInterface({
                       ? "bg-green-100"
                       : message.sender === "ai"
                       ? "bg-purple-100"
-                      : message.sender === "system"
-                      ? "bg-yellow-100"
                       : "bg-blue-100"
                   }
                 >
@@ -150,9 +159,9 @@ export function ChatInterface({
                   <span className="text-xs text-muted-foreground">
                     {getSenderLabel(message.sender)}
                   </span>
-                  {(message.sender === "bot" || message.sender === "ai" || message.sender === "system") && (
+                  {(message.sender === "bot" || message.sender === "ai") && (
                     <Badge variant="secondary" className="text-xs py-0">
-                      {message.sender === "ai" ? "AI" : message.sender === "system" ? "システム" : "Bot"}
+                      {message.sender === "ai" ? "AI" : "Bot"}
                     </Badge>
                   )}
                 </div>
@@ -163,22 +172,40 @@ export function ChatInterface({
                       ? "bg-green-100"
                       : message.sender === "ai"
                       ? "bg-purple-100"
-                      : message.sender === "system"
-                      ? "bg-yellow-50 border border-yellow-200"
                       : "bg-muted")
                   }
                 >
                   <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                 </div>
                 <span className="text-xs text-muted-foreground mt-1">
-                  {message.timestamp.toLocaleTimeString("ja-JP", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {isClient ? formatTimeJP(message.timestamp) : "--:--"}
                 </span>
               </div>
             </div>
           ))}
+
+          {isAITyping && (
+            <div className="flex gap-3 flex-row-reverse">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-purple-100">
+                  <Bot className="h-4 w-4" />
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xs text-muted-foreground">AI</span>
+                  <Badge variant="secondary" className="text-xs py-0">AI</Badge>
+                </div>
+                <div className="rounded-lg px-4 py-3 bg-purple-100">
+                  <div className="flex gap-1">
+                    <span className="h-2 w-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="h-2 w-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="h-2 w-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: "300ms" }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </ScrollArea>
 

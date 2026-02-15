@@ -89,14 +89,23 @@ export class IntentAnalyzer {
     const barriers: Array<{ type: PurchaseBarrier; severity: number }> = [];
 
     const hasCartAbandonment = signals.some(s => s.type === "cart_abandoned");
-    const hasPricingView = signals.some(s => s.page === "/pricing" && (s.duration || 0) > 60);
+    const hasPricingView = signals.some(s => s.page === "/pricing");
     const hasUnsubscribe = signals.some(s => s.type === "unsubscribe");
+    const hasFeatureSearch = signals.some(s =>
+      s.type === "search" && s.query &&
+      (s.query.includes("integration") || s.query.includes("feature"))
+    );
+    const hasFeaturesPageView = signals.some(s => s.page === "/features");
 
     if (hasCartAbandonment && hasPricingView) {
       barriers.push({ type: "price", severity: 0.8 });
     }
 
-    if (signals.filter(s => s.page === "/reviews" || s.page === "/testimonials").length >= 2) {
+    if (hasFeatureSearch && hasFeaturesPageView) {
+      barriers.push({ type: "feature_gap", severity: 0.7 }); // Feature gap detected
+    }
+
+    if (signals.filter(s => s.page === "/reviews" || s.page === "/testimonials").length >= 1) {
       barriers.push({ type: "trust", severity: 0.6 });
     }
 
@@ -130,6 +139,12 @@ export class IntentAnalyzer {
     // Determine suggested segment
     let suggestedSegment = "nurturing";
 
+    // Detect educational content consumption (downloads indicate education phase)
+    const hasEducationalContent = signals.some(s =>
+      s.type === "download" &&
+      (s.resource === "whitepaper" || s.resource === "ebook" || s.resource)
+    );
+
     if (level === "very_high" || (level === "high" && barriers.length === 0)) {
       suggestedSegment = "purchase_ready";
     } else if (level === "high" && barriers.length > 0) {
@@ -138,7 +153,8 @@ export class IntentAnalyzer {
       } else if (barriers[0].type === "trust") {
         suggestedSegment = "objection_trust";
       }
-    } else if (level === "low" || level === "very_low") {
+    } else if (level === "very_low" || (level === "low" && hasEducationalContent)) {
+      // Very low intent OR low intent with educational content → education segment
       suggestedSegment = "education";
     } else if (hasUnsubscribe) {
       suggestedSegment = "reengagement";

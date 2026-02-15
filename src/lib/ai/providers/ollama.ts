@@ -36,7 +36,7 @@ export class OllamaClient implements AIProviderClient {
         stream: false,
         options: {
           temperature: options?.temperature ?? 0.7,
-          num_predict: options?.maxTokens ?? 1024,
+          num_predict: (options?.maxTokens ?? 1024) * 2,
         },
       }),
     });
@@ -47,9 +47,10 @@ export class OllamaClient implements AIProviderClient {
     }
 
     const data = await response.json();
+    const content = data.message.content || data.message.thinking || '';
 
     return {
-      content: data.message.content,
+      content,
       model: data.model,
       usage: {
         promptTokens: data.prompt_eval_count || 0,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -81,11 +81,34 @@ interface Alert {
   timestamp: Date;
 }
 
+// 一貫した日時フォーマット関数
+function formatTime(date: Date): string {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
+function formatDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  return `${year}/${month}/${day} ${formatTime(date)}`;
+}
+
 export default function AutopilotPage() {
   const [status, setStatus] = useState<AutopilotStatus>("running");
   const [mode, setMode] = useState<AutomationMode>("balanced");
   const [level, setLevel] = useState<AutomationLevel>("semi_auto");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+
+  // クライアントサイドでのみ時刻を初期化
+  useEffect(() => {
+    setIsClient(true);
+    setCurrentTime(Date.now());
+  }, []);
 
   const stats = {
     actionsToday: 127,
@@ -94,10 +117,13 @@ export default function AutopilotPage() {
     avgConfidence: 87.3
   };
 
+  // 時刻をクライアントサイドでのみ計算
+  const baseTime = isClient ? currentTime : 0;
+
   const decisions: Decision[] = [
     {
       id: "dec-001",
-      timestamp: new Date(Date.now() - 5 * 60 * 1000),
+      timestamp: new Date(baseTime - 5 * 60 * 1000),
       trigger: "customer_action:cart_abandon",
       action: {
         type: "send_email",
@@ -110,7 +136,7 @@ export default function AutopilotPage() {
     },
     {
       id: "dec-002",
-      timestamp: new Date(Date.now() - 12 * 60 * 1000),
+      timestamp: new Date(baseTime - 12 * 60 * 1000),
       trigger: "threshold_breach:churn_risk",
       action: {
         type: "escalate",
@@ -123,7 +149,7 @@ export default function AutopilotPage() {
     },
     {
       id: "dec-003",
-      timestamp: new Date(Date.now() - 25 * 60 * 1000),
+      timestamp: new Date(baseTime - 25 * 60 * 1000),
       trigger: "customer_action:page_view",
       action: {
         type: "send_line",
@@ -136,7 +162,7 @@ export default function AutopilotPage() {
     },
     {
       id: "dec-004",
-      timestamp: new Date(Date.now() - 45 * 60 * 1000),
+      timestamp: new Date(baseTime - 45 * 60 * 1000),
       trigger: "scheduled:daily_optimization",
       action: {
         type: "adjust_ab_test",
@@ -148,7 +174,7 @@ export default function AutopilotPage() {
     },
     {
       id: "dec-005",
-      timestamp: new Date(Date.now() - 60 * 60 * 1000),
+      timestamp: new Date(baseTime - 60 * 60 * 1000),
       trigger: "customer_action:support_ticket",
       action: {
         type: "update_segment",
@@ -166,19 +192,19 @@ export default function AutopilotPage() {
       id: "alert-001",
       severity: "warning",
       message: "チャーンリスク顧客が10名を超えました。確認してください。",
-      timestamp: new Date(Date.now() - 30 * 60 * 1000)
+      timestamp: new Date(baseTime - 30 * 60 * 1000)
     },
     {
       id: "alert-002",
       severity: "info",
       message: "A/Bテスト「ウェルカムメール件名」で勝者が決定しました。",
-      timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000)
+      timestamp: new Date(baseTime - 2 * 60 * 60 * 1000)
     },
     {
       id: "alert-003",
       severity: "critical",
       message: "メール配信エラー率が5%を超えています。",
-      timestamp: new Date(Date.now() - 4 * 60 * 60 * 1000)
+      timestamp: new Date(baseTime - 4 * 60 * 60 * 1000)
     }
   ];
 
@@ -447,7 +473,7 @@ export default function AutopilotPage() {
                         <div className="flex items-center gap-4 text-xs text-muted-foreground">
                           <span>トリガー: {decision.trigger}</span>
                           <span>信頼度: {(decision.confidence * 100).toFixed(0)}%</span>
-                          <span>{decision.timestamp.toLocaleTimeString()}</span>
+                          <span>{isClient ? formatTime(decision.timestamp) : "--:--:--"}</span>
                         </div>
                         <p className="text-sm bg-muted p-2 rounded">
                           <span className="font-medium">理由:</span> {decision.reasoning}
@@ -495,7 +521,7 @@ export default function AutopilotPage() {
                   <div className="flex-1">
                     <p className="text-sm font-medium">{alert.message}</p>
                     <p className="text-xs text-muted-foreground">
-                      {alert.timestamp.toLocaleString()}
+                      {isClient ? formatDateTime(alert.timestamp) : "----/--/-- --:--:--"}
                     </p>
                   </div>
                   <Button variant="ghost" size="sm">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Search,
@@ -12,6 +13,7 @@ import {
   Mail,
   MessageSquare,
   Phone,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,52 +44,92 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactForm } from "@/components/contacts/contact-form";
 import { CsvImportModal } from "@/components/contacts/csv-import-modal";
 import { toast } from "sonner";
+import { getContacts, getTags, deleteContact } from "@/actions/contacts";
 
-// サンプルデータ（後でAPIから取得）
-const sampleContacts = [
-  {
-    id: "1",
-    name: "田中 太郎",
-    email: "tanaka@example.com",
-    lineUserId: "U1234567890",
-    phone: "090-1234-5678",
-    score: 85,
-    tags: ["購入者", "VIP"],
-    createdAt: "2025-01-15",
-  },
-  {
-    id: "2",
-    name: "鈴木 花子",
-    email: "suzuki@example.com",
-    lineUserId: "U0987654321",
-    phone: null,
-    score: 45,
-    tags: ["見込み客"],
-    createdAt: "2025-01-20",
-  },
-  {
-    id: "3",
-    name: "佐藤 一郎",
-    email: null,
-    lineUserId: "U5555555555",
-    phone: "080-9876-5432",
-    score: 60,
-    tags: ["セミナー参加者"],
-    createdAt: "2025-01-25",
-  },
-];
+interface Contact {
+  id: string;
+  name: string | null;
+  email: string | null;
+  lineUserId: string | null;
+  phone: string | null;
+  score: number;
+  tags: Array<{ id: string; name: string; color: string }>;
+  createdAt: Date;
+}
+
+interface Tag {
+  id: string;
+  name: string;
+  color: string;
+  _count: { contacts: number };
+}
 
 export default function ContactsPage() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [selectedTagId, setSelectedTagId] = useState<string | undefined>();
+
+  // データ取得
+  const fetchContacts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const result = await getContacts({
+        search: searchQuery || undefined,
+        tagId: selectedTagId,
+        limit: 50,
+        offset: 0,
+      });
+      setContacts(result.contacts as Contact[]);
+      setTotal(result.total);
+    } catch (error) {
+      console.error("Failed to fetch contacts:", error);
+      toast.error("コンタクトの取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, [searchQuery, selectedTagId]);
+
+  const fetchTags = useCallback(async () => {
+    try {
+      const result = await getTags();
+      setTags(result as Tag[]);
+    } catch (error) {
+      console.error("Failed to fetch tags:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchContacts();
+    fetchTags();
+  }, [fetchContacts, fetchTags]);
+
+  // 検索の遅延実行
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchContacts();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery, selectedTagId, fetchContacts]);
 
   const handleExport = useCallback(() => {
     const headers = ["name", "email", "phone", "lineUserId", "score", "createdAt"];
     const csvContent = [
       headers.join(","),
-      ...sampleContacts.map((c) =>
-        [c.name, c.email || "", c.phone || "", c.lineUserId || "", c.score, c.createdAt].join(",")
+      ...contacts.map((c) =>
+        [
+          c.name || "",
+          c.email || "",
+          c.phone || "",
+          c.lineUserId || "",
+          c.score,
+          c.createdAt instanceof Date ? c.createdAt.toISOString().split("T")[0] : c.createdAt,
+        ].join(",")
       ),
     ].join("\n");
 
@@ -99,13 +141,24 @@ export default function ContactsPage() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("エクスポートが完了しました");
-  }, []);
+  }, [contacts]);
 
-  const filteredContacts = sampleContacts.filter(
-    (contact) =>
-      contact.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      contact.email?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleDelete = useCallback(async (id: string) => {
+    if (!confirm("本当にこのコンタクトを削除しますか？")) return;
+    try {
+      await deleteContact(id);
+      toast.success("コンタクトを削除しました");
+      fetchContacts();
+    } catch (error) {
+      console.error("Failed to delete contact:", error);
+      toast.error("削除に失敗しました");
+    }
+  }, [fetchContacts]);
+
+  const handleRefresh = useCallback(() => {
+    fetchContacts();
+    toast.success("更新しました");
+  }, [fetchContacts]);
 
   return (
     <div className="space-y-6">
@@ -113,10 +166,14 @@ export default function ContactsPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">コンタクト</h1>
           <p className="text-muted-foreground">
-            顧客情報を一元管理できます
+            顧客情報を一元管理できます（{total}件）
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            更新
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setIsImportOpen(true)}>
             <Upload className="mr-2 h-4 w-4" />
             インポート
@@ -145,10 +202,35 @@ export default function ContactsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              フィルター
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Filter className="mr-2 h-4 w-4" />
+                  {selectedTagId
+                    ? tags.find((t) => t.id === selectedTagId)?.name
+                    : "フィルター"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuLabel>タグでフィルター</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSelectedTagId(undefined)}>
+                  すべて表示
+                </DropdownMenuItem>
+                {tags.map((tag) => (
+                  <DropdownMenuItem
+                    key={tag.id}
+                    onClick={() => setSelectedTagId(tag.id)}
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full mr-2"
+                      style={{ backgroundColor: tag.color }}
+                    />
+                    {tag.name} ({tag._count.contacts})
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </CardHeader>
         <CardContent>
@@ -164,7 +246,16 @@ export default function ContactsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredContacts.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="h-24 text-center text-muted-foreground"
+                  >
+                    読み込み中...
+                  </TableCell>
+                </TableRow>
+              ) : contacts.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={6}
@@ -174,7 +265,7 @@ export default function ContactsPage() {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredContacts.map((contact) => (
+                contacts.map((contact) => (
                   <TableRow key={contact.id}>
                     <TableCell>
                       <Link
@@ -207,8 +298,15 @@ export default function ContactsPage() {
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
                         {contact.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            style={{
+                              backgroundColor: `${tag.color}20`,
+                              color: tag.color,
+                            }}
+                          >
+                            {tag.name}
                           </Badge>
                         ))}
                       </div>
@@ -228,7 +326,9 @@ export default function ContactsPage() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {contact.createdAt}
+                      {contact.createdAt instanceof Date
+                        ? contact.createdAt.toLocaleDateString("ja-JP")
+                        : new Date(contact.createdAt).toLocaleDateString("ja-JP")}
                     </TableCell>
                     <TableCell>
                       <DropdownMenu>
@@ -248,7 +348,10 @@ export default function ContactsPage() {
                           <DropdownMenuItem>タグを追加</DropdownMenuItem>
                           <DropdownMenuItem>メッセージを送信</DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDelete(contact.id)}
+                          >
                             削除
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -266,7 +369,7 @@ export default function ContactsPage() {
         open={isFormOpen}
         onOpenChange={setIsFormOpen}
         onSuccess={() => {
-          // TODO: Refresh contacts list
+          fetchContacts();
         }}
       />
 
@@ -274,7 +377,7 @@ export default function ContactsPage() {
         open={isImportOpen}
         onOpenChange={setIsImportOpen}
         onSuccess={() => {
-          // TODO: Refresh contacts list
+          fetchContacts();
         }}
       />
     </div>

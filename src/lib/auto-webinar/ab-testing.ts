@@ -1,19 +1,12 @@
 /**
- * オファーA/Bテストシステム - Simplified stub
+ * オファーA/Bテストシステム（開発中）
  *
- * - 複数バリアントのランダム/最適割り当て
- * - 統計的有意性の検定
- * - 自動最適化（勝者決定）
+ * TODO: Implement when auto-webinar tables are added to Prisma schema
  */
 
-import { prisma } from "@/lib/db/prisma";
+import { ABTestStatus, ABTestAlgorithm } from "@prisma/client";
 
-// Local type definitions for missing Prisma types
-type ABTestStatus = "RUNNING" | "PAUSED" | "COMPLETED";
-type ABTestAlgorithm = "RANDOM" | "BANDIT" | "SEQUENTIAL";
-
-// ==================== 型定義 ====================
-
+// 型定義
 interface VariantStats {
   id: string;
   name: string;
@@ -31,75 +24,63 @@ interface ABTestResult {
   variants: VariantStats[];
   winner: VariantStats | null;
   isSignificant: boolean;
+  confidenceLevel: number;
+  pValue: number | null;
+  improvement: number | null;
 }
 
-// ==================== 主要関数 ====================
-
-/**
- * A/Bテストに基づいてバリアントを割り当て
- */
-export async function assignVariantForUser(
+// Stub implementations
+export async function assignVariant(
   testId: string,
-  sessionId: string
-): Promise<string | null> {
-  try {
-    // ランダムに選択
-    return Math.random() > 0.5 ? "variant_a" : "variant_b";
-  } catch (error) {
-    console.error("Error assigning variant:", error);
-    return null;
-  }
-}
-
-/**
- * A/Bテスト結果を取得
- */
-export async function getABTestResults(
-  testId: string
-): Promise<ABTestResult | null> {
-  try {
-    return {
-      testId,
-      status: "RUNNING",
-      variants: [],
-      winner: null,
-      isSignificant: false,
-    };
-  } catch (error) {
-    console.error("Error getting AB test results:", error);
-    return null;
-  }
-}
-
-/**
- * バリアントのクリックを記録
- */
-export async function recordVariantClick(
-  testId: string,
-  variantId: string,
-  sessionId: string
-): Promise<boolean> {
-  try {
-    return true;
-  } catch (error) {
-    console.error("Error recording variant click:", error);
-    return false;
-  }
-}
-
-/**
- * バリアントのコンバージョンを記録
- */
-export async function recordVariantConversion(
-  testId: string,
-  variantId: string,
   sessionId: string,
-  amount?: number
-): Promise<boolean> {
-  try {
-    return true;
-  } catch (error) {
-    console.error("Error recording variant conversion:", error);
-    return false;
-  }
+  contactId?: string
+): Promise<string | null> {
+  console.log("assignVariant called - auto-webinar feature under development");
+  return null;
+}
+
+export async function analyzeABTest(testId: string): Promise<ABTestResult> {
+  console.log("analyzeABTest called - auto-webinar feature under development");
+  return {
+    testId,
+    status: ABTestStatus.DRAFT,
+    variants: [],
+    winner: null,
+    isSignificant: false,
+    confidenceLevel: 0,
+    pValue: null,
+    improvement: null,
+  };
+}
+
+export async function startABTest(testId: string) {
+  console.log("startABTest called - auto-webinar feature under development");
+}
+
+export async function pauseABTest(testId: string) {
+  console.log("pauseABTest called - auto-webinar feature under development");
+}
+
+export async function completeABTest(testId: string, winnerId: string) {
+  console.log("completeABTest called - auto-webinar feature under development");
+}
+
+export async function recordImpression(testId: string, sessionId: string) {
+  console.log("recordImpression called - auto-webinar feature under development");
+}
+
+export async function recordClick(testId: string, sessionId: string) {
+  console.log("recordClick called - auto-webinar feature under development");
+}
+
+export async function recordConversion(testId: string, sessionId: string) {
+  console.log("recordConversion called - auto-webinar feature under development");
+}
+
+export async function getOfferVariant(
+  testId: string,
+  sessionId: string
+): Promise<any | null> {
+  console.log("getOfferVariant called - auto-webinar feature under development");
+  return null;
 }

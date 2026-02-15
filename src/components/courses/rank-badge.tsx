@@ -46,9 +46,9 @@ const RANK_CONFIG: Record<
   VIP: {
     label: "VIP",
     icon: "👑",
-    bgClass: "bg-red-100",
-    textClass: "text-red-800",
-    borderClass: "border-red-400",
+    bgClass: "bg-rose-100",
+    textClass: "text-rose-800",
+    borderClass: "border-rose-400",
   },
 };
 

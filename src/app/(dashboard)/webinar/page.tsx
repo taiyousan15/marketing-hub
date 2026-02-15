@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -67,7 +67,22 @@ interface Webinar {
   recordingUrl?: string;
 }
 
+function formatDateTimeJP(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${year}/${month}/${day} ${hours}:${minutes}`;
+}
+
 export default function WebinarPage() {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const [webinars, setWebinars] = useState<Webinar[]>([
     {
       id: "web-001",
@@ -313,7 +328,7 @@ export default function WebinarPage() {
                     {webinar.scheduledAt && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {webinar.scheduledAt.toLocaleString("ja-JP")}
+                        {isClient ? formatDateTimeJP(webinar.scheduledAt) : "--/--/-- --:--"}
                       </span>
                     )}
                     <span>ホスト: {webinar.hostName}</span>
@@ -381,7 +396,7 @@ export default function WebinarPage() {
                     {webinar.scheduledAt && (
                       <span className="flex items-center gap-1">
                         <Calendar className="h-4 w-4" />
-                        {webinar.scheduledAt.toLocaleString("ja-JP")}
+                        {isClient ? formatDateTimeJP(webinar.scheduledAt) : "--/--/-- --:--"}
                       </span>
                     )}
                   </div>

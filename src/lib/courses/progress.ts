@@ -13,6 +13,7 @@ export async function updateLessonProgress(
     where: { id: lessonId },
     select: {
       duration: true,
+      completionThreshold: true,
     },
   });
 
@@ -20,10 +21,10 @@ export async function updateLessonProgress(
     throw new Error("Lesson not found");
   }
 
-  // 進捗率を計算（80%で完了と判定）
+  // 進捗率を計算
   const duration = lesson.duration || 0;
   const progress = duration > 0 ? (watchedSeconds / duration) * 100 : 0;
-  const isCompleted = progress >= 80;
+  const isCompleted = progress >= lesson.completionThreshold;
 
   // upsertで進捗を更新
   await prisma.lessonProgress.upsert({
@@ -106,6 +107,7 @@ export async function getCourseProgress(
     select: {
       id: true,
       duration: true,
+      completionThreshold: true,
     },
   });
 
@@ -133,7 +135,7 @@ export async function getCourseProgress(
       completedCount++;
     } else if (lessonProgress && lesson.duration) {
       const percent = (lessonProgress.watchedSeconds / lesson.duration) * 100;
-      if (percent >= 80) {
+      if (percent >= lesson.completionThreshold) {
         completedCount++;
       }
     }
@@ -211,6 +213,7 @@ export async function getBulkCourseProgress(
     select: {
       id: true,
       duration: true,
+      completionThreshold: true,
     },
   });
 
@@ -246,7 +249,7 @@ export async function getBulkCourseProgress(
         completedCount++;
       } else if (p && lesson.duration) {
         const percent = (p.watchedSeconds / lesson.duration) * 100;
-        if (percent >= 80) {
+        if (percent >= lesson.completionThreshold) {
           completedCount++;
         }
       }

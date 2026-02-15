@@ -198,30 +198,13 @@ export function WizardChat({
           {/* 生成中 */}
           {isGenerating && (
             <div className="flex items-start gap-3">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-pink-500">
-                <Loader2 className="h-4 w-4 animate-spin text-white" />
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-purple-100">
+                <Loader2 className="h-4 w-4 animate-spin text-purple-600" />
               </div>
-              <Card className="max-w-md bg-gradient-to-br from-purple-50 to-pink-50 p-4">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-purple-600" />
-                  <p className="font-bold text-purple-900">太陽スタイルAI が生成中...</p>
-                </div>
-                <div className="mt-3 space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-purple-700">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500" />
-                    <span>176パターンのキラーワードを分析中</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-purple-700">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500" style={{ animationDelay: '0.2s' }} />
-                    <span>6つの教育要素で構成を最適化中</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-purple-700">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500" style={{ animationDelay: '0.4s' }} />
-                    <span>感情ジェットコースターを設計中</span>
-                  </div>
-                </div>
-                <p className="mt-3 text-xs text-purple-500">
-                  ※ 日給5000万円を生み出したコピーライティング技術を適用しています
+              <Card className="bg-purple-50 p-4">
+                <p className="font-medium text-purple-900">LPを生成中...</p>
+                <p className="mt-1 text-sm text-purple-600">
+                  AIがあなたの回答を元に最適なLPを作成しています
                 </p>
               </Card>
             </div>

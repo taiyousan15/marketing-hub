@@ -104,12 +104,27 @@ export default function NewWorkflowPage() {
     setIsSubmitting(true);
 
     try {
-      // TODO: Implement workflow creation API
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const res = await fetch("/api/automation/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description,
+          triggerType: formData.trigger,
+          aiEnabled: formData.aiEnabled,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "作成に失敗しました");
+      }
+
       toast.success("ワークフローを作成しました");
       router.push("/automation");
-    } catch {
-      toast.error("ワークフローの作成に失敗しました");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "ワークフローの作成に失敗しました";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

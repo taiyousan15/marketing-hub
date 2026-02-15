@@ -27,6 +27,7 @@ export type PurchaseBarrier =
   | "information"     // 情報不足
   | "urgency"         // 急いでいない
   | "past_experience" // 過去の悪い経験
+  | "feature_gap"     // 機能不足
   | "none";           // 障壁なし
 
 // ==================== 顧客の心理フェーズ ====================

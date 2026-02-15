@@ -20,6 +20,10 @@ import {
   Bot,
   Sparkles,
   Workflow,
+  Link2,
+  ArrowUpDown,
+  Phone,
+  MessageCircle,
 } from "lucide-react";
 
 import {
@@ -96,6 +100,11 @@ const menuItems = [
     url: "/analytics",
     icon: BarChart3,
   },
+  {
+    title: "アフィリエイト",
+    url: "/affiliate",
+    icon: Link2,
+  },
 ];
 
 const settingsItems = [
@@ -103,6 +112,11 @@ const settingsItems = [
     title: "LINE設定",
     url: "/settings/line",
     icon: MessageSquare,
+  },
+  {
+    title: "LINEプロジェクト",
+    url: "/settings/line-accounts",
+    icon: ArrowUpDown,
   },
   {
     title: "Bot設定",
@@ -118,6 +132,16 @@ const settingsItems = [
     title: "メール設定",
     url: "/settings/email",
     icon: Mail,
+  },
+  {
+    title: "SMS設定",
+    url: "/settings/sms",
+    icon: Phone,
+  },
+  {
+    title: "WhatsApp設定",
+    url: "/settings/whatsapp",
+    icon: MessageCircle,
   },
   {
     title: "決済設定",

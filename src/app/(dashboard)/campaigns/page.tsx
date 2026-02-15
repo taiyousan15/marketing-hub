@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Plus,
@@ -15,6 +15,8 @@ import {
   MessageSquare,
   Users,
   BarChart3,
+  RefreshCw,
+  Edit,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -42,73 +44,99 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { useTenant } from "@/hooks/use-tenant";
+import type { Campaign, CampaignStatus, CampaignType } from "@/types/campaign";
 
-const sampleCampaigns = [
-  {
-    id: "1",
-    name: "新規登録者向けウェルカムシーケンス",
-    type: "step",
-    channel: "email",
-    status: "active",
-    recipients: 1234,
-    openRate: 45.2,
-    clickRate: 12.8,
-    createdAt: "2025-01-10",
-  },
-  {
-    id: "2",
-    name: "セミナー告知LINE配信",
-    type: "broadcast",
-    channel: "line",
-    status: "active",
-    recipients: 567,
-    openRate: 78.5,
-    clickRate: 23.1,
-    createdAt: "2025-01-20",
-  },
-  {
-    id: "3",
-    name: "購入者フォローアップ",
-    type: "step",
-    channel: "email",
-    status: "draft",
-    recipients: 0,
-    openRate: 0,
-    clickRate: 0,
-    createdAt: "2025-01-25",
-  },
-  {
-    id: "4",
-    name: "休眠顧客掘り起こし",
-    type: "step",
-    channel: "line",
-    status: "paused",
-    recipients: 89,
-    openRate: 32.4,
-    clickRate: 8.7,
-    createdAt: "2025-01-15",
-  },
-];
-
-const statusConfig = {
-  active: { label: "配信中", variant: "default" as const },
-  paused: { label: "一時停止", variant: "secondary" as const },
-  draft: { label: "下書き", variant: "outline" as const },
-  completed: { label: "完了", variant: "secondary" as const },
+const statusConfig: Record<CampaignStatus, { label: string; variant: "default" | "secondary" | "outline" }> = {
+  ACTIVE: { label: "配信中", variant: "default" },
+  PAUSED: { label: "一時停止", variant: "secondary" },
+  DRAFT: { label: "下書き", variant: "outline" },
+  COMPLETED: { label: "完了", variant: "secondary" },
+  ARCHIVED: { label: "アーカイブ", variant: "secondary" },
 };
 
-const typeConfig = {
-  step: "ステップ配信",
-  broadcast: "一斉配信",
-  trigger: "トリガー配信",
+const typeConfig: Record<CampaignType, string> = {
+  EMAIL_STEP: "メールステップ",
+  EMAIL_BROADCAST: "メール一斉配信",
+  LINE_STEP: "LINEステップ",
+  LINE_BROADCAST: "LINE一斉配信",
+  LINE_SEGMENT: "LINEセグメント",
+  SMS: "SMS",
 };
 
 export default function CampaignsPage() {
+  const { tenantId, loading: tenantLoading } = useTenant();
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filteredCampaigns = sampleCampaigns.filter((campaign) =>
+  useEffect(() => {
+    if (tenantId) {
+      fetchCampaigns();
+    }
+  }, [tenantId]);
+
+  const fetchCampaigns = async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/campaigns?tenantId=${tenantId}`);
+      const data = await res.json();
+      setCampaigns(data.campaigns || []);
+    } catch (error) {
+      console.error("Failed to fetch campaigns:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (campaignId: string, newStatus: CampaignStatus) => {
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (res.ok) {
+        fetchCampaigns();
+      }
+    } catch (error) {
+      console.error("Failed to update status:", error);
+    }
+  };
+
+  const handleDelete = async (campaignId: string) => {
+    if (!confirm("このキャンペーンを削除しますか？")) return;
+
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        fetchCampaigns();
+      } else {
+        const error = await res.json();
+        alert(error.error || "削除に失敗しました");
+      }
+    } catch (error) {
+      console.error("Failed to delete campaign:", error);
+    }
+  };
+
+  const filteredCampaigns = campaigns.filter((campaign) =>
     campaign.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const activeCampaigns = campaigns.filter((c) => c.status === "ACTIVE");
+  const totalContacts = campaigns.reduce((sum, c) => sum + (c._count?.contacts || 0), 0);
+
+  if (tenantLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -130,51 +158,39 @@ export default function CampaignsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">総キャンペーン</CardTitle>
+            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{campaigns.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">配信中</CardTitle>
             <Play className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {sampleCampaigns.filter((c) => c.status === "active").length}
-            </div>
+            <div className="text-2xl font-bold">{activeCampaigns.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総配信数</CardTitle>
+            <CardTitle className="text-sm font-medium">総配信対象</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {sampleCampaigns.reduce((sum, c) => sum + c.recipients, 0).toLocaleString()}
-            </div>
+            <div className="text-2xl font-bold">{totalContacts.toLocaleString()}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">平均開封率</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">下書き</CardTitle>
+            <Edit className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(
-                sampleCampaigns.filter((c) => c.openRate > 0).reduce((sum, c) => sum + c.openRate, 0) /
-                sampleCampaigns.filter((c) => c.openRate > 0).length
-              ).toFixed(1)}%
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">平均クリック率</CardTitle>
-            <BarChart3 className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {(
-                sampleCampaigns.filter((c) => c.clickRate > 0).reduce((sum, c) => sum + c.clickRate, 0) /
-                sampleCampaigns.filter((c) => c.clickRate > 0).length
-              ).toFixed(1)}%
+              {campaigns.filter((c) => c.status === "DRAFT").length}
             </div>
           </CardContent>
         </Card>
@@ -193,9 +209,9 @@ export default function CampaignsPage() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <Button variant="outline" size="sm">
-              <Filter className="mr-2 h-4 w-4" />
-              フィルター
+            <Button variant="outline" size="sm" onClick={fetchCampaigns}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              更新
             </Button>
           </div>
         </CardHeader>
@@ -207,8 +223,8 @@ export default function CampaignsPage() {
                 <TableHead>タイプ</TableHead>
                 <TableHead>チャネル</TableHead>
                 <TableHead>ステータス</TableHead>
-                <TableHead className="text-right">配信数</TableHead>
-                <TableHead className="text-right">開封率</TableHead>
+                <TableHead className="text-right">配信対象</TableHead>
+                <TableHead className="text-right">ステップ数</TableHead>
                 <TableHead className="w-[50px]"></TableHead>
               </TableRow>
             </TableHeader>
@@ -216,85 +232,95 @@ export default function CampaignsPage() {
               {filteredCampaigns.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    キャンペーンが見つかりません
+                    {campaigns.length === 0
+                      ? "キャンペーンがありません。「新規作成」から作成してください。"
+                      : "検索条件に一致するキャンペーンがありません"}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
-                    <TableCell>
-                      <Link
-                        href={"/campaigns/" + campaign.id}
-                        className="font-medium hover:underline"
-                      >
-                        {campaign.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>{typeConfig[campaign.type as keyof typeof typeConfig]}</TableCell>
-                    <TableCell>
-                      {campaign.channel === "email" ? (
-                        <div className="flex items-center gap-1">
-                          <Mail className="h-4 w-4" />
-                          <span>メール</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="h-4 w-4 text-green-500" />
-                          <span>LINE</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusConfig[campaign.status as keyof typeof statusConfig].variant}>
-                        {statusConfig[campaign.status as keyof typeof statusConfig].label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {campaign.recipients.toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {campaign.openRate > 0 ? campaign.openRate + "%" : "-"}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={"/campaigns/" + campaign.id}>詳細を表示</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem asChild>
-                            <Link href={"/campaigns/" + campaign.id + "/stats"}>統計を見る</Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {campaign.status === "active" ? (
-                            <DropdownMenuItem>
-                              <Pause className="mr-2 h-4 w-4" />
-                              一時停止
+                filteredCampaigns.map((campaign) => {
+                  const isLine = campaign.type.startsWith("LINE");
+                  const status = statusConfig[campaign.status as CampaignStatus];
+
+                  return (
+                    <TableRow key={campaign.id}>
+                      <TableCell>
+                        <Link
+                          href={`/campaigns/${campaign.id}/edit`}
+                          className="font-medium hover:underline"
+                        >
+                          {campaign.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {typeConfig[campaign.type as CampaignType] || campaign.type}
+                      </TableCell>
+                      <TableCell>
+                        {isLine ? (
+                          <div className="flex items-center gap-1">
+                            <MessageSquare className="h-4 w-4 text-green-500" />
+                            <span>LINE</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Mail className="h-4 w-4" />
+                            <span>メール</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={status.variant}>{status.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {campaign._count?.contacts?.toLocaleString() || 0}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {campaign.steps?.length || 0}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={`/campaigns/${campaign.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                編集
+                              </Link>
                             </DropdownMenuItem>
-                          ) : campaign.status === "paused" ? (
-                            <DropdownMenuItem>
-                              <Play className="mr-2 h-4 w-4" />
-                              再開
+                            <DropdownMenuSeparator />
+                            {campaign.status === "ACTIVE" ? (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(campaign.id, "PAUSED")}
+                              >
+                                <Pause className="mr-2 h-4 w-4" />
+                                一時停止
+                              </DropdownMenuItem>
+                            ) : campaign.status === "PAUSED" || campaign.status === "DRAFT" ? (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(campaign.id, "ACTIVE")}
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                有効化
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDelete(campaign.id)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              削除
                             </DropdownMenuItem>
-                          ) : null}
-                          <DropdownMenuItem>
-                            <Copy className="mr-2 h-4 w-4" />
-                            複製
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            削除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>

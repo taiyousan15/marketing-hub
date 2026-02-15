@@ -18,6 +18,7 @@ import {
   Moon,
   Coffee,
 } from "lucide-react";
+import { useTenant } from "@/hooks/use-tenant";
 
 interface SendTimeSummary {
   totalAnalyzed: number;
@@ -49,38 +50,47 @@ export default function SendTimesPage() {
   const [summary, setSummary] = useState<SendTimeSummary | null>(null);
   const [windows, setWindows] = useState<SendWindow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [audienceType, setAudienceType] = useState<"business" | "consumer">("business");
 
-  // TODO: 実際のtenantIdを取得
-  const tenantId = "demo-tenant";
+  const { tenantId, loading: tenantLoading } = useTenant();
 
   useEffect(() => {
-    fetchData();
-  }, [audienceType]);
+    if (tenantId) {
+      fetchData();
+    }
+  }, [audienceType, tenantId]);
 
   const fetchData = async () => {
+    if (!tenantId) return;
     setLoading(true);
+    setError(null);
     try {
       const [summaryRes, windowsRes] = await Promise.all([
         fetch(`/api/send-times?tenantId=${tenantId}&action=summary`),
         fetch(`/api/send-times?action=recommendations&type=${audienceType}`),
       ]);
 
+      if (!summaryRes.ok || !windowsRes.ok) {
+        throw new Error("データの取得に失敗しました");
+      }
+
       const summaryData = await summaryRes.json();
       const windowsData = await windowsRes.json();
 
       setSummary(summaryData.summary);
       setWindows(windowsData.windows || []);
-    } catch (error) {
-      console.error("Failed to fetch send times:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "データの取得に失敗しました";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleAnalyzeAll = async () => {
-    if (!confirm("全コンタクトの送信時間を分析しますか？")) return;
+    if (!confirm("全コンタクトの送信時間を分析しますか？") || !tenantId) return;
 
     setAnalyzing(true);
     try {
@@ -100,10 +110,26 @@ export default function SendTimesPage() {
     }
   };
 
-  if (loading) {
+  if (loading || tenantLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-red-500 text-lg font-medium">データの読み込みに失敗しました</div>
+        <p className="text-gray-500 text-sm">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          再読み込み
+        </button>
       </div>
     );
   }
@@ -283,7 +309,7 @@ export default function SendTimesPage() {
         <ul className="text-sm text-indigo-800 space-y-1">
           <li>• 「全件分析」をクリックすると、全コンタクトの開封パターンを分析します</li>
           <li>• 分析結果は各コンタクトの最適送信時間として保存されます</li>
-          <li>• シーケンスの「最適時間で送信」オプションを有効にすると自動適用されます</li>
+          <li>• ステップメールの「最適時間で送信」オプションを有効にすると自動適用されます</li>
           <li>• データが蓄積されるほど予測精度が向上します（最低3件の開封データが必要）</li>
         </ul>
       </div>

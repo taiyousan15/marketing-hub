@@ -156,12 +156,13 @@ export default function LineAccountsPage() {
   }, [tenantId]);
 
   useEffect(() => {
+    if (!tenantId) return;
     if (selectedProject) {
       fetchAccounts(selectedProject.id);
     } else {
       fetchAllAccounts();
     }
-  }, [selectedProject]);
+  }, [selectedProject, tenantId]);
 
   const fetchProjects = async () => {
     if (!tenantId) return;

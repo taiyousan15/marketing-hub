@@ -19,6 +19,7 @@ import {
   ChevronRight,
   Zap,
 } from "lucide-react";
+import { useTenant } from "@/hooks/use-tenant";
 
 // セグメントの型定義
 interface Segment {
@@ -80,14 +81,16 @@ export default function SegmentsPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null);
 
-  // TODO: 実際のtenantIdを取得
-  const tenantId = "demo-tenant";
+  const { tenantId, loading: tenantLoading } = useTenant();
 
   useEffect(() => {
-    fetchSegments();
-  }, []);
+    if (tenantId) {
+      fetchSegments();
+    }
+  }, [tenantId]);
 
   const fetchSegments = async () => {
+    if (!tenantId) return;
     try {
       setLoading(true);
       const res = await fetch(`/api/segments?tenantId=${tenantId}`);
@@ -126,6 +129,14 @@ export default function SegmentsPage() {
       console.error("Failed to delete segment:", error);
     }
   };
+
+  if (tenantLoading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

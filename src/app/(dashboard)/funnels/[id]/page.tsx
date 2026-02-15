@@ -175,6 +175,45 @@ export default function FunnelDetailPage({
     }
   };
 
+  const createPageForStep = async (step: FunnelStep) => {
+    try {
+      const res = await fetch(`/api/funnels/${id}/pages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: step.name,
+          stepId: step.id,
+          stepType: step.type,
+        }),
+      });
+
+      if (!res.ok) throw new Error("Failed to create page");
+
+      const data = await res.json();
+      toast.success("ページを作成しました");
+
+      // 作成したページの編集画面に遷移
+      router.push(`/funnels/${id}/pages/${data.page.id}`);
+    } catch (error) {
+      toast.error("ページ作成に失敗しました");
+    }
+  };
+
+  const deleteStep = async (stepId: string) => {
+    if (!confirm("このステップを削除しますか？")) return;
+
+    try {
+      const res = await fetch(`/api/funnels/${id}/steps/${stepId}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("ステップを削除しました");
+      fetchFunnel();
+    } catch (error) {
+      toast.error("削除に失敗しました");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -299,12 +338,20 @@ export default function FunnelDetailPage({
                             </Link>
                           </Button>
                         ) : (
-                          <Button variant="outline" size="sm">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => createPageForStep(step)}
+                          >
                             <Plus className="mr-2 h-3 w-3" />
                             ページ作成
                           </Button>
                         )}
-                        <Button variant="ghost" size="icon">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => deleteStep(step.id)}
+                        >
                           <Trash2 className="h-4 w-4 text-red-500" />
                         </Button>
                       </div>

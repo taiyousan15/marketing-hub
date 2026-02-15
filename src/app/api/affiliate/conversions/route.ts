@@ -9,8 +9,7 @@ import {
   processLineOptin,
   processPurchase,
 } from "@/lib/affiliate/service";
-
-type AffiliateConversionType = "SIGNUP" | "PURCHASE" | "LEAD";
+import { AffiliateConversionType } from "@prisma/client";
 
 // コンバージョン一覧取得
 export async function GET(request: NextRequest) {
@@ -41,6 +40,9 @@ export async function GET(request: NextRequest) {
         include: {
           partner: {
             select: { id: true, name: true, code: true },
+          },
+          AffiliateLink: {
+            select: { id: true, url: true, linkCode: true },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -121,7 +123,7 @@ export async function POST(request: NextRequest) {
           tenantId,
           clickId,
           partnerCode,
-          type: "SIGNUP" as AffiliateConversionType,
+          type: AffiliateConversionType.EMAIL_OPTIN,
           contactId,
         });
         break;
@@ -200,6 +202,7 @@ export async function PATCH(request: NextRequest) {
         where: { id: conversionId },
         data: {
           status: "APPROVED",
+          approvedAt: new Date(),
         },
       });
     } else if (action === "reject") {

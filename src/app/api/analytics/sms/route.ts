@@ -45,17 +45,17 @@ export async function GET(req: NextRequest) {
       (log) => log.status === "DELIVERED" || log.status === "SENT"
     ).length;
     const failed = smsLogs.filter(
-      (log) => log.status === "UNDELIVERABLE"
+      (log) => log.status === "FAILED" || log.status === "UNDELIVERABLE"
     ).length;
     const pending = smsLogs.filter(
       (log) => log.status === "PENDING"
     ).length;
 
     // コスト計算（1セグメント約10円として概算）
-    const totalSegments = smsLogs.reduce(
-      (sum, log) => sum + ((typeof log.segments === 'number' ? log.segments : 1) || 1),
-      0
-    );
+    const totalSegments = smsLogs.reduce((sum, log) => {
+      const segments = typeof log.segments === 'number' ? log.segments : 1;
+      return sum + segments;
+    }, 0);
     const estimatedCost = totalSegments * 10;
 
     // 配信率
@@ -74,16 +74,18 @@ export async function GET(req: NextRequest) {
     }
 
     for (const log of smsLogs) {
-      const date = log.queuedAt ? format(log.queuedAt, "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd");
+      if (!log.queuedAt) continue;
+      const date = format(log.queuedAt, "yyyy-MM-dd");
       if (dailyStats[date]) {
         dailyStats[date].sent++;
         if (log.status === "DELIVERED" || log.status === "SENT") {
           dailyStats[date].delivered++;
         }
-        if (log.status === "UNDELIVERABLE") {
+        if (log.status === "FAILED" || log.status === "UNDELIVERABLE") {
           dailyStats[date].failed++;
         }
-        dailyStats[date].cost += ((typeof log.segments === 'number' ? log.segments : 1) || 1) * 10;
+        const segments = typeof log.segments === 'number' ? log.segments : 1;
+        dailyStats[date].cost += segments * 10;
       }
     }
 
@@ -141,10 +143,9 @@ export async function GET(req: NextRequest) {
       hourlyStats[h] = 0;
     }
     for (const log of smsLogs) {
-      if (log.queuedAt) {
-        const hour = log.queuedAt.getHours();
-        hourlyStats[hour]++;
-      }
+      if (!log.queuedAt) continue;
+      const hour = log.queuedAt.getHours();
+      hourlyStats[hour]++;
     }
 
     const hourlyStatsArray = Object.entries(hourlyStats).map(([hour, count]) => ({
@@ -157,6 +158,7 @@ export async function GET(req: NextRequest) {
       PENDING: smsLogs.filter((l) => l.status === "PENDING").length,
       SENT: smsLogs.filter((l) => l.status === "SENT").length,
       DELIVERED: smsLogs.filter((l) => l.status === "DELIVERED").length,
+      FAILED: smsLogs.filter((l) => l.status === "FAILED").length,
       UNDELIVERABLE: smsLogs.filter((l) => l.status === "UNDELIVERABLE").length,
     };
 

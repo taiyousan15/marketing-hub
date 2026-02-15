@@ -1,8 +1,7 @@
 // src/lib/auto-webinar/chat.ts
 // シミュレートチャットロジック
 
-// Local type definition for missing Prisma type
-type SimChatMessageType = 'COMMENT' | 'QUESTION' | 'REACTION' | 'TESTIMONIAL';
+import type { SimChatMessageType } from '@prisma/client'
 
 /**
  * チャットメッセージ型

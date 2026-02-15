@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Bell, Search, User } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
@@ -8,11 +9,29 @@ import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
+// Clerkが設定されているかチェック
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
 
 function UserAvatar() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) {
+    // サーバー側のレンダリングではダミーアバターを表示
+    return (
+      <Avatar className="h-8 w-8">
+        <AvatarFallback>
+          <User className="h-4 w-4" />
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
   if (isClerkConfigured) {
     return (
       <UserButton
@@ -26,6 +45,7 @@ function UserAvatar() {
     );
   }
 
+  // Clerkが設定されていない場合はダミーアバター
   return (
     <Avatar className="h-8 w-8">
       <AvatarFallback>

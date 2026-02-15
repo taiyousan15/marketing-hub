@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -49,6 +49,14 @@ interface GeneratedContent {
   timestamp: Date;
 }
 
+// 一貫した時刻フォーマット
+function formatTime(date: Date): string {
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  return `${hours}:${minutes}:${seconds}`;
+}
+
 export default function ContentGenerationPage() {
   const [contentType, setContentType] = useState<ContentType>("email_subject");
   const [tone, setTone] = useState<ToneType>("friendly");
@@ -56,6 +64,16 @@ export default function ContentGenerationPage() {
   const [context, setContext] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+
+  useEffect(() => {
+    setIsClient(true);
+    setCurrentTime(Date.now());
+  }, []);
+
+  const baseTime = isClient ? currentTime : 0;
+
   const [generatedContents, setGeneratedContents] = useState<GeneratedContent[]>([
     {
       id: "1",
@@ -84,14 +102,14 @@ export default function ContentGenerationPage() {
 
 この機会をぜひご活用ください。`,
       score: 0.88,
-      timestamp: new Date(Date.now() - 3600000)
+      timestamp: new Date()
     },
     {
       id: "3",
       type: "line_message",
       content: "🎉 お知らせ\n\n本日限定のキャンペーン実施中！\n詳細はこちら👇\n\n【特典】初回限定50%OFF\n\nお見逃しなく✨",
       score: 0.85,
-      timestamp: new Date(Date.now() - 7200000)
+      timestamp: new Date()
     }
   ]);
 
@@ -372,7 +390,7 @@ export default function ContentGenerationPage() {
                       </Badge>
                     </div>
                     <span className="text-xs text-muted-foreground">
-                      {content.timestamp.toLocaleTimeString()}
+                      {isClient ? formatTime(content.timestamp) : "--:--:--"}
                     </span>
                   </div>
 

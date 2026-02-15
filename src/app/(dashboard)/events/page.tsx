@@ -14,6 +14,8 @@ import {
   Users,
   Video,
   MapPin,
+  Radio,
+  Play,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -67,15 +69,14 @@ const sampleEvents = [
   },
   {
     id: "3",
-    name: "LINE配信ワークショップ",
-    type: "seminar",
-    date: "2025-01-28",
+    name: "マーケティング実践ライブ配信",
+    type: "livestream",
+    date: "2025-02-05",
     time: "19:00",
-    isOnline: false,
-    location: "東京都渋谷区...",
-    capacity: 30,
-    registrations: 28,
-    status: "completed",
+    isOnline: true,
+    capacity: null,
+    registrations: 156,
+    status: "scheduled",
   },
   {
     id: "4",
@@ -88,12 +89,24 @@ const sampleEvents = [
     registrations: 234,
     status: "scheduled",
   },
+  {
+    id: "5",
+    name: "Q&Aライブセッション",
+    type: "livestream",
+    date: "2025-02-12",
+    time: "21:00",
+    isOnline: true,
+    capacity: null,
+    registrations: 89,
+    status: "scheduled",
+  },
 ];
 
 const typeConfig = {
   seminar: { label: "セミナー", color: "bg-blue-100 text-blue-800" },
   consultation: { label: "個別相談", color: "bg-green-100 text-green-800" },
   webinar: { label: "ウェビナー", color: "bg-purple-100 text-purple-800" },
+  livestream: { label: "ライブ配信", color: "bg-red-100 text-red-800" },
 };
 
 const statusConfig = {
@@ -224,7 +237,12 @@ export default function EventsPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {event.isOnline ? (
+                        {event.type === "livestream" ? (
+                          <div className="flex items-center gap-1 text-red-600">
+                            <Radio className="h-4 w-4" />
+                            <span>ライブ</span>
+                          </div>
+                        ) : event.isOnline ? (
                           <div className="flex items-center gap-1 text-blue-600">
                             <Video className="h-4 w-4" />
                             <span>オンライン</span>
@@ -261,6 +279,14 @@ export default function EventsPage() {
                               <Eye className="mr-2 h-4 w-4" />
                               申込者一覧
                             </DropdownMenuItem>
+                            {event.type === "livestream" && event.status === "scheduled" && (
+                              <DropdownMenuItem asChild>
+                                <Link href={"/livestream/" + event.id + "/studio"}>
+                                  <Play className="mr-2 h-4 w-4" />
+                                  配信を開始
+                                </Link>
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem>
                               <Copy className="mr-2 h-4 w-4" />
                               複製

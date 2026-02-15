@@ -374,3 +374,169 @@ export async function predictBestSendTime(
     reasoning: `過去${engagedMessages.length}件のエンゲージメントデータに基づく推奨`,
   };
 }
+
+// ==================== Class-based API for Testing ====================
+
+/**
+ * Trigger for class-based API (compatible with tests)
+ */
+export interface Trigger {
+  id: string;
+  name: string;
+  type: TriggerType;
+  enabled: boolean;
+  conditions: Array<{
+    field: string;
+    operator: "gt" | "lt" | "eq" | "contains" | "in";
+    value: unknown;
+  }>;
+  actions: Array<{
+    type: string;
+    template?: string;
+    delay?: number;
+  }>;
+}
+
+/**
+ * TriggerEngine Class - Object-oriented wrapper for functional API
+ *
+ * This class provides a stateful, object-oriented interface for trigger management,
+ * making it compatible with class-based tests while maintaining the underlying
+ * functional implementation.
+ */
+export class TriggerEngine {
+  private triggers: Map<string, Trigger> = new Map();
+  private executionStats: Map<string, { executionCount: number; successCount: number }> = new Map();
+
+  /**
+   * Register a new trigger
+   */
+  registerTrigger(trigger: Trigger): void {
+    this.triggers.set(trigger.id, trigger);
+    this.executionStats.set(trigger.id, { executionCount: 0, successCount: 0 });
+  }
+
+  /**
+   * Get all triggers
+   */
+  getTriggers(): Trigger[] {
+    return Array.from(this.triggers.values());
+  }
+
+  /**
+   * Disable a trigger
+   */
+  disableTrigger(triggerId: string): void {
+    const trigger = this.triggers.get(triggerId);
+    if (trigger) {
+      trigger.enabled = false;
+    }
+  }
+
+  /**
+   * Remove a trigger
+   */
+  removeTrigger(triggerId: string): void {
+    this.triggers.delete(triggerId);
+    this.executionStats.delete(triggerId);
+  }
+
+  /**
+   * Process an event against all registered triggers
+   */
+  async processEvent(event: TriggerEvent): Promise<Array<{
+    triggerId: string;
+    triggered: boolean;
+    aiAnalysis?: unknown;
+    personalizedContent?: string;
+    optimizedSendTime?: unknown;
+  }>> {
+    const results = [];
+
+    for (const trigger of this.triggers.values()) {
+      if (!trigger.enabled) {
+        results.push({ triggerId: trigger.id, triggered: false });
+        continue;
+      }
+
+      // Convert test trigger format to TriggerCondition format
+      const condition: TriggerCondition = {
+        id: trigger.id,
+        name: trigger.name,
+        type: trigger.type,
+        conditions: trigger.conditions.map(c => ({
+          field: c.field,
+          operator: this.mapOperator(c.operator),
+          value: c.value,
+        })),
+        logicalOperator: "AND",
+      };
+
+      const triggered = evaluateCondition(event, condition);
+
+      const stats = this.executionStats.get(trigger.id)!;
+      stats.executionCount++;
+      if (triggered) {
+        stats.successCount++;
+      }
+
+      results.push({ triggerId: trigger.id, triggered });
+    }
+
+    return results;
+  }
+
+  /**
+   * Evaluate a single condition
+   */
+  evaluateCondition(
+    condition: { field: string; operator: string; value: unknown },
+    data: Record<string, unknown>
+  ): boolean {
+    const value = data[condition.field];
+
+    switch (condition.operator) {
+      case "gt":
+        return Number(value) > Number(condition.value);
+      case "lt":
+        return Number(value) < Number(condition.value);
+      case "eq":
+        return value === condition.value;
+      case "contains":
+        if (Array.isArray(value)) {
+          return value.includes(condition.value);
+        }
+        return String(value).includes(String(condition.value));
+      case "in":
+        return Array.isArray(condition.value) && condition.value.includes(value);
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * Get execution statistics for a trigger
+   */
+  getStats(triggerId: string): { executionCount: number; successRate: number } {
+    const stats = this.executionStats.get(triggerId);
+    if (!stats) {
+      return { executionCount: 0, successRate: 0 };
+    }
+
+    return {
+      executionCount: stats.executionCount,
+      successRate: stats.executionCount > 0 ? stats.successCount / stats.executionCount : 0,
+    };
+  }
+
+  private mapOperator(op: string): "equals" | "contains" | "greater_than" | "less_than" | "in" | "not_in" {
+    const mapping: Record<string, "equals" | "contains" | "greater_than" | "less_than" | "in" | "not_in"> = {
+      eq: "equals",
+      gt: "greater_than",
+      lt: "less_than",
+      contains: "contains",
+      in: "in",
+    };
+    return mapping[op] || "equals";
+  }
+}

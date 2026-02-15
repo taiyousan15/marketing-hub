@@ -12,6 +12,7 @@ import {
   Clock,
   XCircle,
   RefreshCw,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 const sampleOrders = [
   {
@@ -106,8 +108,28 @@ const formatPrice = (price: number) => {
   }).format(price);
 };
 
+type SampleOrder = typeof sampleOrders[number];
+
 export default function OrdersPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedOrder, setSelectedOrder] = useState<SampleOrder | null>(null);
+
+  const handleViewDetail = (order: SampleOrder) => {
+    setSelectedOrder(order);
+  };
+
+  const handleIssueReceipt = (order: SampleOrder) => {
+    toast.success(`${order.id} の領収書を発行しました`, {
+      description: `${order.contactName} 様宛・${formatPrice(order.amount)}`,
+    });
+  };
+
+  const handleRefund = (order: SampleOrder) => {
+    if (!confirm(`${order.contactName} 様の注文 (${formatPrice(order.amount)}) を返金しますか？`)) return;
+    toast.success(`${order.id} の返金処理を開始しました`, {
+      description: "返金完了まで3-5営業日かかる場合があります",
+    });
+  };
 
   const filteredOrders = sampleOrders.filter(
     (order) =>
@@ -237,11 +259,18 @@ export default function OrdersPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>詳細を表示</DropdownMenuItem>
-                            <DropdownMenuItem>領収書を発行</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleViewDetail(order)}>
+                              詳細を表示
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleIssueReceipt(order)}>
+                              領収書を発行
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             {order.status === "completed" && (
-                              <DropdownMenuItem className="text-red-600">
+                              <DropdownMenuItem
+                                className="text-red-600"
+                                onClick={() => handleRefund(order)}
+                              >
                                 返金処理
                               </DropdownMenuItem>
                             )}
@@ -256,6 +285,92 @@ export default function OrdersPage() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* 注文詳細パネル */}
+      {selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex justify-end">
+          <div className="w-full max-w-md bg-background shadow-lg overflow-y-auto">
+            <div className="p-6 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold">注文詳細</h2>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setSelectedOrder(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">注文ID</p>
+                  <p className="font-mono">{selectedOrder.id}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">顧客名</p>
+                  <p className="font-medium">{selectedOrder.contactName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">メール</p>
+                  <p>{selectedOrder.contactEmail}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">商品</p>
+                  <p>{selectedOrder.productName}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">金額</p>
+                  <p className="text-xl font-bold">{formatPrice(selectedOrder.amount)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">ステータス</p>
+                  <div className={"flex items-center gap-1 mt-1 " + statusConfig[selectedOrder.status as keyof typeof statusConfig].color}>
+                    {(() => {
+                      const StatusIcon = statusConfig[selectedOrder.status as keyof typeof statusConfig].icon;
+                      return <StatusIcon className="h-4 w-4" />;
+                    })()}
+                    <span>{statusConfig[selectedOrder.status as keyof typeof statusConfig].label}</span>
+                  </div>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">決済方法</p>
+                  <p>{selectedOrder.paymentMethod === "card" ? "クレジットカード" : "銀行振込"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">注文日時</p>
+                  <p>{selectedOrder.createdAt}</p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    handleIssueReceipt(selectedOrder);
+                    setSelectedOrder(null);
+                  }}
+                >
+                  領収書を発行
+                </Button>
+                {selectedOrder.status === "completed" && (
+                  <Button
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => {
+                      handleRefund(selectedOrder);
+                      setSelectedOrder(null);
+                    }}
+                  >
+                    返金処理
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -17,9 +17,11 @@ export type ABTestAlgorithm =
 
 export type ABTestStatus =
   | "draft"
+  | "active"
   | "running"
   | "paused"
   | "completed"
+  | "archived"
   | "auto_completed";
 
 export type ABTestMetric =
@@ -631,4 +633,338 @@ export function generateReport(test: ABTest): ABTestReport {
       : result.reason,
     canDeclareWinner: result.canDeclare,
   };
+}
+
+// ==================== Class-based API for Testing ====================
+
+/**
+ * ABOptimizer Class - Object-oriented wrapper for functional API
+ *
+ * This class provides a stateful, object-oriented interface for A/B testing,
+ * making it compatible with class-based tests while maintaining the underlying
+ * functional implementation.
+ */
+export class ABOptimizer {
+  private tests: Map<string, ABTest> = new Map();
+
+  /**
+   * Create a new A/B test (accepts full ABTest object for compatibility)
+   * Normalizes variant structure to handle both test format and production format
+   */
+  createTest(test: Partial<ABTest> & { id: string; variants: any[] }): ABTest {
+    // Normalize variants to ensure they have the proper structure
+    const normalizedVariants: ABVariant[] = test.variants.map((v: any) => {
+      // Handle test format where impressions/conversions are at top level
+      if (v.impressions !== undefined && !v.stats) {
+        return {
+          id: v.id,
+          name: v.name,
+          content: v.content || v.config?.subject || '',
+          weight: v.weight || 50,
+          stats: {
+            impressions: v.impressions || 0,
+            conversions: v.conversions || 0,
+            revenue: v.revenue || 0,
+            opens: v.opens || 0,
+            clicks: v.clicks || 0,
+          },
+        };
+      }
+      // Already properly formatted
+      return v as ABVariant;
+    });
+
+    const normalizedTest: ABTest = {
+      id: test.id,
+      name: test.name || 'Untitled Test',
+      status: test.status || 'active',
+      algorithm: test.algorithm || 'epsilon_greedy',
+      metric: test.metric || 'conversion_rate',
+      variants: normalizedVariants,
+      params: test.params || {
+        epsilon: 0.1,
+        minSampleSize: 100,
+        confidenceLevel: 0.95,
+        maxDuration: 30,
+      },
+      createdAt: test.createdAt || new Date(),
+    };
+
+    this.tests.set(normalizedTest.id, normalizedTest);
+    return normalizedTest;
+  }
+
+  /**
+   * Get all tests
+   */
+  getTests(): ABTest[] {
+    return Array.from(this.tests.values());
+  }
+
+  /**
+   * Get a specific test
+   * Returns test with denormalized variants for backward compatibility
+   */
+  getTest(testId: string): any {
+    const test = this.tests.get(testId);
+    if (!test) {
+      return undefined;
+    }
+
+    // Denormalize variants to support both formats (test compatibility)
+    const denormalizedVariants = test.variants.map(v => ({
+      ...v,
+      // Add flat properties for backward compatibility
+      impressions: v.stats.impressions,
+      conversions: v.stats.conversions,
+      revenue: v.stats.revenue,
+      opens: v.stats.opens,
+      clicks: v.stats.clicks,
+    }));
+
+    return {
+      ...test,
+      variants: denormalizedVariants,
+    };
+  }
+
+  /**
+   * Select a variant for the test
+   */
+  selectVariant(testId: string): ABVariant {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+    const variantId = selectVariant(test);
+    const variant = test.variants.find(v => v.id === variantId);
+    if (!variant) {
+      throw new Error(`Variant ${variantId} not found in test ${testId}`);
+    }
+    return variant;
+  }
+
+  /**
+   * Record a result for a variant
+   */
+  recordResult(
+    testId: string,
+    variantId: string,
+    converted: boolean,
+    metadata?: { revenue?: number; opened?: boolean; clicked?: boolean }
+  ): void {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    const updatedTest = recordResult(test, variantId, {
+      converted,
+      revenue: metadata?.revenue,
+      opened: metadata?.opened,
+      clicked: metadata?.clicked,
+    });
+
+    this.tests.set(testId, updatedTest);
+  }
+
+  /**
+   * Record an impression for a variant
+   */
+  recordImpression(testId: string, variantId: string): void {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    const updatedTest = recordResult(test, variantId, {
+      converted: false,
+    });
+
+    this.tests.set(testId, updatedTest);
+  }
+
+  /**
+   * Record a conversion for a variant
+   */
+  recordConversion(testId: string, variantId: string): void {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    const updatedTest = recordResult(test, variantId, {
+      converted: true,
+    });
+
+    this.tests.set(testId, updatedTest);
+  }
+
+  /**
+   * Start a test
+   */
+  startTest(testId: string): void {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    const updatedTest = startTest(test);
+    this.tests.set(testId, updatedTest);
+  }
+
+  /**
+   * Complete a test and declare winner
+   */
+  completeTest(testId: string, winnerId?: string): void {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    const result = determineWinner(test);
+    const finalWinnerId = winnerId || result.winnerId || test.variants[0].id;
+
+    const updatedTest = completeTest(test, finalWinnerId, !winnerId);
+    this.tests.set(testId, updatedTest);
+  }
+
+  /**
+   * Detect if there's a winner (statistical significance)
+   */
+  detectWinner(testId: string, confidenceLevel?: number): ABVariant | null {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    // Update confidence level if provided
+    if (confidenceLevel !== undefined) {
+      test.params.confidenceLevel = confidenceLevel;
+    }
+
+    const result = determineWinner(test);
+
+    if (!result.canDeclare || !result.winnerId) {
+      return null;
+    }
+
+    const winnerVariant = test.variants.find(v => v.id === result.winnerId);
+    return winnerVariant || null;
+  }
+
+  /**
+   * Get test statistics
+   */
+  getTestStats(testId: string): {
+    variants: Array<{
+      id: string;
+      name: string;
+      impressions: number;
+      conversions: number;
+      conversionRate: number;
+    }>;
+    totalImpressions: number;
+    totalConversions: number;
+    lift?: number;
+    cumulativeRegret?: number;
+  } {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    let totalImpressions = 0;
+    let totalConversions = 0;
+    let bestRate = 0;
+    let controlRate = 0;
+
+    const variants = test.variants.map((v, index) => {
+      totalImpressions += v.stats.impressions;
+      totalConversions += v.stats.conversions;
+
+      const rate = v.stats.impressions > 0
+        ? v.stats.conversions / v.stats.impressions
+        : 0;
+
+      if (index === 0) {
+        controlRate = rate;
+      }
+      if (rate > bestRate) {
+        bestRate = rate;
+      }
+
+      return {
+        id: v.id,
+        name: v.name,
+        impressions: v.stats.impressions,
+        conversions: v.stats.conversions,
+        conversionRate: rate,
+      };
+    });
+
+    // Calculate lift (improvement over control)
+    // Round to avoid floating point precision issues
+    const rawLift = controlRate > 0 ? (bestRate - controlRate) / controlRate : 0;
+    const lift = Math.round(rawLift * 1e10) / 1e10;
+
+    // Calculate cumulative regret (missed conversions by not always choosing best)
+    let cumulativeRegret = 0;
+    for (const variant of test.variants) {
+      const variantRate = variant.stats.impressions > 0
+        ? variant.stats.conversions / variant.stats.impressions
+        : 0;
+      const missedConversions = (bestRate - variantRate) * variant.stats.impressions;
+      cumulativeRegret += Math.max(0, missedConversions);
+    }
+
+    return {
+      variants,
+      totalImpressions,
+      totalConversions,
+      lift,
+      cumulativeRegret,
+    };
+  }
+
+  /**
+   * Generate a report for the test
+   */
+  generateReport(testId: string): ABTestReport {
+    const test = this.tests.get(testId);
+    if (!test) {
+      throw new Error(`Test ${testId} not found`);
+    }
+
+    return generateReport(test);
+  }
+
+  /**
+   * Delete a test
+   */
+  deleteTest(testId: string): void {
+    this.tests.delete(testId);
+  }
+
+  /**
+   * Pause a test
+   */
+  pauseTest(testId: string): void {
+    const test = this.tests.get(testId);
+    if (test) {
+      test.status = "paused";
+      this.tests.set(testId, test);
+    }
+  }
+
+  /**
+   * Archive a test
+   */
+  archiveTest(testId: string): void {
+    const test = this.tests.get(testId);
+    if (test) {
+      test.status = "archived";
+      this.tests.set(testId, test);
+    }
+  }
 }

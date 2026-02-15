@@ -19,6 +19,7 @@ import {
   Target,
   ThermometerSun,
 } from "lucide-react";
+import { useTenant } from "@/hooks/use-tenant";
 
 interface ScoreSummary {
   totalScored: number;
@@ -74,23 +75,31 @@ export default function ScoresDashboard() {
   const [hotLeads, setHotLeads] = useState<ContactScore[]>([]);
   const [atRisk, setAtRisk] = useState<ContactScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [recalculating, setRecalculating] = useState(false);
 
-  // TODO: 実際のtenantIdを取得
-  const tenantId = "demo-tenant";
+  const { tenantId, loading: tenantLoading } = useTenant();
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (tenantId) {
+      fetchData();
+    }
+  }, [tenantId]);
 
   const fetchData = async () => {
+    if (!tenantId) return;
     setLoading(true);
+    setError(null);
     try {
       const [summaryRes, hotRes, riskRes] = await Promise.all([
         fetch(`/api/scores?tenantId=${tenantId}&action=summary`),
         fetch(`/api/scores?tenantId=${tenantId}&action=hot_leads&limit=5`),
         fetch(`/api/scores?tenantId=${tenantId}&action=at_risk&limit=5`),
       ]);
+
+      if (!summaryRes.ok || !hotRes.ok || !riskRes.ok) {
+        throw new Error("スコアデータの取得に失敗しました");
+      }
 
       const summaryData = await summaryRes.json();
       const hotData = await hotRes.json();
@@ -99,15 +108,16 @@ export default function ScoresDashboard() {
       setSummary(summaryData.summary);
       setHotLeads(hotData.hotLeads || []);
       setAtRisk(riskData.atRisk || []);
-    } catch (error) {
-      console.error("Failed to fetch scores:", error);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "スコアデータの取得に失敗しました";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleRecalculate = async () => {
-    if (!confirm("全コンタクトのスコアを再計算しますか？")) return;
+    if (!confirm("全コンタクトのスコアを再計算しますか？") || !tenantId) return;
 
     setRecalculating(true);
     try {
@@ -127,10 +137,26 @@ export default function ScoresDashboard() {
     }
   };
 
-  if (loading) {
+  if (loading || tenantLoading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[400px] gap-4">
+        <div className="text-red-500 text-lg font-medium">データの読み込みに失敗しました</div>
+        <p className="text-gray-500 text-sm">{error}</p>
+        <button
+          onClick={fetchData}
+          className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          再読み込み
+        </button>
       </div>
     );
   }

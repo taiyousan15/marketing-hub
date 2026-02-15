@@ -89,11 +89,9 @@ const sampleProducts = [
   },
 ];
 
-const formatPrice = (price: number, currency: string) => {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency: currency.toUpperCase(),
-  }).format(price);
+const formatPrice = (price: number, _currency: string) => {
+  const formatted = price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `¥${formatted}`;
 };
 
 export default function ProductsPage() {

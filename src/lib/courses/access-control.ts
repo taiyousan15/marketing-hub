@@ -44,7 +44,7 @@ export const RANK_INFO: Record<
     label: "VIP",
     color: "#FF1493",
     icon: "👑",
-    bgColor: "bg-red-100",
+    bgColor: "bg-rose-100",
   },
 };
 
@@ -63,7 +63,7 @@ export function getRankLevel(rank: MemberRank): number {
 
 // ランク一覧を取得（昇順）
 export function getAllRanks(): MemberRank[] {
-  return ["BRONZE", "SILVER", "GOLD", "PLATINUM", "VIP"] as MemberRank[];
+  return ["BRONZE", "SILVER", "GOLD", "PLATINUM"] as MemberRank[];
 }
 
 // アクセス拒否理由
@@ -163,7 +163,8 @@ export function checkLessonAccess(
   // 3. 公開コースの場合、受講登録不要
   if (course.isPublicCourse) {
     // 公開コースでもランク制限がある場合
-    if ((course.accessMode as string) === "RANK_BASED" && enrollment) {
+    // TODO: Add RANK_BASED to CourseAccessMode enum and implement rank check
+    if (enrollment && lesson.requiredRank) {
       if (!canAccessByRank(enrollment.memberRank, lesson.requiredRank)) {
         return {
           allowed: false,
@@ -192,15 +193,14 @@ export function checkLessonAccess(
       };
     }
 
-    // 5. ランクチェック（RANK_BASEDモードの場合のみ）
-    if ((course.accessMode as string) === "RANK_BASED") {
-      if (!canAccessByRank(enrollment.memberRank, lesson.requiredRank)) {
-        return {
-          allowed: false,
-          reason: "RANK_INSUFFICIENT",
-          message: `このレッスンは${RANK_INFO[lesson.requiredRank].label}以上の方が視聴できます`,
-        };
-      }
+    // 5. ランクチェック（レッスンにランク制限がある場合）
+    // TODO: Add RANK_BASED to CourseAccessMode enum
+    if (lesson.requiredRank && !canAccessByRank(enrollment.memberRank, lesson.requiredRank)) {
+      return {
+        allowed: false,
+        reason: "RANK_INSUFFICIENT",
+        message: `このレッスンは${RANK_INFO[lesson.requiredRank].label}以上の方が視聴できます`,
+      };
     }
   }
 

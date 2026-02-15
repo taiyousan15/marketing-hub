@@ -1,89 +1,39 @@
 /**
- * オートウェビナー通知システム - Simplified stub
+ * Auto-webinar notifications system (under development)
  *
- * - ウェビナー開始前リマインダー（30分前、5分前、1分前）
- * - リプレイ公開通知
- * - リプレイ期限切れ警告
+ * TODO: Implement when auto-webinar tables are added to Prisma schema
  */
 
-import { prisma } from "@/lib/db/prisma";
-import { sendEmail } from "@/lib/email/resend-client";
-import { format } from "date-fns";
-import { ja } from "date-fns/locale";
-
-// Local type definitions for missing Prisma types
-type WebinarNotificationType = "REMINDER_30MIN" | "REMINDER_5MIN" | "REMINDER_1MIN" | "STARTING_NOW" | "REPLAY_AVAILABLE" | "REPLAY_EXPIRING" | "CUSTOM";
-type NotificationChannel = "EMAIL" | "LINE" | "SMS" | "PUSH";
-type NotificationStatus = "PENDING" | "SENT" | "FAILED" | "BOUNCED";
-
-// 通知タイプごとのタイミング（分）
-const NOTIFICATION_TIMING: Record<WebinarNotificationType, number> = {
-  REMINDER_30MIN: 30,
-  REMINDER_5MIN: 5,
-  REMINDER_1MIN: 1,
-  STARTING_NOW: 0,
-  REPLAY_AVAILABLE: 0,
-  REPLAY_EXPIRING: 0,
-  CUSTOM: 0,
-};
-
-/**
- * 通知を送信
- */
-export async function sendNotification(
+// Stub implementations
+export async function scheduleNotificationsForRegistration(
+  registrationId: string,
   webinarId: string,
-  notificationType: WebinarNotificationType,
-  contactId?: string
-): Promise<boolean> {
-  try {
-    // 通知送信は簡略化
-    return true;
-  } catch (error) {
-    console.error("Error sending notification:", error);
-    return false;
-  }
+  contactId: string,
+  email: string,
+  sessionDate: Date
+) {
+  console.log("scheduleNotificationsForRegistration called - auto-webinar feature under development");
 }
 
-/**
- * 一括通知を送信
- */
-export async function sendBatchNotifications(
+export async function scheduleReplayNotification(
+  registrationId: string,
   webinarId: string,
-  notificationType: WebinarNotificationType
-): Promise<number> {
-  try {
-    // 一括送信は簡略化
-    return 0;
-  } catch (error) {
-    console.error("Error sending batch notifications:", error);
-    return 0;
-  }
+  contactId: string,
+  email: string,
+  replayUrl: string,
+  expiresAt: Date
+) {
+  console.log("scheduleReplayNotification called - auto-webinar feature under development");
 }
 
-/**
- * 通知スケジュールを設定
- */
-export async function scheduleNotifications(
-  webinarId: string,
-  startTime: Date
-): Promise<void> {
-  try {
-    // スケジュール設定は簡略化
-    return;
-  } catch (error) {
-    console.error("Error scheduling notifications:", error);
-  }
+export async function processScheduledNotifications() {
+  console.log("processScheduledNotifications called - auto-webinar feature under development");
 }
 
-/**
- * スケジュール済み通知を処理
- */
-export async function processScheduledNotifications(): Promise<number> {
-  try {
-    // 通知処理は簡略化
-    return 0;
-  } catch (error) {
-    console.error("Error processing scheduled notifications:", error);
-    return 0;
-  }
+export async function createDefaultNotificationSettings(webinarId: string) {
+  console.log("createDefaultNotificationSettings called - auto-webinar feature under development");
+}
+
+export async function cancelScheduledNotifications(registrationId: string) {
+  console.log("cancelScheduledNotifications called - auto-webinar feature under development");
 }

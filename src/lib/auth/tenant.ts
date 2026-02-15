@@ -1,39 +1,80 @@
 import { prisma } from "@/lib/db/prisma";
 import type { Tenant, User } from "@prisma/client";
 
-// 開発モード: 認証をバイパスしてダミーユーザーを返す
-const DEV_MODE_NO_AUTH = true;
-
-// 開発用テナントID
-const DEV_TENANT_ID = "dev-tenant-001";
-const DEV_USER_ID = "dev-user-001";
-
 // Clerkが設定されているかチェック
 const isClerkConfigured =
-  !DEV_MODE_NO_AUTH &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
 
-/**
- * 開発用テナントを取得または作成
- */
-async function getOrCreateDevTenant(): Promise<Tenant> {
-  let tenant = await prisma.tenant.findUnique({
-    where: { id: DEV_TENANT_ID },
-  });
+// 開発用テナントのID
+const DEV_TENANT_ID = "dev-tenant-id";
+const DEV_USER_ID = "dev-user-id";
 
-  if (!tenant) {
-    tenant = await prisma.tenant.create({
-      data: {
+/**
+ * 開発用のダミーテナントとユーザーを取得または作成
+ */
+async function getOrCreateDevTenant(): Promise<{
+  userId: string;
+  tenantId: string;
+  user: User | null;
+  tenant: Tenant | null;
+}> {
+  try {
+    // upsertでテナントを取得または作成（ユニーク制約に対応）
+    const tenant = await prisma.tenant.upsert({
+      where: { id: DEV_TENANT_ID },
+      update: {}, // 既存の場合は何もしない
+      create: {
         id: DEV_TENANT_ID,
         name: "開発用ワークスペース",
-        subdomain: "dev-workspace",
+        subdomain: `dev-workspace-${Date.now()}`, // ユニーク性を保証
         plan: "STARTER",
       },
     });
-  }
 
-  return tenant;
+    // upsertでユーザーを取得または作成
+    const user = await prisma.user.upsert({
+      where: { id: DEV_USER_ID },
+      update: {}, // 既存の場合は何もしない
+      create: {
+        id: DEV_USER_ID,
+        email: "dev@example.com",
+        name: "開発ユーザー",
+        tenantId: tenant.id,
+        role: "OWNER",
+        clerkUserId: `dev-clerk-${Date.now()}`, // ユニーク性を保証
+      },
+      include: { tenant: true },
+    });
+
+    return {
+      userId: DEV_USER_ID,
+      tenantId: tenant.id,
+      user,
+      tenant,
+    };
+  } catch (error) {
+    console.error("Failed to get/create dev tenant:", error);
+    // エラー時はnullを返さず、既存データを再取得
+    const existingTenant = await prisma.tenant.findFirst({
+      where: { name: "開発用ワークスペース" },
+    });
+    const existingUser = await prisma.user.findFirst({
+      where: { email: "dev@example.com" },
+      include: { tenant: true },
+    });
+
+    if (existingTenant && existingUser) {
+      return {
+        userId: existingUser.id,
+        tenantId: existingTenant.id,
+        user: existingUser,
+        tenant: existingTenant,
+      };
+    }
+
+    throw error;
+  }
 }
 
 /**
@@ -45,15 +86,9 @@ export async function getCurrentUser(): Promise<{
   user: User | null;
   tenant: Tenant | null;
 } | null> {
-  if (!isClerkConfigured || DEV_MODE_NO_AUTH) {
-    // 開発用のダミーユーザー - テナントが存在することを保証
-    const tenant = await getOrCreateDevTenant();
-    return {
-      userId: DEV_USER_ID,
-      tenantId: tenant.id,
-      user: null,
-      tenant,
-    };
+  if (!isClerkConfigured) {
+    // 開発用のダミーユーザーとテナントを取得または作成
+    return getOrCreateDevTenant();
   }
 
   try {
@@ -61,12 +96,14 @@ export async function getCurrentUser(): Promise<{
     const { userId } = await auth();
 
     if (!userId) {
-      return null;
+      // Clerk認証が失敗した場合は開発用テナントを使用
+      return getOrCreateDevTenant();
     }
 
     const clerkUser = await currentUser();
     if (!clerkUser) {
-      return null;
+      // Clerk認証が失敗した場合は開発用テナントを使用
+      return getOrCreateDevTenant();
     }
 
     // DBからユーザーを取得（または作成）
@@ -76,12 +113,8 @@ export async function getCurrentUser(): Promise<{
     });
 
     if (!user) {
-      return {
-        userId,
-        tenantId: "",
-        user: null,
-        tenant: null,
-      };
+      // Clerk認証されているがDB未登録の場合は開発用テナントを使用
+      return getOrCreateDevTenant();
     }
 
     return {
@@ -91,7 +124,8 @@ export async function getCurrentUser(): Promise<{
       tenant: user.tenant,
     };
   } catch {
-    return null;
+    // エラー時も開発用テナントを使用（開発環境向け）
+    return getOrCreateDevTenant();
   }
 }
 

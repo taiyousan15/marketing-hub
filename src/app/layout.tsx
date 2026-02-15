@@ -21,11 +21,6 @@ export const metadata: Metadata = {
     "LINE配信、メール配信、ファネル作成、会員サイト、決済を1つのプラットフォームで。",
 };
 
-// Clerkが設定されているかチェック
-const isClerkConfigured =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -41,11 +36,6 @@ export default function RootLayout({
       </body>
     </html>
   );
-
-  // Clerkが設定されていない場合はプロバイダーなしで表示
-  if (!isClerkConfigured) {
-    return content;
-  }
 
   return <ClerkProvider localization={jaJP}>{content}</ClerkProvider>;
 }

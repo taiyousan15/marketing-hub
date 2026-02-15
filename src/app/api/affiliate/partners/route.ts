@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
           _count: {
             select: {
               affiliateConversions: true,
+              commissions: true,
             },
           },
         },
@@ -70,13 +71,7 @@ export async function POST(request: NextRequest) {
       tenantId,
       email,
       name,
-      companyName,
-      phone,
-      parentPartnerCode,
-      defaultOptinCommission = 500,
-      defaultFrontendCommission = 30,
-      defaultBackendCommission = 20,
-      tier2CommissionRate = 10,
+      commissionRate = 30,
       autoApprove = false,
     } = body;
 
@@ -88,8 +83,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 既存パートナーをチェック
-    const existing = await prisma.partner.findUnique({
-      where: { tenantId_email: { tenantId, email } },
+    const existing = await prisma.partner.findFirst({
+      where: { tenantId, email },
     });
 
     if (existing) {
@@ -97,17 +92,6 @@ export async function POST(request: NextRequest) {
         { error: "Partner with this email already exists" },
         { status: 409 }
       );
-    }
-
-    // 親パートナーを検索
-    let parentPartnerId: string | null = null;
-    if (parentPartnerCode) {
-      const parentPartner = await prisma.partner.findUnique({
-        where: { code: parentPartnerCode },
-      });
-      if (parentPartner && parentPartner.tenantId === tenantId) {
-        parentPartnerId = parentPartner.id;
-      }
     }
 
     // アフィリエイトコードを生成
@@ -124,6 +108,7 @@ export async function POST(request: NextRequest) {
         email,
         name,
         code,
+        commissionRate,
         status: autoApprove ? "ACTIVE" : "PENDING",
       },
     });
@@ -155,13 +140,10 @@ export async function PATCH(request: NextRequest) {
 
     switch (action) {
       case "approve":
-        data = { status: "ACTIVE", approvedAt: new Date() };
+        data = { status: "ACTIVE" };
         break;
       case "suspend":
         data = { status: "SUSPENDED" };
-        break;
-      case "reject":
-        data = { status: "REJECTED" };
         break;
       case "update":
         data = updateData;

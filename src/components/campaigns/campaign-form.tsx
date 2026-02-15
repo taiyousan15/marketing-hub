@@ -59,7 +59,7 @@ export function CampaignForm({ campaign, onSubmit, onCancel, isSubmitting }: Cam
               id="name"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="例: 新規登録者向けウェルカムシーケンス"
+              placeholder="例: 新規登録者向けステップメール"
               required
             />
           </div>

@@ -1,80 +1,196 @@
+"use client";
+
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Users,
   Send,
   TrendingUp,
+  TrendingDown,
   Mail,
   Plus,
   Layers,
   ShoppingCart,
   Calendar,
+  RefreshCw,
+  ArrowUpRight,
+  ArrowDownRight,
 } from "lucide-react";
 import Link from "next/link";
+import { useTenant } from "@/hooks/use-tenant";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
-const stats = [
-  {
-    title: "コンタクト数",
-    value: "0",
-    change: "+0%",
-    icon: Users,
-  },
-  {
-    title: "アクティブ配信",
-    value: "0",
-    change: "+0",
-    icon: Send,
-  },
-  {
-    title: "今月の売上",
-    value: "¥0",
-    change: "+0%",
-    icon: TrendingUp,
-  },
-  {
-    title: "開封率",
-    value: "0%",
-    change: "+0%",
-    icon: Mail,
-  },
-];
+interface DashboardStats {
+  totalContacts: number;
+  contactChange: number;
+  activeCampaigns: number;
+  thisMonthRevenue: number;
+  revenueChange: number;
+  openRate: number;
+  openRateChange: number;
+  thisMonthOrders: number;
+}
+
+interface ActivityItem {
+  id: string;
+  type: string;
+  direction: string;
+  status: string;
+  contactName: string;
+  createdAt: string;
+}
+
+interface DailyStats {
+  date: string;
+  contacts: number;
+  messages: number;
+  revenue: number;
+}
 
 const quickActions = [
-  {
-    title: "新規配信",
-    icon: Send,
-    href: "/campaigns/new",
-  },
-  {
-    title: "LP作成",
-    icon: Layers,
-    href: "/funnels/new",
-  },
-  {
-    title: "商品登録",
-    icon: ShoppingCart,
-    href: "/products/new",
-  },
-  {
-    title: "イベント作成",
-    icon: Calendar,
-    href: "/events/new",
-  },
+  { title: "新規配信", icon: Send, href: "/campaigns/new" },
+  { title: "LP作成", icon: Layers, href: "/funnels/new" },
+  { title: "商品登録", icon: ShoppingCart, href: "/products/new" },
+  { title: "イベント作成", icon: Calendar, href: "/events/new" },
 ];
 
 export default function DashboardPage() {
+  const { tenantId, loading: tenantLoading } = useTenant();
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (tenantId) {
+      fetchDashboardData();
+    }
+  }, [tenantId]);
+
+  const fetchDashboardData = async () => {
+    if (!tenantId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard/stats?tenantId=${tenantId}`);
+      const data = await res.json();
+      setStats(data.stats);
+      setActivity(data.recentActivity || []);
+      setDailyStats(data.dailyStats || []);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("ja-JP", {
+      style: "currency",
+      currency: "JPY",
+    }).format(amount);
+  };
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+
+  const formatActivityTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 60) return `${minutes}分前`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}時間前`;
+    return `${Math.floor(hours / 24)}日前`;
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels: Record<string, string> = {
+      sent: "送信済み",
+      delivered: "配信済み",
+      opened: "開封",
+      clicked: "クリック",
+      pending: "送信中",
+      failed: "失敗",
+    };
+    return labels[status] || status;
+  };
+
+  const getChannelLabel = (type: string) => {
+    return type === "line" ? "LINE" : type === "email" ? "メール" : type.toUpperCase();
+  };
+
+  if (tenantLoading || loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <RefreshCw className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  const statCards = [
+    {
+      title: "コンタクト数",
+      value: stats?.totalContacts?.toLocaleString() || "0",
+      change: stats?.contactChange || 0,
+      icon: Users,
+    },
+    {
+      title: "アクティブ配信",
+      value: stats?.activeCampaigns?.toString() || "0",
+      change: 0,
+      icon: Send,
+      hideChange: true,
+    },
+    {
+      title: "今月の売上",
+      value: formatCurrency(stats?.thisMonthRevenue || 0),
+      change: stats?.revenueChange || 0,
+      icon: TrendingUp,
+    },
+    {
+      title: "開封率",
+      value: `${stats?.openRate || 0}%`,
+      change: stats?.openRateChange || 0,
+      icon: Mail,
+    },
+  ];
+
+  // 過去7日間のデータを抽出
+  const last7Days = dailyStats.slice(-7);
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">ダッシュボード</h1>
-        <p className="text-muted-foreground">
-          マーケティング活動の概要を確認できます
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">ダッシュボード</h1>
+          <p className="text-muted-foreground">
+            マーケティング活動の概要を確認できます
+          </p>
+        </div>
+        <Button variant="outline" onClick={fetchDashboardData} disabled={loading}>
+          <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          更新
+        </Button>
       </div>
 
       {/* Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
+        {statCards.map((stat) => (
           <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
@@ -82,12 +198,102 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stat.value}</div>
-              <p className="text-xs text-muted-foreground">
-                前月比 {stat.change}
-              </p>
+              {!stat.hideChange && (
+                <p className="text-xs text-muted-foreground flex items-center">
+                  {stat.change >= 0 ? (
+                    <ArrowUpRight className="h-3 w-3 text-green-500 mr-1" />
+                  ) : (
+                    <ArrowDownRight className="h-3 w-3 text-red-500 mr-1" />
+                  )}
+                  <span className={stat.change >= 0 ? "text-green-500" : "text-red-500"}>
+                    {stat.change >= 0 ? "+" : ""}
+                    {stat.change}%
+                  </span>
+                  <span className="ml-1">前月比</span>
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-4 md:grid-cols-2">
+        {/* コンタクト推移 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">新規コンタクト推移</CardTitle>
+            <CardDescription>過去7日間の新規登録数</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {last7Days.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={last7Days}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDate}
+                    fontSize={12}
+                    stroke="#888"
+                  />
+                  <YAxis fontSize={12} stroke="#888" />
+                  <Tooltip
+                    formatter={(value) => [`${value}人`, "新規コンタクト"]}
+                    labelFormatter={(label) => `日付: ${formatDate(String(label))}`}
+                  />
+                  <Bar dataKey="contacts" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                データがありません
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 売上推移 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">売上推移</CardTitle>
+            <CardDescription>過去7日間の日別売上</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {last7Days.length > 0 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={last7Days}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={formatDate}
+                    fontSize={12}
+                    stroke="#888"
+                  />
+                  <YAxis
+                    fontSize={12}
+                    stroke="#888"
+                    tickFormatter={(value) => `¥${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip
+                    formatter={(value) => [formatCurrency(Number(value)), "売上"]}
+                    labelFormatter={(label) => `日付: ${formatDate(String(label))}`}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="revenue"
+                    stroke="#22c55e"
+                    strokeWidth={2}
+                    dot={{ fill: "#22c55e", r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                データがありません
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Content Grid */}
@@ -97,13 +303,42 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>最近のアクティビティ</CardTitle>
             <CardDescription>
-              顧客の行動やシステムイベントを表示します
+              メッセージの送受信履歴
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-center h-[200px] text-muted-foreground">
-              まだアクティビティがありません
-            </div>
+            {activity.length > 0 ? (
+              <div className="space-y-3">
+                {activity.map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50"
+                  >
+                    <div className={`
+                      w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium
+                      ${item.type === "line" ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"}
+                    `}>
+                      {getChannelLabel(item.type).slice(0, 2)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">
+                        {item.contactName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {getChannelLabel(item.type)} - {getStatusLabel(item.status)}
+                      </p>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {formatActivityTime(item.createdAt)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                まだアクティビティがありません
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -112,7 +347,7 @@ export default function DashboardPage() {
           <CardHeader>
             <CardTitle>クイックアクション</CardTitle>
             <CardDescription>
-              よく使う機能にすぐアクセスできます
+              よく使う機能にすぐアクセス
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2">

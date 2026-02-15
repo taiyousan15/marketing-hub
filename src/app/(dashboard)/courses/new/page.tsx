@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Globe, Lock } from "lucide-react";
+import { ThumbnailUploader } from "@/components/courses/thumbnail-uploader";
 
 export default function NewCoursePage() {
   const router = useRouter();
@@ -118,14 +119,12 @@ export default function NewCoursePage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="thumbnail">サムネイル URL</Label>
-              <Input
-                id="thumbnail"
+              <Label>サムネイル</Label>
+              <ThumbnailUploader
                 value={formData.thumbnail}
-                onChange={(e) =>
-                  setFormData({ ...formData, thumbnail: e.target.value })
+                onChange={(url) =>
+                  setFormData({ ...formData, thumbnail: url })
                 }
-                placeholder="https://..."
               />
             </div>
           </CardContent>

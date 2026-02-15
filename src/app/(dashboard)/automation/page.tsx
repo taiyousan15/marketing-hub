@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Workflow,
@@ -8,18 +8,17 @@ import {
   Pause,
   Plus,
   Settings,
-  BarChart3,
   Users,
   Zap,
   Brain,
   GitBranch,
-  Mail,
-  MessageSquare,
   ArrowRight,
   Clock,
   Target,
-  TrendingUp,
   Activity,
+  Copy,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -39,63 +38,35 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 
-// サンプルデータ
-const automationRules = [
-  {
-    id: "1",
-    name: "新規登録ウェルカムシーケンス",
-    description: "LINE友達追加後の自動ウェルカムメッセージ",
-    trigger: "LINE_FRIEND_ADDED",
-    isActive: true,
-    aiEnabled: true,
-    stats: {
-      triggered: 1250,
-      completed: 1180,
-      converted: 245,
-    },
-  },
-  {
-    id: "2",
-    name: "カート放棄リマインダー",
-    description: "カート放棄から1時間後に自動リマインド",
-    trigger: "CART_ABANDONED",
-    isActive: true,
-    aiEnabled: true,
-    stats: {
-      triggered: 450,
-      completed: 380,
-      converted: 95,
-    },
-  },
-  {
-    id: "3",
-    name: "購入後フォローアップ",
-    description: "購入完了後のサンクスメッセージとクロスセル",
-    trigger: "PURCHASE_COMPLETED",
-    isActive: false,
-    aiEnabled: false,
-    stats: {
-      triggered: 890,
-      completed: 850,
-      converted: 120,
-    },
-  },
-  {
-    id: "4",
-    name: "休眠顧客リエンゲージメント",
-    description: "30日間非アクティブな顧客への復帰施策",
-    trigger: "INACTIVE_DAYS",
-    isActive: true,
-    aiEnabled: true,
-    stats: {
-      triggered: 320,
-      completed: 280,
-      converted: 45,
-    },
-  },
-];
+interface AutomationRule {
+  id: string;
+  name: string;
+  description: string | null;
+  isActive: boolean;
+  aiEnabled: boolean;
+  triggers: Array<{
+    id: string;
+    type: string;
+    conditions: unknown;
+    logicalOp: string;
+  }>;
+  actions: Array<{
+    id: string;
+    type: string;
+    config: unknown;
+    order: number;
+  }>;
+  _count: { executions: number };
+}
 
 const segmentData = [
   { name: "チャンピオン", count: 125, color: "bg-green-500", percentage: 8 },
@@ -143,20 +114,97 @@ const recentTriggers = [
 ];
 
 export default function AutomationPage() {
-  const [rules, setRules] = useState(automationRules);
+  const [rules, setRules] = useState<AutomationRule[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const toggleRule = (id: string) => {
+  const fetchRules = useCallback(async () => {
+    try {
+      const res = await fetch("/api/automation/rules");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setRules(data.rules || []);
+    } catch (error) {
+      console.error("Failed to fetch rules:", error);
+      toast.error("ルールの取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
+
+  const toggleRule = async (id: string) => {
+    const target = rules.find((r) => r.id === id);
+    if (!target) return;
+
+    // Optimistic update
     setRules(
       rules.map((rule) =>
         rule.id === id ? { ...rule, isActive: !rule.isActive } : rule
       )
     );
-    toast.success("自動化ルールを更新しました");
+
+    try {
+      const res = await fetch(`/api/automation/rules/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !target.isActive }),
+      });
+      if (!res.ok) throw new Error("Failed to update");
+      toast.success("自動化ルールを更新しました");
+    } catch {
+      // Revert on error
+      setRules(
+        rules.map((rule) =>
+          rule.id === id ? { ...rule, isActive: target.isActive } : rule
+        )
+      );
+      toast.error("ルールの更新に失敗しました");
+    }
   };
 
-  const totalTriggered = rules.reduce((sum, r) => sum + r.stats.triggered, 0);
-  const totalConverted = rules.reduce((sum, r) => sum + r.stats.converted, 0);
-  const conversionRate = totalTriggered > 0 ? ((totalConverted / totalTriggered) * 100).toFixed(1) : "0";
+  const duplicateRule = async (id: string) => {
+    const target = rules.find((r) => r.id === id);
+    if (!target) return;
+    const triggerType = target.triggers[0]?.type || "LINE_FRIEND_ADDED";
+
+    try {
+      const res = await fetch("/api/automation/rules", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: `${target.name}（コピー）`,
+          description: target.description,
+          triggerType,
+          aiEnabled: target.aiEnabled,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to duplicate");
+      toast.success("ワークフローを複製しました");
+      fetchRules();
+    } catch {
+      toast.error("複製に失敗しました");
+    }
+  };
+
+  const deleteRule = async (id: string) => {
+    if (!confirm("このワークフローを削除しますか？")) return;
+
+    try {
+      const res = await fetch(`/api/automation/rules/${id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error("Failed to delete");
+      setRules(rules.filter((r) => r.id !== id));
+      toast.success("ワークフローを削除しました");
+    } catch {
+      toast.error("削除に失敗しました");
+    }
+  };
+
+  const totalExecutions = rules.reduce((sum, r) => sum + r._count.executions, 0);
 
   return (
     <div className="space-y-6">
@@ -205,8 +253,8 @@ export default function AutomationPage() {
             <Activity className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalTriggered.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">過去30日間</p>
+            <div className="text-2xl font-bold">{totalExecutions.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">全期間</p>
           </CardContent>
         </Card>
 
@@ -218,9 +266,9 @@ export default function AutomationPage() {
             <Target className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{conversionRate}%</div>
+            <div className="text-2xl font-bold">{rules.length}</div>
             <p className="text-xs text-muted-foreground">
-              {totalConverted.toLocaleString()}件のコンバージョン
+              登録済みワークフロー
             </p>
           </CardContent>
         </Card>
@@ -256,6 +304,32 @@ export default function AutomationPage() {
         </TabsList>
 
         <TabsContent value="workflows" className="space-y-4">
+          {loading && (
+            <Card>
+              <CardContent className="flex items-center justify-center py-12">
+                <div className="text-muted-foreground">読み込み中...</div>
+              </CardContent>
+            </Card>
+          )}
+          {!loading && rules.length === 0 && (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-12 gap-4">
+                <Workflow className="h-12 w-12 text-muted-foreground" />
+                <div className="text-center">
+                  <p className="font-medium">ワークフローがありません</p>
+                  <p className="text-sm text-muted-foreground">
+                    「新規ワークフロー」から自動化ルールを作成してください
+                  </p>
+                </div>
+                <Button asChild>
+                  <Link href="/automation/new">
+                    <Plus className="mr-2 h-4 w-4" />
+                    新規ワークフロー
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           {rules.map((rule) => (
             <Card key={rule.id}>
               <CardHeader className="pb-2">
@@ -277,7 +351,12 @@ export default function AutomationPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <CardTitle className="text-base">
-                          {rule.name}
+                          <Link
+                            href={`/automation/${rule.id}`}
+                            className="hover:underline"
+                          >
+                            {rule.name}
+                          </Link>
                         </CardTitle>
                         {rule.aiEnabled && (
                           <Badge
@@ -304,40 +383,57 @@ export default function AutomationPage() {
                         onCheckedChange={() => toggleRule(rule.id)}
                       />
                     </div>
-                    <Button variant="outline" size="sm">
-                      <Settings className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Settings className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href={`/automation/${rule.id}`}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            編集
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => duplicateRule(rule.id)}
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          複製
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          className="text-destructive"
+                          onClick={() => deleteRule(rule.id)}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          削除
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2 text-sm">
-                    <Badge variant="outline">{rule.trigger}</Badge>
+                    {rule.triggers.map((t) => (
+                      <Badge key={t.id} variant="outline">{t.type}</Badge>
+                    ))}
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     <GitBranch className="h-4 w-4 text-blue-500" />
-                    <span className="text-muted-foreground">分岐処理</span>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                    <MessageSquare className="h-4 w-4 text-green-500" />
-                    <Mail className="h-4 w-4 text-blue-500" />
+                    <span className="text-muted-foreground">
+                      {rule.actions.length > 0
+                        ? `${rule.actions.length}アクション`
+                        : "分岐処理"}
+                    </span>
                   </div>
                   <div className="ml-auto flex items-center gap-6 text-sm">
                     <div>
-                      <span className="text-muted-foreground">実行: </span>
+                      <span className="text-muted-foreground">実行数: </span>
                       <span className="font-medium">
-                        {rule.stats.triggered.toLocaleString()}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">完了: </span>
-                      <span className="font-medium">
-                        {rule.stats.completed.toLocaleString()}
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">CV: </span>
-                      <span className="font-medium text-green-600">
-                        {rule.stats.converted.toLocaleString()}
+                        {rule._count.executions.toLocaleString()}
                       </span>
                     </div>
                   </div>

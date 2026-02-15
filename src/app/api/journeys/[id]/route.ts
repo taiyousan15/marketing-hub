@@ -1,43 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type Params = { id?: string };
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<Params> } = { params: Promise.resolve({}) }
-) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(
-    { success: false, error: "Journeys endpoint is not implemented" },
+    { error: "Not implemented", message: "Journey details feature is under development" },
     { status: 501 }
   );
 }
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<Params> } = { params: Promise.resolve({}) }
-) {
+export async function PUT(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(
-    { success: false, error: "Journeys endpoint is not implemented" },
+    { error: "Not implemented", message: "Journey update feature is under development" },
     { status: 501 }
   );
 }
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<Params> } = { params: Promise.resolve({}) }
-) {
+export async function DELETE(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(
-    { success: false, error: "Journeys endpoint is not implemented" },
-    { status: 501 }
-  );
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<Params> } = { params: Promise.resolve({}) }
-) {
-  return NextResponse.json(
-    { success: false, error: "Journeys endpoint is not implemented" },
+    { error: "Not implemented", message: "Journey deletion feature is under development" },
     { status: 501 }
   );
 }

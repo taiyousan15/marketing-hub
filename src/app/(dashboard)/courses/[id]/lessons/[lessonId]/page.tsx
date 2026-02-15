@@ -15,6 +15,8 @@ interface Lesson {
   name: string;
   description: string | null;
   videoUrl: string | null;
+  videoFileUrl?: string | null;
+  thumbnailUrl?: string | null;
   videoType: VideoType | null;
   duration: number | null;
   isPublished: boolean;

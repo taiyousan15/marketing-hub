@@ -17,7 +17,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getRankOptions, RankBadge } from "./rank-badge";
-import { Save, ArrowRight } from "lucide-react";
+import { VideoUploader } from "./video-uploader";
+import { ThumbnailUploader } from "./thumbnail-uploader";
+import { Save, ArrowRight, Play } from "lucide-react";
 
 interface LessonEditorProps {
   lesson: {
@@ -25,6 +27,8 @@ interface LessonEditorProps {
     name: string;
     description: string | null;
     videoUrl: string | null;
+    videoFileUrl?: string | null;
+    thumbnailUrl?: string | null;
     videoType: VideoType | null;
     duration: number | null;
     isPublished: boolean;
@@ -43,6 +47,8 @@ export function LessonEditor({ lesson, onSave, isLoading }: LessonEditorProps) {
     name: lesson.name,
     description: lesson.description || "",
     videoUrl: lesson.videoUrl || "",
+    videoFileUrl: lesson.videoFileUrl || "",
+    thumbnailUrl: lesson.thumbnailUrl || "",
     videoType: lesson.videoType || "YOUTUBE",
     duration: lesson.duration || 0,
     isPublished: lesson.isPublished,
@@ -53,15 +59,25 @@ export function LessonEditor({ lesson, onSave, isLoading }: LessonEditorProps) {
     completionThreshold: lesson.completionThreshold,
   });
 
+  const [uploading, setUploading] = useState(false);
   const rankOptions = getRankOptions();
+
+  // 実際に使用される動画URLを取得
+  const getVideoUrl = () => {
+    return formData.videoFileUrl || formData.videoUrl;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const videoUrl = getVideoUrl();
+
     await onSave({
       ...formData,
       description: formData.description || null,
-      videoUrl: formData.videoUrl || null,
-      videoType: formData.videoUrl ? (formData.videoType as VideoType) : null,
+      videoUrl: formData.videoFileUrl ? formData.videoFileUrl : formData.videoUrl || null,
+      videoFileUrl: formData.videoFileUrl || null,
+      thumbnailUrl: formData.thumbnailUrl || null,
+      videoType: formData.videoType as VideoType,
       duration: formData.duration || null,
     });
   };
@@ -117,12 +133,28 @@ export function LessonEditor({ lesson, onSave, isLoading }: LessonEditorProps) {
         </CardContent>
       </Card>
 
+      {/* サムネイル設定 */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">サムネイル</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <ThumbnailUploader
+            value={formData.thumbnailUrl}
+            onChange={(url) =>
+              setFormData({ ...formData, thumbnailUrl: url })
+            }
+          />
+        </CardContent>
+      </Card>
+
       {/* 動画設定 */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">動画設定</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
+          {/* 動画タイプ選択 */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="videoType">動画タイプ</Label>
@@ -160,17 +192,72 @@ export function LessonEditor({ lesson, onSave, isLoading }: LessonEditorProps) {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="videoUrl">動画URL</Label>
-            <Input
-              id="videoUrl"
-              value={formData.videoUrl}
-              onChange={(e) =>
-                setFormData({ ...formData, videoUrl: e.target.value })
-              }
-              placeholder="https://..."
+          {/* 動画入力 */}
+          <div className="space-y-4">
+            <VideoUploader
+              value={getVideoUrl()}
+              onChange={(url) => {
+                if (formData.videoType === "UPLOAD") {
+                  setFormData({ ...formData, videoFileUrl: url });
+                } else {
+                  setFormData({ ...formData, videoUrl: url });
+                }
+              }}
+              onUploadStart={() => setUploading(true)}
+              onUploadEnd={() => setUploading(false)}
             />
           </div>
+
+          {/* プレビュー */}
+          {getVideoUrl() && (
+            <div className="bg-muted rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Play className="h-4 w-4" />
+                <Label className="text-sm font-medium">プレビュー</Label>
+              </div>
+
+              {formData.videoType === "YOUTUBE" && getVideoUrl() && (
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${extractYouTubeId(getVideoUrl())}`}
+                    title="YouTube video preview"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
+              {formData.videoType === "VIMEO" && getVideoUrl() && (
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <iframe
+                    src={`https://player.vimeo.com/video/${extractVimeoId(getVideoUrl())}`}
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    allow="autoplay; fullscreen; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              )}
+
+              {formData.videoType === "UPLOAD" && getVideoUrl() && (
+                <div className="aspect-video bg-black rounded-lg overflow-hidden">
+                  <video
+                    width="100%"
+                    height="100%"
+                    controls
+                    className="w-full h-full"
+                  >
+                    <source src={getVideoUrl()} type="video/mp4" />
+                    ブラウザが動画の再生に対応していません
+                  </video>
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -279,11 +366,24 @@ export function LessonEditor({ lesson, onSave, isLoading }: LessonEditorProps) {
 
       {/* 保存ボタン */}
       <div className="flex justify-end">
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading || uploading}>
           <Save className="h-4 w-4 mr-2" />
-          {isLoading ? "保存中..." : "保存"}
+          {isLoading || uploading ? "保存中..." : "保存"}
         </Button>
       </div>
     </form>
   );
+}
+
+// ヘルパー関数
+function extractYouTubeId(url: string): string {
+  const match = url.match(
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/
+  );
+  return match ? match[1] : "";
+}
+
+function extractVimeoId(url: string): string {
+  const match = url.match(/vimeo\.com\/(\d+)/);
+  return match ? match[1] : "";
 }

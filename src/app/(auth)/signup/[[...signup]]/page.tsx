@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { SignUp } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SignUp } from "@clerk/nextjs";
 
+// Clerkが設定されているかチェック
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");

@@ -24,58 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-// 仮のデータ（後でServer Actionから取得）
-async function getContactData(id: string) {
-  // TODO: 実際のデータ取得
-  const sampleContact = {
-    id,
-    name: "田中 太郎",
-    email: "tanaka@example.com",
-    lineUserId: "U1234567890",
-    phone: "090-1234-5678",
-    score: 85,
-    note: "VIPのお客様。セミナーに積極的に参加。",
-    tags: [
-      { id: "1", name: "購入者", color: "#22c55e" },
-      { id: "2", name: "VIP", color: "#eab308" },
-    ],
-    createdAt: "2025-01-15",
-    activities: [
-      {
-        id: "1",
-        type: "email_opened",
-        description: "メール「新商品のご案内」を開封しました",
-        createdAt: "2025-01-30 14:30",
-      },
-      {
-        id: "2",
-        type: "page_view",
-        description: "商品ページを閲覧しました",
-        createdAt: "2025-01-29 10:15",
-      },
-      {
-        id: "3",
-        type: "purchase",
-        description: "「オンラインコース基礎編」を購入しました",
-        createdAt: "2025-01-20 09:00",
-      },
-      {
-        id: "4",
-        type: "signup",
-        description: "リストに登録しました",
-        createdAt: "2025-01-15 15:00",
-      },
-    ],
-    customFields: {
-      company: "株式会社ABC",
-      position: "マーケティング部長",
-      source: "セミナー参加",
-    },
-  };
-
-  return sampleContact;
-}
+import { getContact } from "@/actions/contacts";
 
 export default async function ContactDetailPage({
   params,
@@ -83,11 +32,14 @@ export default async function ContactDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const contact = await getContactData(id);
+  const contact = await getContact(id);
 
   if (!contact) {
     notFound();
   }
+
+  // カスタムフィールドをオブジェクトに変換
+  const customFields = (contact.customFields || {}) as Record<string, string>;
 
   return (
     <div className="space-y-6">
@@ -173,33 +125,37 @@ export default async function ContactDetailPage({
                 <Calendar className="h-4 w-4 text-muted-foreground" />
                 <div>
                   <p className="text-sm text-muted-foreground">登録日</p>
-                  <p className="font-medium">{contact.createdAt}</p>
+                  <p className="font-medium">
+                    {new Date(contact.createdAt).toLocaleDateString("ja-JP")}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>カスタムフィールド</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {Object.entries(contact.customFields).map(([key, value]) => (
-                <div key={key}>
-                  <p className="text-sm text-muted-foreground capitalize">
-                    {key === "company"
-                      ? "会社名"
-                      : key === "position"
-                      ? "役職"
-                      : key === "source"
-                      ? "流入元"
-                      : key}
-                  </p>
-                  <p className="font-medium">{value}</p>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
+          {Object.keys(customFields).length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>カスタムフィールド</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {Object.entries(customFields).map(([key, value]) => (
+                  <div key={key}>
+                    <p className="text-sm text-muted-foreground capitalize">
+                      {key === "company"
+                        ? "会社名"
+                        : key === "position"
+                        ? "役職"
+                        : key === "source"
+                        ? "流入元"
+                        : key}
+                    </p>
+                    <p className="font-medium">{value}</p>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
@@ -211,18 +167,53 @@ export default async function ContactDetailPage({
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
-                {contact.tags.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="secondary"
-                    className="cursor-pointer"
-                    style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
-                  >
-                    {tag.name}
-                    <span className="ml-1 hover:text-red-500">×</span>
-                  </Badge>
-                ))}
+                {contact.tags.length > 0 ? (
+                  contact.tags.map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="secondary"
+                      className="cursor-pointer"
+                      style={{ backgroundColor: `${tag.color}20`, color: tag.color }}
+                    >
+                      {tag.name}
+                      <span className="ml-1 hover:text-red-500">×</span>
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted-foreground">タグなし</p>
+                )}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>スコア情報</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">総合スコア</span>
+                <span className="font-bold text-lg">{contact.score}</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className={`h-2 rounded-full ${
+                    contact.score >= 70
+                      ? "bg-green-500"
+                      : contact.score >= 40
+                      ? "bg-yellow-500"
+                      : "bg-gray-400"
+                  }`}
+                  style={{ width: `${Math.min(contact.score, 100)}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {contact.score >= 70
+                  ? "高スコア - 購買意欲が高いリードです"
+                  : contact.score >= 40
+                  ? "中スコア - フォローアップ推奨"
+                  : "低スコア - ナーチャリング段階"}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -232,11 +223,11 @@ export default async function ContactDetailPage({
           {/* クイックアクション */}
           <Card>
             <CardContent className="flex items-center gap-2 py-4">
-              <Button>
+              <Button disabled={!contact.lineUserId}>
                 <Send className="mr-2 h-4 w-4" />
                 LINEを送る
               </Button>
-              <Button variant="outline">
+              <Button variant="outline" disabled={!contact.email}>
                 <Mail className="mr-2 h-4 w-4" />
                 メールを送る
               </Button>
@@ -264,37 +255,41 @@ export default async function ContactDetailPage({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    {contact.activities.map((activity, index) => (
-                      <div key={activity.id}>
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
-                            {activity.type === "email_opened" && (
-                              <Mail className="h-4 w-4" />
-                            )}
-                            {activity.type === "page_view" && (
-                              <Calendar className="h-4 w-4" />
-                            )}
-                            {activity.type === "purchase" && (
-                              <Tag className="h-4 w-4" />
-                            )}
-                            {activity.type === "signup" && (
-                              <Calendar className="h-4 w-4" />
-                            )}
+                  {contact.messageHistories && contact.messageHistories.length > 0 ? (
+                    <div className="space-y-4">
+                      {contact.messageHistories.map((history, index) => (
+                        <div key={history.id}>
+                          <div className="flex items-start gap-4">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+                              {history.channel === "LINE" && (
+                                <MessageSquare className="h-4 w-4 text-green-500" />
+                              )}
+                              {history.channel === "EMAIL" && (
+                                <Mail className="h-4 w-4" />
+                              )}
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm">
+                                {history.direction === "OUTBOUND"
+                                  ? `${history.channel}メッセージを送信`
+                                  : `${history.channel}メッセージを受信`}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(history.createdAt).toLocaleString("ja-JP")}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex-1">
-                            <p className="text-sm">{activity.description}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {activity.createdAt}
-                            </p>
-                          </div>
+                          {index < contact.messageHistories.length - 1 && (
+                            <Separator className="my-4" />
+                          )}
                         </div>
-                        {index < contact.activities.length - 1 && (
-                          <Separator className="my-4" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-[200px] text-muted-foreground">
+                      アクティビティはまだありません
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -335,7 +330,7 @@ export default async function ContactDetailPage({
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">
-                    {contact.note || "メモはありません"}
+                    {contact.source || "メモはありません"}
                   </p>
                 </CardContent>
               </Card>

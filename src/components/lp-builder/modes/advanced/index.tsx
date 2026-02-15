@@ -51,7 +51,7 @@ export function AdvancedMode() {
           previewDevice={state.previewConfig.device}
           onSelectComponent={actions.selectComponent}
           onDeleteComponent={actions.deleteComponent}
-          onDuplicateComponent={(id: string) => {
+          onDuplicateComponent={(id) => {
             const comp = state.components.find(c => c.id === id);
             if (comp) {
               // 複製ロジック - 新しいIDで同じコンポーネントを追加
@@ -61,7 +61,7 @@ export function AdvancedMode() {
               }
             }
           }}
-          onMoveComponent={(id: string, direction: string) => {
+          onMoveComponent={(id, direction) => {
             const index = state.components.findIndex(c => c.id === id);
             if (index === -1) return;
 

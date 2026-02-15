@@ -1,17 +1,17 @@
 /**
- * アフィリエイトサービス - Simplified stub
+ * アフィリエイトサービス
  *
  * LINE登録からバックエンド商品販売までの追跡と報酬計算を行う
  */
 
 import { prisma } from "@/lib/db/prisma";
-
-// Local type definitions for missing Prisma types
-type AffiliateConversionType = "SIGNUP" | "PURCHASE" | "LEAD";
-type AffiliateConversionStatus = "PENDING" | "APPROVED" | "REJECTED";
-type AffiliateCommissionStatus = "PENDING" | "PAID" | "REJECTED";
-type AffiliateCommissionTypeName = "REVENUE_SHARE" | "FIXED_AMOUNT" | "CPA";
-type ProductCategory = "DIGITAL" | "PHYSICAL" | "SERVICE";
+import {
+  AffiliateConversionType,
+  AffiliateConversionStatus,
+  AffiliateCommissionTypeName,
+  AffiliateCommissionStatus,
+  ProductCategory,
+} from "@prisma/client";
 
 // ==================== クリック追跡 ====================
 
@@ -30,6 +30,9 @@ interface RecordClickResult {
   error?: string;
 }
 
+/**
+ * アフィリエイトリンクのクリックを記録
+ */
 export async function recordAffiliateClick(
   input: RecordClickInput
 ): Promise<RecordClickResult> {
@@ -40,14 +43,37 @@ export async function recordAffiliateClick(
       include: { partner: true },
     });
 
-    if (!link) {
-      return { success: false, error: "Invalid affiliate link" };
+    if (!link || !link.isActive) {
+      return { success: false, error: "Invalid or inactive affiliate link" };
     }
 
-    // クリック記録は簡略化
+    if (link.partner.status !== "ACTIVE") {
+      return { success: false, error: "Partner is not active" };
+    }
+
+    // デバイスタイプを判定
+    const deviceType = detectDeviceType(input.userAgent);
+
+    // クリックを記録
+    const click = await prisma.affiliateClick.create({
+      data: {
+        tenantId: link.tenantId,
+        linkId: link.id,
+        partnerId: link.partnerId,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+        referrer: input.referer,
+      },
+    });
+
+    // TODO: リンクの統計を更新 (clickCount field needs to be added to AffiliateLink model)
+
+    // TODO: パートナーの統計を更新 (totalClicks field needs to be added to Partner model)
+
     return {
       success: true,
-      clickId: Math.random().toString(36).substr(2, 9),
+      clickId: click.id,
+      targetUrl: link.url,
     };
   } catch (error) {
     console.error("Error recording affiliate click:", error);
@@ -73,23 +99,41 @@ interface RecordConversionResult {
   commissions?: {
     partnerId: string;
     amount: number;
-    tier: number;
+    tier: string;
   }[];
   error?: string;
 }
 
+/**
+ * コンバージョン（成果）を記録し、報酬を計算
+ */
 export async function recordConversion(
   input: RecordConversionInput
 ): Promise<RecordConversionResult> {
   try {
-    // パートナーコードからパートナーを特定
+    // クリックまたはパートナーコードからパートナーを特定
     let partnerId: string | null = null;
+    let clickId: string | null = null;
+    let affiliateLinkId: string | null = null;
 
-    if (input.partnerCode) {
+    if (input.clickId) {
+      const click = await prisma.affiliateClick.findUnique({
+        where: { id: input.clickId },
+        include: { AffiliateLink: true },
+      });
+
+      if (click) {
+        partnerId = click.partnerId;
+        clickId = click.id;
+        affiliateLinkId = click.linkId;
+      }
+    }
+
+    if (!partnerId && input.partnerCode) {
       const partner = await prisma.partner.findUnique({
         where: { code: input.partnerCode },
       });
-      if (partner) {
+      if (partner && partner.status === "ACTIVE") {
         partnerId = partner.id;
       }
     }
@@ -98,25 +142,56 @@ export async function recordConversion(
       return { success: false, error: "Partner not found" };
     }
 
-    // コンバージョンを作成（簡略化）
-    const conversionData: any = {
-      tenantId: input.tenantId,
-      partnerId,
-      type: input.type,
-      contactId: input.contactId,
-      orderId: input.orderId,
-    };
-    if (input.amount) {
-      conversionData.amount = input.amount;
-    }
-    const conversion = await prisma.affiliateConversion.create({
-      data: conversionData,
+    // パートナー情報を取得
+    const partner = await prisma.partner.findUnique({
+      where: { id: partnerId },
+      include: {
+        // parentPartner: true,
+      },
     });
+
+    if (!partner) {
+      return { success: false, error: "Partner not found" };
+    }
+
+    // コンバージョンを作成
+    const conversion = await prisma.affiliateConversion.create({
+      data: {
+        tenantId: input.tenantId,
+        partnerId: partnerId || "",
+        linkId: affiliateLinkId,
+        amount: input.amount || 0,
+        status: AffiliateConversionStatus.PENDING,
+      },
+    });
+
+    // 報酬を計算
+    const commissions = await calculateCommissions(
+      conversion.id,
+      input.tenantId,
+      partner,
+      input.type,
+      input.amount
+    );
+
+    // リンクの統計を更新
+    if (affiliateLinkId) {
+      await prisma.affiliateLink.update({
+        where: { id: affiliateLinkId },
+        data: { conversions: { increment: 1 } },
+      });
+    }
+
+    // TODO: パートナーの統計を更新 (totalConversions field needs to be added to Partner model)
 
     return {
       success: true,
       conversionId: conversion.id,
-      commissions: [],
+      commissions: commissions.map((c) => ({
+        partnerId: c.partnerId,
+        amount: c.amount,
+        tier: c.tier,
+      })),
     };
   } catch (error) {
     console.error("Error recording conversion:", error);
@@ -124,7 +199,93 @@ export async function recordConversion(
   }
 }
 
-// ==================== LINE オプトイン処理 ====================
+// ==================== 報酬計算 ====================
+
+interface PartnerWithParent {
+  id: string;
+  code: string;
+  commissionRate: number;
+  minimumPayoutAmount: number;
+  [key: string]: any;
+}
+
+/**
+ * コンバージョンに対する報酬を計算
+ */
+async function calculateCommissions(
+  conversionId: string,
+  tenantId: string,
+  partner: PartnerWithParent,
+  type: AffiliateConversionType,
+  amount?: number
+): Promise<{ partnerId: string; amount: number; tier: string }[]> {
+  const commissions: { partnerId: string; amount: number; tier: string }[] = [];
+
+  // 直接パートナーへの報酬（Tier 1）
+  let tier1Amount = 0;
+  let commissionType: AffiliateCommissionTypeName;
+
+  switch (type) {
+    case AffiliateConversionType.LINE_OPTIN:
+    case AffiliateConversionType.EMAIL_OPTIN:
+      // オプトイン報酬（パーセント）
+      // TODO: Add fixed optin commission when defaultOptinCommission field is added to Partner model
+      tier1Amount = 0; // For now, no optin commission
+      commissionType = AffiliateCommissionTypeName.OPTIN;
+      break;
+
+    case AffiliateConversionType.FRONTEND_PURCHASE:
+      // フロントエンド報酬（パーセント）
+      if (amount) {
+        tier1Amount = Math.floor((amount * partner.commissionRate) / 100);
+      }
+      commissionType = AffiliateCommissionTypeName.FRONTEND;
+      break;
+
+    case AffiliateConversionType.BACKEND_PURCHASE:
+      // バックエンド報酬（パーセント）
+      if (amount) {
+        tier1Amount = Math.floor((amount * partner.commissionRate) / 100);
+      }
+      commissionType = AffiliateCommissionTypeName.BACKEND;
+      break;
+
+    default:
+      return commissions;
+  }
+
+  if (tier1Amount > 0) {
+    // Tier 1 コミッションを作成
+    const percentage = partner.commissionRate;
+
+    await prisma.affiliateCommission.create({
+      data: {
+        tenantId,
+        partnerId: partner.id,
+        type: commissionType,
+        amount: tier1Amount,
+        percentage,
+        tier: "1",
+        status: AffiliateCommissionStatus.PENDING,
+        updatedAt: new Date(),
+      },
+    });
+
+    commissions.push({
+      partnerId: partner.id,
+      amount: tier1Amount,
+      tier: "1",
+    });
+
+    // TODO: パートナーの未払い報酬を更新 (totalEarnings/unpaidEarnings fields need to be added to Partner model)
+  }
+
+  // TODO: 2ティア報酬（親パートナーへ）- parentPartner relation needs to be added to Partner model
+
+  return commissions;
+}
+
+// ==================== LINE登録時のアフィリエイト処理 ====================
 
 interface ProcessLineOptinInput {
   tenantId: string;
@@ -134,40 +295,56 @@ interface ProcessLineOptinInput {
   partnerCode?: string;
 }
 
-interface ProcessLineOptinResult {
-  success: boolean;
-  conversionId?: string;
-  commissions?: {
-    partnerId: string;
-    amount: number;
-    tier: number;
-  }[];
-  error?: string;
-}
-
+/**
+ * LINE友だち追加時のアフィリエイト処理
+ */
 export async function processLineOptin(
   input: ProcessLineOptinInput
-): Promise<ProcessLineOptinResult> {
-  try {
-    const result = await recordConversion({
-      tenantId: input.tenantId,
-      type: "SIGNUP",
-      contactId: input.contactId,
-      partnerCode: input.partnerCode,
-    });
-    return {
-      success: result.success,
-      conversionId: result.conversionId,
-      commissions: result.commissions,
-      error: result.error,
-    };
-  } catch (error) {
-    console.error("Error processing LINE optin:", error);
-    return { success: false, error: "Failed to process optin" };
+): Promise<RecordConversionResult> {
+  // コンタクトにアフィリエイト情報を紐付け
+  if (input.clickId || input.partnerCode) {
+    let partnerId: string | null = null;
+
+    if (input.clickId) {
+      const click = await prisma.affiliateClick.findUnique({
+        where: { id: input.clickId },
+      });
+      if (click) {
+        partnerId = click.partnerId;
+      }
+    }
+
+    if (!partnerId && input.partnerCode) {
+      const partner = await prisma.partner.findUnique({
+        where: { code: input.partnerCode },
+      });
+      if (partner) {
+        partnerId = partner.id;
+      }
+    }
+
+    if (partnerId) {
+      await prisma.contact.update({
+        where: { id: input.contactId },
+        data: {
+          referredByPartnerId: partnerId,
+          // TODO: Track click ID when affiliateClickId field is added to Contact model
+        },
+      });
+    }
   }
+
+  // コンバージョンを記録
+  return recordConversion({
+    tenantId: input.tenantId,
+    clickId: input.clickId,
+    partnerCode: input.partnerCode,
+    type: AffiliateConversionType.LINE_OPTIN,
+    contactId: input.contactId,
+  });
 }
 
-// ==================== 購入処理 ====================
+// ==================== 商品購入時のアフィリエイト処理 ====================
 
 interface ProcessPurchaseInput {
   tenantId: string;
@@ -177,44 +354,133 @@ interface ProcessPurchaseInput {
   amount: number;
 }
 
-interface ProcessPurchaseResult {
-  success: boolean;
-  conversionId?: string;
-  commissions?: {
-    partnerId: string;
-    amount: number;
-  }[];
-  error?: string;
-}
-
+/**
+ * 商品購入時のアフィリエイト処理
+ * コンタクトに紐付いているパートナーに対してバックエンド報酬を計算
+ */
 export async function processPurchase(
   input: ProcessPurchaseInput
-): Promise<ProcessPurchaseResult> {
-  try {
-    // 購入関連の記録は簡略化
-    return {
-      success: true,
-      commissions: [],
-    };
-  } catch (error) {
-    console.error("Error processing purchase:", error);
-    return { success: false, error: "Failed to process purchase" };
+): Promise<RecordConversionResult> {
+  // コンタクトを取得
+  const contact = await prisma.contact.findUnique({
+    where: { id: input.contactId },
+  });
+
+  if (!contact?.referredByPartnerId) {
+    return { success: false, error: "Contact has no referrer" };
   }
+
+  // 商品カテゴリを確認
+  const product = await prisma.product.findUnique({
+    where: { id: input.productId },
+  });
+
+  if (!product) {
+    return { success: false, error: "Product not found" };
+  }
+
+  // TODO: アフィリエイトが有効か確認 (affiliateEnabled field needs to be added to Product model)
+
+  // パートナーを取得
+  const partner = await prisma.partner.findUnique({
+    where: { id: contact.referredByPartnerId },
+  });
+
+  if (!partner || partner.status !== "ACTIVE") {
+    return { success: false, error: "Partner not active" };
+  }
+
+  // 商品固有の報酬率があればそちらを使用
+  // TODO: Use product.affiliateCommissionRate when field is added to Product model
+  const commissionRate = partner.commissionRate;
+
+  // コンバージョンを作成
+  const conversion = await prisma.affiliateConversion.create({
+    data: {
+      tenantId: input.tenantId,
+      partnerId: partner.id,
+      linkId: null,
+      orderId: input.orderId,
+      amount: input.amount,
+      status: AffiliateConversionStatus.PENDING,
+    },
+  });
+
+  // 報酬を計算（商品固有の報酬率を考慮）
+  const commissions: { partnerId: string; amount: number; tier: string }[] = [];
+
+  // Tier 1 報酬
+  const tier1Amount = Math.floor((input.amount * commissionRate) / 100);
+
+  if (tier1Amount > 0) {
+    await prisma.affiliateCommission.create({
+      data: {
+        tenantId: input.tenantId,
+        partnerId: partner.id,
+        type: AffiliateCommissionTypeName.FRONTEND, // TODO: Determine type when Product.category field is added
+        amount: tier1Amount,
+        percentage: commissionRate,
+        tier: "1",
+        status: AffiliateCommissionStatus.PENDING,
+        updatedAt: new Date(),
+      },
+    });
+
+    commissions.push({
+      partnerId: partner.id,
+      amount: tier1Amount,
+      tier: "1",
+    });
+
+    // TODO: パートナー統計を更新 (totalEarnings/unpaidEarnings/totalConversions fields need to be added to Partner model)
+  }
+
+  // TODO: Tier 2 報酬（親パートナーへ）- parentPartner relation needs to be added
+
+  // TODO: 注文にコンバージョンを紐付け (affiliateConversionId field needs to be added to Order model)
+
+  return {
+    success: true,
+    conversionId: conversion.id,
+    commissions,
+  };
 }
 
-// ==================== ヘルパー関数 ====================
+// ==================== ユーティリティ関数 ====================
 
-function detectDeviceType(userAgent?: string): string {
-  if (!userAgent) return "UNKNOWN";
-  if (/mobile/i.test(userAgent)) return "MOBILE";
-  if (/tablet/i.test(userAgent)) return "TABLET";
-  return "DESKTOP";
+function detectDeviceType(userAgent?: string): string | null {
+  if (!userAgent) return null;
+
+  const ua = userAgent.toLowerCase();
+  if (/mobile|android|iphone|ipad|ipod|blackberry|windows phone/i.test(ua)) {
+    if (/ipad|tablet/i.test(ua)) {
+      return "tablet";
+    }
+    return "mobile";
+  }
+  return "desktop";
 }
 
-export function generateAffiliateCode(): string {
-  return "AFF_" + Math.random().toString(36).substr(2, 9).toUpperCase();
+/**
+ * アフィリエイトコードを生成
+ */
+export function generateAffiliateCode(prefix: string = "AF"): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = prefix;
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }
 
+/**
+ * アフィリエイトリンクコードを生成
+ */
 export function generateLinkCode(): string {
-  return "LINK_" + Math.random().toString(36).substr(2, 9).toUpperCase();
+  const chars = "abcdefghjkmnpqrstuvwxyz23456789";
+  let code = "";
+  for (let i = 0; i < 8; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
 }

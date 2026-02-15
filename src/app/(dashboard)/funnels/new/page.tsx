@@ -109,13 +109,17 @@ export default function NewFunnelPage() {
         }),
       });
 
-      if (!res.ok) throw new Error("Failed to create");
-
       const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to create");
+      }
+
       toast.success("ファネルを作成しました");
       router.push(`/funnels/${data.funnel.id}`);
     } catch (error) {
-      toast.error("作成に失敗しました");
+      const message = error instanceof Error ? error.message : "作成に失敗しました";
+      toast.error(`作成に失敗しました: ${message}`);
     } finally {
       setIsLoading(false);
     }

@@ -1,7 +1,7 @@
 /**
  * Sequenzy MCP Integration
  *
- * メールシーケンス・自動配信管理のMCPサーバー統合
+ * ステップメール・シーケンス管理のMCPサーバー統合
  * - シーケンス作成・管理
  * - 自動配信スケジューリング
  * - パフォーマンス分析
@@ -125,7 +125,7 @@ export class SequenzyMCPClient {
     return [
       {
         name: "sequenzy_list_sequences",
-        description: "シーケンス（自動配信メール）一覧を取得します。",
+        description: "シーケンス（ステップメール）一覧を取得します。",
         input_schema: {
           type: "object" as const,
           properties: {
@@ -790,7 +790,7 @@ ${options.productInfo ? `<p>${options.productInfo}</p>` : ''}
     const response = await this.anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
       max_tokens: 4096,
-      system: `あなたはメールシーケンス・自動配信管理の専門AIアシスタントです。
+      system: `あなたはステップメール・シーケンス管理の専門AIアシスタントです。
 メールマーケティングの自動化、配信最適化、パフォーマンス分析を支援します。
 ベストプラクティスに基づいた提案を行い、コンバージョン率向上を目指します。
 日本語で応答してください。`,

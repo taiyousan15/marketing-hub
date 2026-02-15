@@ -2,21 +2,21 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   return NextResponse.json(
-    { success: false, error: "WhatsApp endpoint is not implemented" },
+    { error: "Not implemented", message: "WhatsApp settings feature is under development" },
     { status: 501 }
   );
 }
 
 export async function POST(request: NextRequest) {
   return NextResponse.json(
-    { success: false, error: "WhatsApp endpoint is not implemented" },
+    { error: "Not implemented", message: "WhatsApp settings feature is under development" },
     { status: 501 }
   );
 }
 
-export async function PATCH(request: NextRequest) {
+export async function PUT(request: NextRequest) {
   return NextResponse.json(
-    { success: false, error: "WhatsApp endpoint is not implemented" },
+    { error: "Not implemented", message: "WhatsApp settings feature is under development" },
     { status: 501 }
   );
 }

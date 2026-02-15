@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { IntentAnalyzer } from '../intent-analyzer'
-import type { PurchaseIntent, IntentSignal } from '../intent-analyzer'
+import { IntentAnalyzer } from '../intent-analyzer-class'
+import type { PurchaseIntent, IntentSignal } from '../intent-analyzer-class'
 
 describe('IntentAnalyzer', () => {
   let analyzer: IntentAnalyzer

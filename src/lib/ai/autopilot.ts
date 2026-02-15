@@ -70,7 +70,7 @@ export interface SafetyGuard {
 
 export interface AutomatedAction {
   type: "send_email" | "send_line" | "update_segment" | "trigger_workflow" |
-        "adjust_ab_test" | "pause_campaign" | "escalate" | "notify";
+        "adjust_ab_test" | "pause_campaign" | "pause" | "escalate" | "notify";
   params: Record<string, unknown>;
 }
 
@@ -216,6 +216,41 @@ export class AutopilotSystem {
     const guardViolation = this.checkSafetyGuards(event);
     if (guardViolation) {
       this.addAlert("warning", `セーフティガード発動: ${guardViolation}`);
+
+      // Budget limit exceeded - return pause action
+      if (guardViolation.includes("予算上限")) {
+        const pauseDecision: DecisionLog = {
+          id: `decision-${Date.now()}`,
+          timestamp: new Date(),
+          trigger: event.type,
+          analysis: {
+            customerData: {},
+            predictions: {
+              conversionProbability: 0,
+              churnRisk: 0,
+              predictedLTV: 0,
+              bestSendTime: "10:00",
+              bestChannel: "email",
+              nextBestAction: "システム一時停止"
+            }
+          },
+          decision: {
+            action: {
+              type: "pause",
+              params: { reason: guardViolation }
+            },
+            reasoning: guardViolation,
+            confidence: 1.0,
+            alternativeActions: []
+          },
+          status: "pending"
+        };
+
+        this.decisionHistory.push(pauseDecision);
+        // Don't increment actionsToday for pause action
+        return pauseDecision;
+      }
+
       return null;
     }
 
@@ -336,6 +371,10 @@ export class AutopilotSystem {
     this.decisionHistory.push(decisionLog);
     this.state.lastDecision = decisionLog;
     this.state.actionsPending++;
+    this.state.actionsToday++;
+
+    // Update performance metrics immediately (for stats tracking)
+    this.updatePerformanceMetrics(true);
 
     // 完全自動モードの場合は即座に実行
     if (this.config.automationLevel === "full_auto") {
@@ -451,7 +490,14 @@ ${context.intent ? `## 購入意向分析
       // JSONを抽出（コードブロックがある場合も対応）
       const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        const decision = JSON.parse(jsonMatch[0]);
+
+        // Conservative mode: reduce confidence by 10%
+        if (this.config.mode === "conservative" && decision.confidence) {
+          decision.confidence = decision.confidence * 0.9;
+        }
+
+        return decision;
       }
     } catch (e) {
       console.error("Failed to parse AI decision:", e);
@@ -628,8 +674,25 @@ ${context.intent ? `## 購入意向分析
 
     // Check priority rules
     for (const rule of this.config.priorityRules) {
-      if (rule.condition.includes("cart_value") && cartValue > 10000) {
-        return "high";
+      if (rule.condition.metric === "cart_value") {
+        const { operator, value } = rule.condition;
+        let matches = false;
+
+        if (operator === "gt" && typeof value === "number") {
+          matches = cartValue > value;
+        } else if (operator === "lt" && typeof value === "number") {
+          matches = cartValue < value;
+        } else if (operator === "eq" && typeof value === "number") {
+          matches = cartValue === value;
+        } else if (operator === "between" && Array.isArray(value)) {
+          matches = cartValue >= value[0] && cartValue <= value[1];
+        }
+
+        if (matches && rule.priority >= 4) {
+          return "high";
+        } else if (matches && rule.priority >= 2) {
+          return "medium";
+        }
       }
     }
 
@@ -643,6 +706,11 @@ ${context.intent ? `## 購入意向分析
    * セーフティガードをチェック
    */
   private checkSafetyGuards(event: AutopilotEvent): string | null {
+    // Always check budget limits (independent of safetyGuards array)
+    if (this.state.actionsToday >= this.config.budgetLimits.dailyActions) {
+      return `予算上限: 1日あたり${this.config.budgetLimits.dailyActions}アクションを超過`;
+    }
+
     for (const guard of this.config.safetyGuards) {
       if (!guard.enabled) continue;
 
@@ -655,6 +723,7 @@ ${context.intent ? `## 購入意向分析
           break;
 
         case "budget_cap":
+          // Already checked above
           if (this.state.actionsToday >= this.config.budgetLimits.dailyActions) {
             return `予算上限: 1日あたり${this.config.budgetLimits.dailyActions}アクションを超過`;
           }
@@ -682,11 +751,15 @@ ${context.intent ? `## 購入意向分析
     const executed = this.decisionHistory.filter(d => d.status === "executed" || d.status === "failed");
     const successful = executed.filter(d => d.outcome?.success);
 
+    // Calculate average confidence from all decisions (including pending)
+    const allDecisions = this.decisionHistory;
+    const avgConfidence = allDecisions.length > 0
+      ? allDecisions.reduce((sum, d) => sum + d.decision.confidence, 0) / allDecisions.length
+      : 0;
+
     this.state.performance = {
       successRate: executed.length > 0 ? successful.length / executed.length : 0,
-      avgConfidence: executed.length > 0
-        ? executed.reduce((sum, d) => sum + d.decision.confidence, 0) / executed.length
-        : 0,
+      avgConfidence,
       totalActions: executed.length
     };
   }

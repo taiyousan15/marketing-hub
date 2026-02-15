@@ -1,13 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 
-type Params = { token: string };
+interface RouteParams {
+  params: Promise<{ token: string }>;
+}
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<Params> }
-) {
+export async function GET(request: NextRequest, { params }: RouteParams) {
   return NextResponse.json(
-    { success: false, error: "Recording access is not implemented" },
+    { error: "Not implemented", message: "Recording access feature is under development" },
+    { status: 501 }
+  );
+}
+
+export async function POST(request: NextRequest, { params }: RouteParams) {
+  return NextResponse.json(
+    { error: "Not implemented", message: "Recording access feature is under development" },
     { status: 501 }
   );
 }
