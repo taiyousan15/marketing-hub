@@ -1,4 +1,9 @@
 marketing-hub/
+taisun_agent/
+lpro_analysis/
+MarketingHub_Final_Proposal/
+MarketingHub_Final_Proposal_v2/
+flow-output/
 docs/
 research/
 scripts/
@@ -7,3 +12,5 @@ logs/
 .kiro/
 *.md
 !README.md
+*.png
+*.py
