@@ -20,7 +20,7 @@ const requestSchema = z.object({
       maxTokens: z.number().optional().default(500),
     })
     .optional()
-    .default({}),
+    .default(() => ({ mode: "support", temperature: 0.7, maxTokens: 500 })),
 });
 
 const SYSTEM_PROMPT = `あなたはマーケティング自動化プラットフォーム「MarketingHub」のAIサポートアシスタントです。
