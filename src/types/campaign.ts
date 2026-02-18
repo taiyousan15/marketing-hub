@@ -57,13 +57,31 @@ export type StepContent =
   | ConditionContent
   | ActionContent;
 
+export interface MediaItem {
+  url: string;
+  source: "upload" | "url" | "ai";
+  model?: string;
+  prompt?: string;
+  mimeType?: string;
+  name?: string;
+}
+
 export interface MessageContent {
   type: "text" | "flex" | "image" | "video";
-  text?: string;
+  // Text (up to 5 blocks)
+  texts?: string[];
+  text?: string; // legacy / maps to texts[0]
+  // Flex
   altText?: string;
-  contents?: unknown; // Flex message contents
-  imageUrl?: string;
-  videoUrl?: string;
+  contents?: unknown;
+  // Image (multiple)
+  images?: MediaItem[];
+  imageUrl?: string; // legacy
+  // Video
+  video?: MediaItem;
+  videoUrl?: string; // legacy
+  videoResolution?: "480p" | "720p" | "1080p" | "4k";
+  videoFormat?: "mp4" | "webm" | "mov";
 }
 
 export interface WaitContent {

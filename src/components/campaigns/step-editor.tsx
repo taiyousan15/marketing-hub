@@ -4,7 +4,6 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -20,8 +19,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { CampaignStep, StepType, StepFormData, MessageContent, ActionContent, ConditionContent } from "@/types/campaign";
+import { StepEditorMessage } from "./step-editor-message";
+import type {
+  CampaignStep,
+  StepType,
+  StepFormData,
+  MessageContent,
+  ActionContent,
+  ConditionContent,
+} from "@/types/campaign";
 
 interface StepEditorProps {
   step?: CampaignStep;
@@ -29,7 +35,7 @@ interface StepEditorProps {
   onClose: () => void;
   onSave: (data: StepFormData) => Promise<void>;
   isLine: boolean;
-  allSteps?: CampaignStep[]; // 分岐先選択用
+  allSteps?: CampaignStep[];
 }
 
 const stepTypes: { value: StepType; label: string }[] = [
@@ -39,7 +45,14 @@ const stepTypes: { value: StepType; label: string }[] = [
   { value: "ACTION", label: "アクション" },
 ];
 
-export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [] }: StepEditorProps) {
+export function StepEditor({
+  step,
+  isOpen,
+  onClose,
+  onSave,
+  isLine,
+  allSteps = [],
+}: StepEditorProps) {
   const [formData, setFormData] = useState<StepFormData>({
     type: (step?.type as StepType) || "MESSAGE",
     delayDays: step?.delayDays || 0,
@@ -47,7 +60,7 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
     delayMinutes: step?.delayMinutes || 0,
     sendTime: step?.sendTime || undefined,
     subject: step?.subject || undefined,
-    content: step?.content || { type: "text", text: "" },
+    content: step?.content || { type: "text", text: "", texts: [""] },
     conditions: step?.conditions || undefined,
     trueBranchOrder: step?.trueBranchOrder ?? undefined,
     falseBranchOrder: step?.falseBranchOrder ?? undefined,
@@ -84,9 +97,7 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{step ? "ステップを編集" : "ステップを追加"}</DialogTitle>
-          <DialogDescription>
-            配信ステップの内容を設定します
-          </DialogDescription>
+          <DialogDescription>配信ステップの内容を設定します</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
@@ -98,10 +109,11 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
               onValueChange={(value) => {
                 const type = value as StepType;
                 let content = formData.content;
-                if (type === "MESSAGE") content = { type: "text", text: "" };
+                if (type === "MESSAGE") content = { type: "text", text: "", texts: [""] };
                 else if (type === "ACTION") content = { type: "add_tag" };
                 else if (type === "WAIT") content = { type: "wait" };
-                else if (type === "CONDITION") content = { type: "condition", field: "", operator: "equals", value: "" };
+                else if (type === "CONDITION")
+                  content = { type: "condition", field: "", operator: "equals", value: "" };
                 setFormData({ ...formData, type, content });
               }}
             >
@@ -118,7 +130,7 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
             </Select>
           </div>
 
-          {/* タイミング設定 */}
+          {/* タイミング設定 (MESSAGE / ACTION / CONDITION) */}
           {formData.type !== "WAIT" && (
             <div className="space-y-2">
               <Label>送信タイミング</Label>
@@ -129,7 +141,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     type="number"
                     min={0}
                     value={formData.delayDays}
-                    onChange={(e) => setFormData({ ...formData, delayDays: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayDays: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
                 <div>
@@ -139,7 +153,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     min={0}
                     max={23}
                     value={formData.delayHours}
-                    onChange={(e) => setFormData({ ...formData, delayHours: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayHours: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
                 <div>
@@ -149,7 +165,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     min={0}
                     max={59}
                     value={formData.delayMinutes}
-                    onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayMinutes: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
               </div>
@@ -158,7 +176,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                 <Input
                   type="time"
                   value={formData.sendTime || ""}
-                  onChange={(e) => setFormData({ ...formData, sendTime: e.target.value || undefined })}
+                  onChange={(e) =>
+                    setFormData({ ...formData, sendTime: e.target.value || undefined })
+                  }
                   placeholder="HH:MM"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
@@ -168,7 +188,7 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
             </div>
           )}
 
-          {/* WAIT用の遅延設定 */}
+          {/* WAIT 待機時間 */}
           {formData.type === "WAIT" && (
             <div className="space-y-2">
               <Label>待機時間</Label>
@@ -179,7 +199,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     type="number"
                     min={0}
                     value={formData.delayDays}
-                    onChange={(e) => setFormData({ ...formData, delayDays: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayDays: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
                 <div>
@@ -189,7 +211,9 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     min={0}
                     max={23}
                     value={formData.delayHours}
-                    onChange={(e) => setFormData({ ...formData, delayHours: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayHours: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
                 <div>
@@ -199,112 +223,27 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                     min={0}
                     max={59}
                     value={formData.delayMinutes}
-                    onChange={(e) => setFormData({ ...formData, delayMinutes: parseInt(e.target.value) || 0 })}
+                    onChange={(e) =>
+                      setFormData({ ...formData, delayMinutes: parseInt(e.target.value) || 0 })
+                    }
                   />
                 </div>
               </div>
             </div>
           )}
 
-          {/* メッセージ内容 */}
+          {/* MESSAGE コンテンツ — 別コンポーネントに委譲 */}
           {formData.type === "MESSAGE" && (
-            <div className="space-y-4">
-              <Tabs defaultValue="text" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger
-                    value="text"
-                    onClick={() => updateMessageContent({ type: "text" })}
-                  >
-                    テキスト
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="flex"
-                    onClick={() => updateMessageContent({ type: "flex" })}
-                  >
-                    Flex
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="image"
-                    onClick={() => updateMessageContent({ type: "image" })}
-                  >
-                    画像
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="text" className="space-y-3 mt-4">
-                  {!isLine && (
-                    <div>
-                      <Label>件名</Label>
-                      <Input
-                        value={formData.subject || ""}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                        placeholder="メールの件名"
-                      />
-                    </div>
-                  )}
-                  <div>
-                    <Label>メッセージ本文</Label>
-                    <Textarea
-                      rows={6}
-                      value={(formData.content as MessageContent).text || ""}
-                      onChange={(e) => updateMessageContent({ text: e.target.value })}
-                      placeholder="メッセージ本文を入力..."
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {"{name}"}などの変数を使用できます
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="flex" className="space-y-3 mt-4">
-                  <div>
-                    <Label>代替テキスト</Label>
-                    <Input
-                      value={(formData.content as MessageContent).altText || ""}
-                      onChange={(e) => updateMessageContent({ altText: e.target.value })}
-                      placeholder="通知に表示されるテキスト"
-                    />
-                  </div>
-                  <div>
-                    <Label>Flexメッセージ（JSON）</Label>
-                    <Textarea
-                      rows={10}
-                      value={JSON.stringify((formData.content as MessageContent).contents || {}, null, 2)}
-                      onChange={(e) => {
-                        try {
-                          const contents = JSON.parse(e.target.value);
-                          updateMessageContent({ contents });
-                        } catch {
-                          // JSON parse error - ignore
-                        }
-                      }}
-                      placeholder="Flex Message JSON..."
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      LINE Flex Message Simulatorで作成したJSONを貼り付けてください
-                    </p>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="image" className="space-y-3 mt-4">
-                  <div>
-                    <Label>画像URL</Label>
-                    <Input
-                      value={(formData.content as MessageContent).imageUrl || ""}
-                      onChange={(e) => updateMessageContent({ imageUrl: e.target.value, type: "image" })}
-                      placeholder="https://..."
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      HTTPS形式の画像URLを指定してください
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </div>
+            <StepEditorMessage
+              content={formData.content as MessageContent}
+              subject={formData.subject}
+              isLine={isLine}
+              onContentChange={updateMessageContent}
+              onSubjectChange={(subject) => setFormData({ ...formData, subject })}
+            />
           )}
 
-          {/* アクション設定 */}
+          {/* ACTION 設定 */}
           {formData.type === "ACTION" && (
             <div className="space-y-4">
               <div>
@@ -383,7 +322,7 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
             </div>
           )}
 
-          {/* 条件分岐設定 */}
+          {/* CONDITION 設定 */}
           {formData.type === "CONDITION" && (
             <div className="space-y-4">
               <div>
@@ -391,14 +330,14 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                 <Select
                   value={(formData.content as ConditionContent).field || "score"}
                   onValueChange={(value) => {
-                    const currentContent = formData.content as ConditionContent;
+                    const cur = formData.content as ConditionContent;
                     setFormData({
                       ...formData,
                       content: {
                         type: "condition",
                         field: value,
-                        operator: currentContent.operator || "equals",
-                        value: currentContent.value || "",
+                        operator: cur.operator || "equals",
+                        value: cur.value || "",
                       } as ConditionContent,
                     });
                   }}
@@ -420,14 +359,14 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                 <Select
                   value={(formData.content as ConditionContent).operator || "equals"}
                   onValueChange={(value) => {
-                    const currentContent = formData.content as ConditionContent;
+                    const cur = formData.content as ConditionContent;
                     setFormData({
                       ...formData,
                       content: {
                         type: "condition",
-                        field: currentContent.field || "score",
+                        field: cur.field || "score",
                         operator: value as ConditionContent["operator"],
-                        value: currentContent.value || "",
+                        value: cur.value || "",
                       } as ConditionContent,
                     });
                   }}
@@ -449,13 +388,13 @@ export function StepEditor({ step, isOpen, onClose, onSave, isLine, allSteps = [
                 <Input
                   value={String((formData.content as ConditionContent).value || "")}
                   onChange={(e) => {
-                    const currentContent = formData.content as ConditionContent;
+                    const cur = formData.content as ConditionContent;
                     setFormData({
                       ...formData,
                       content: {
                         type: "condition",
-                        field: currentContent.field || "score",
-                        operator: currentContent.operator || "equals",
+                        field: cur.field || "score",
+                        operator: cur.operator || "equals",
                         value: e.target.value,
                       } as ConditionContent,
                     });

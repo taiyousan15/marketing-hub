@@ -84,10 +84,16 @@ export default function DashboardPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/dashboard/stats?tenantId=${tenantId}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.includes("application/json")) {
+        throw new Error(`Unexpected response type: ${contentType}`);
+      }
       const data = await res.json();
-      setStats(data.stats);
-      setActivity(data.recentActivity || []);
-      setDailyStats(data.dailyStats || []);
+      if (res.ok) {
+        setStats(data.stats);
+        setActivity(data.recentActivity || []);
+        setDailyStats(data.dailyStats || []);
+      }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
     } finally {

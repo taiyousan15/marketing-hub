@@ -55,3 +55,23 @@ next-env.d.ts
 .agent-trace/
 .agent_usage_state.json
 .workflow_state.json
+
+# clerk configuration (can include secrets)
+/.clerk/
+
+# playwright / browser automation artifacts
+.playwright-mcp/
+*.png
+*.png.bak
+
+# agent state backups
+*.json.bak
+
+# MCP configuration
+.mcp/
+
+# Claude Code memory / praetorian cache
+.claude/
+
+# flow outputs
+flow-output/

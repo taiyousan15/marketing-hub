@@ -24,6 +24,7 @@ import {
   ArrowUpDown,
   Phone,
   MessageCircle,
+  ScanText,
 } from "lucide-react";
 
 import {
@@ -99,6 +100,11 @@ const menuItems = [
     title: "分析",
     url: "/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "AI OCR",
+    url: "/ai/ocr",
+    icon: ScanText,
   },
   {
     title: "アフィリエイト",
