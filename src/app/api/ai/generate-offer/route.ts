@@ -47,7 +47,6 @@ export async function POST(request: NextRequest) {
       offers,
       count: offers.length,
       style,
-      model: model || process.env.OLLAMA_MODEL || "qwen2.5:7b",
     });
   } catch (error) {
     console.error("Offer generation failed:", error);
@@ -55,20 +54,14 @@ export async function POST(request: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     const isConnectionError =
       errorMessage.includes("ECONNREFUSED") ||
-      errorMessage.includes("Connection failed");
+      errorMessage.includes("Connection failed") ||
+      errorMessage.includes("API error");
 
     return NextResponse.json(
       {
         error: isConnectionError
-          ? "ローカルLLMサーバー（Ollama）に接続できません"
+          ? "AIサービスに接続できません"
           : errorMessage,
-        setup: isConnectionError
-          ? {
-              install: "curl -fsSL https://ollama.com/install.sh | sh",
-              pull: "ollama pull qwen2.5:7b",
-              start: "ollama serve",
-            }
-          : undefined,
       },
       { status: isConnectionError ? 503 : 500 }
     );

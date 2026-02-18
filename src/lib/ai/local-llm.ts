@@ -1,32 +1,12 @@
 /**
- * ローカルLLM統合（Ollama）
+ * AI テキスト生成ユーティリティ
  *
- * 対応モデル:
- * - qwen2.5:7b / 14b - 日本語対応、高品質
- * - gemma2:9b - バランス良い
- * - elyza:7b - 日本語特化
- * - llama3.1:8b - 汎用
- *
- * セットアップ:
- * 1. curl -fsSL https://ollama.com/install.sh | sh
- * 2. ollama pull qwen2.5:7b
- * 3. ollama serve
+ * プロバイダー抽象化レイヤー（provider.ts）を経由し、
+ * 環境変数 AI_PROVIDER に応じて Ollama / Claude / OpenAI を自動切替。
  */
 
-import { Ollama } from "ollama";
-
-// Ollamaクライアント設定
-const ollamaHost = process.env.OLLAMA_HOST || "http://localhost:11434";
-const defaultModel = process.env.OLLAMA_MODEL || "qwen2.5:7b";
-
-let ollamaClient: Ollama | null = null;
-
-function getOllamaClient(): Ollama {
-  if (!ollamaClient) {
-    ollamaClient = new Ollama({ host: ollamaHost });
-  }
-  return ollamaClient;
-}
+import { getAIClient, getProvider } from './provider';
+import type { AIMessage, AICompletionOptions } from './provider';
 
 // ==================== 型定義 ====================
 
@@ -34,7 +14,7 @@ export interface GeneratedChatMessage {
   seconds: number;
   name: string;
   message: string;
-  type: "COMMENT" | "QUESTION" | "REACTION" | "TESTIMONIAL";
+  type: 'COMMENT' | 'QUESTION' | 'REACTION' | 'TESTIMONIAL';
 }
 
 export interface GeneratedOffer {
@@ -53,25 +33,27 @@ export interface LLMGenerateOptions {
 // ==================== ヘルスチェック ====================
 
 /**
- * Ollamaサーバーの接続確認
+ * AIサービスの接続確認
  */
-export async function checkOllamaHealth(): Promise<{
+export async function checkAIHealth(): Promise<{
   available: boolean;
-  models: string[];
+  provider: string;
   error?: string;
 }> {
+  const provider = getProvider();
   try {
-    const client = getOllamaClient();
-    const response = await client.list();
-    return {
-      available: true,
-      models: response.models.map((m) => m.name),
-    };
+    const client = await getAIClient();
+    // 軽量なテストリクエストで疎通確認
+    await client.complete(
+      [{ role: 'user', content: 'ping' }],
+      { maxTokens: 5 }
+    );
+    return { available: true, provider };
   } catch (error) {
     return {
       available: false,
-      models: [],
-      error: error instanceof Error ? error.message : "Connection failed",
+      provider,
+      error: error instanceof Error ? error.message : 'Connection failed',
     };
   }
 }
@@ -90,29 +72,28 @@ export async function generateSimulatedChat(
   },
   options: {
     count?: number;
-    density?: "sparse" | "medium" | "dense";
+    density?: 'sparse' | 'medium' | 'dense';
     includeQuestions?: boolean;
     includeTestimonials?: boolean;
   } & LLMGenerateOptions = {}
 ): Promise<GeneratedChatMessage[]> {
   const {
     count = 20,
-    density = "medium",
+    density = 'medium',
     includeQuestions = true,
     includeTestimonials = true,
-    model = defaultModel,
     temperature = 0.8,
   } = options;
 
   const densityGuide = {
-    sparse: "5-10秒に1件程度",
-    medium: "3-5秒に1件程度",
-    dense: "1-3秒に1件程度",
+    sparse: '5-10秒に1件程度',
+    medium: '3-5秒に1件程度',
+    dense: '1-3秒に1件程度',
   };
 
-  const messageTypes = ["コメント", "リアクション"];
-  if (includeQuestions) messageTypes.push("質問");
-  if (includeTestimonials) messageTypes.push("感想・体験談");
+  const messageTypes = ['コメント', 'リアクション'];
+  if (includeQuestions) messageTypes.push('質問');
+  if (includeTestimonials) messageTypes.push('感想・体験談');
 
   const systemPrompt = `あなたはウェビナーの視聴者コメントを生成するアシスタントです。
 自然な日本語で、実際のウェビナー参加者が書きそうなコメントを生成してください。
@@ -122,7 +103,7 @@ export async function generateSimulatedChat(
 - コメントは1-2文の短いもの
 - 絵文字は控えめに使用可（多用しない）
 - ${densityGuide[density]}のペースで配置
-- タイプ: ${messageTypes.join("、")}
+- タイプ: ${messageTypes.join('、')}
 - 秒数は0から${webinarContext.videoDuration}の範囲
 
 出力形式: JSON配列のみ（説明不要）
@@ -133,55 +114,50 @@ type の値: COMMENT, QUESTION, REACTION, TESTIMONIAL`;
   const userPrompt = `以下のウェビナーに対して${count}件のコメントを生成してください:
 
 タイトル: ${webinarContext.title}
-${webinarContext.description ? `説明: ${webinarContext.description}` : ""}
-${webinarContext.topic ? `トピック: ${webinarContext.topic}` : ""}
+${webinarContext.description ? `説明: ${webinarContext.description}` : ''}
+${webinarContext.topic ? `トピック: ${webinarContext.topic}` : ''}
 動画長: ${Math.floor(webinarContext.videoDuration / 60)}分${webinarContext.videoDuration % 60}秒
 
 重要: JSON配列のみを出力。説明文は不要。`;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+    const client = await getAIClient();
+    const result = await client.complete(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    // JSONをパース
-    const content = response.message.content;
+    const content = result.content;
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      throw new Error("JSON array not found in response");
+      throw new Error('JSON array not found in response');
     }
 
     const messages: GeneratedChatMessage[] = JSON.parse(jsonMatch[0]);
 
-    // バリデーションと正規化
     return messages
       .filter(
         (m) =>
-          typeof m.seconds === "number" &&
-          typeof m.name === "string" &&
-          typeof m.message === "string"
+          typeof m.seconds === 'number' &&
+          typeof m.name === 'string' &&
+          typeof m.message === 'string'
       )
       .map((m) => ({
         seconds: Math.max(0, Math.min(webinarContext.videoDuration, m.seconds)),
         name: m.name.slice(0, 20),
         message: m.message.slice(0, 200),
-        type: ["COMMENT", "QUESTION", "REACTION", "TESTIMONIAL"].includes(m.type)
+        type: ['COMMENT', 'QUESTION', 'REACTION', 'TESTIMONIAL'].includes(m.type)
           ? m.type
-          : "COMMENT",
+          : 'COMMENT',
       }))
       .sort((a, b) => a.seconds - b.seconds);
   } catch (error) {
-    console.error("Failed to generate chat:", error);
+    console.error('Failed to generate chat:', error);
     throw new Error(
-      `チャット生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `チャット生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -201,22 +177,21 @@ export async function generateOfferCopy(
     deadline?: string;
   },
   options: {
-    style?: "urgent" | "benefit" | "social-proof" | "scarcity";
+    style?: 'urgent' | 'benefit' | 'social-proof' | 'scarcity';
     variations?: number;
   } & LLMGenerateOptions = {}
 ): Promise<GeneratedOffer[]> {
   const {
-    style = "benefit",
+    style = 'benefit',
     variations = 3,
-    model = defaultModel,
     temperature = 0.9,
   } = options;
 
   const styleGuide = {
-    urgent: "緊急性を強調（今すぐ、期間限定、残りわずか）",
-    benefit: "ベネフィットを強調（得られる結果、変化）",
-    "social-proof": "社会的証明（実績、お客様の声）",
-    scarcity: "希少性を強調（限定、特別、あなただけ）",
+    urgent: '緊急性を強調（今すぐ、期間限定、残りわずか）',
+    benefit: 'ベネフィットを強調（得られる結果、変化）',
+    'social-proof': '社会的証明（実績、お客様の声）',
+    scarcity: '希少性を強調（限定、特別、あなただけ）',
   };
 
   const systemPrompt = `あなたはセールスコピーライターです。
@@ -236,45 +211,42 @@ export async function generateOfferCopy(
   const userPrompt = `以下の商品/サービスに対して${variations}パターンのオファーコピーを生成:
 
 商品名: ${context.productName}
-${context.productDescription ? `説明: ${context.productDescription}` : ""}
-${context.targetAudience ? `ターゲット: ${context.targetAudience}` : ""}
-${context.price ? `価格: ${context.price}` : ""}
-${context.originalPrice ? `通常価格: ${context.originalPrice}` : ""}
-${context.deadline ? `期限: ${context.deadline}` : ""}
+${context.productDescription ? `説明: ${context.productDescription}` : ''}
+${context.targetAudience ? `ターゲット: ${context.targetAudience}` : ''}
+${context.price ? `価格: ${context.price}` : ''}
+${context.originalPrice ? `通常価格: ${context.originalPrice}` : ''}
+${context.deadline ? `期限: ${context.deadline}` : ''}
 
 JSON配列のみを出力。`;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
+    const client = await getAIClient();
+    const result = await client.complete(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    const content = response.message.content;
+    const content = result.content;
     const jsonMatch = content.match(/\[[\s\S]*\]/);
     if (!jsonMatch) {
-      throw new Error("JSON array not found in response");
+      throw new Error('JSON array not found in response');
     }
 
     const offers: GeneratedOffer[] = JSON.parse(jsonMatch[0]);
 
     return offers.map((o) => ({
-      title: (o.title || "").slice(0, 30),
-      description: (o.description || "").slice(0, 100),
-      buttonText: (o.buttonText || "申し込む").slice(0, 15),
+      title: (o.title || '').slice(0, 30),
+      description: (o.description || '').slice(0, 100),
+      buttonText: (o.buttonText || '申し込む').slice(0, 15),
       urgencyText: o.urgencyText ? o.urgencyText.slice(0, 20) : undefined,
     }));
   } catch (error) {
-    console.error("Failed to generate offer:", error);
+    console.error('Failed to generate offer:', error);
     throw new Error(
-      `オファー生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `オファー生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -288,34 +260,29 @@ export async function generateText(
   prompt: string,
   options: {
     systemPrompt?: string;
-    format?: "text" | "json";
+    format?: 'text' | 'json';
   } & LLMGenerateOptions = {}
 ): Promise<string> {
   const {
-    systemPrompt = "あなたは優秀なアシスタントです。日本語で回答してください。",
-    format = "text",
-    model = defaultModel,
+    systemPrompt = 'あなたは優秀なアシスタントです。日本語で回答してください。',
     temperature = 0.7,
   } = options;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
+    const client = await getAIClient();
+    const result = await client.complete(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
       ],
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    return response.message.content;
+    return result.content;
   } catch (error) {
-    console.error("Failed to generate text:", error);
+    console.error('Failed to generate text:', error);
     throw new Error(
-      `テキスト生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `テキスト生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -332,34 +299,27 @@ export async function* generateTextStream(
   } & LLMGenerateOptions = {}
 ): AsyncGenerator<string> {
   const {
-    systemPrompt = "あなたは優秀なアシスタントです。日本語で回答してください。",
-    model = defaultModel,
+    systemPrompt = 'あなたは優秀なアシスタントです。日本語で回答してください。',
     temperature = 0.7,
   } = options;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
+    const client = await getAIClient();
+    const stream = client.completeStream(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: prompt },
       ],
-      stream: true,
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    for await (const chunk of response) {
-      if (chunk.message?.content) {
-        yield chunk.message.content;
-      }
+    for await (const chunk of stream) {
+      yield chunk;
     }
   } catch (error) {
-    console.error("Failed to stream text:", error);
+    console.error('Failed to stream text:', error);
     throw new Error(
-      `ストリーミング生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `ストリーミング生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -372,21 +332,20 @@ export async function* generateTextStream(
 export async function summarizeWebinarContent(
   transcript: string,
   options: {
-    style?: "bullet" | "paragraph" | "highlights";
+    style?: 'bullet' | 'paragraph' | 'highlights';
     maxLength?: number;
   } & LLMGenerateOptions = {}
 ): Promise<string> {
   const {
-    style = "bullet",
+    style = 'bullet',
     maxLength = 500,
-    model = defaultModel,
     temperature = 0.5,
   } = options;
 
   const styleGuide = {
-    bullet: "箇条書きで要点をまとめる",
-    paragraph: "段落形式で流れるように説明",
-    highlights: "重要なハイライトのみを抽出",
+    bullet: '箇条書きで要点をまとめる',
+    paragraph: '段落形式で流れるように説明',
+    highlights: '重要なハイライトのみを抽出',
   };
 
   const systemPrompt = `あなたはウェビナーコンテンツの要約専門家です。
@@ -394,26 +353,23 @@ export async function summarizeWebinarContent(
 最大文字数: ${maxLength}文字以内`;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
+    const client = await getAIClient();
+    const result = await client.complete(
+      [
+        { role: 'system', content: systemPrompt },
         {
-          role: "user",
+          role: 'user',
           content: `以下のウェビナー内容を要約してください:\n\n${transcript}`,
         },
       ],
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    return response.message.content.slice(0, maxLength);
+    return result.content.slice(0, maxLength);
   } catch (error) {
-    console.error("Failed to summarize:", error);
+    console.error('Failed to summarize:', error);
     throw new Error(
-      `要約生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `要約生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }
@@ -433,36 +389,33 @@ export async function generateQuestionAnswer(
   },
   options: LLMGenerateOptions = {}
 ): Promise<string> {
-  const { model = defaultModel, temperature = 0.6 } = options;
+  const { temperature = 0.6 } = options;
 
-  const systemPrompt = `あなたは「${context.webinarTitle}」のウェビナー主催者${context.speakerName ? `（${context.speakerName}）` : ""}です。
+  const systemPrompt = `あなたは「${context.webinarTitle}」のウェビナー主催者${context.speakerName ? `（${context.speakerName}）` : ''}です。
 視聴者からの質問に丁寧に回答してください。
 
 回答ルール:
 - 親しみやすく、専門的すぎない言葉で
 - 100-200文字程度で簡潔に
 - 具体的なアドバイスや例を含める
-${context.webinarTopic ? `\nトピック: ${context.webinarTopic}` : ""}
-${context.additionalContext ? `\n追加情報: ${context.additionalContext}` : ""}`;
+${context.webinarTopic ? `\nトピック: ${context.webinarTopic}` : ''}
+${context.additionalContext ? `\n追加情報: ${context.additionalContext}` : ''}`;
 
   try {
-    const client = getOllamaClient();
-    const response = await client.chat({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: question },
+    const client = await getAIClient();
+    const result = await client.complete(
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: question },
       ],
-      options: {
-        temperature,
-      },
-    });
+      { temperature }
+    );
 
-    return response.message.content;
+    return result.content;
   } catch (error) {
-    console.error("Failed to generate answer:", error);
+    console.error('Failed to generate answer:', error);
     throw new Error(
-      `回答生成に失敗しました: ${error instanceof Error ? error.message : "Unknown error"}`
+      `回答生成に失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`
     );
   }
 }

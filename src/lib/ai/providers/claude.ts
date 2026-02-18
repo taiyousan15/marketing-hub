@@ -5,7 +5,7 @@
 
 import { AIProviderClient, AIMessage, AICompletionOptions, AICompletionResult } from '../provider';
 
-const DEFAULT_MODEL = 'claude-3-5-sonnet-20241022';
+const DEFAULT_MODEL = 'claude-sonnet-4-5-20250929';
 
 export class ClaudeClient implements AIProviderClient {
   private apiKey: string;
@@ -33,7 +33,7 @@ export class ClaudeClient implements AIProviderClient {
       },
       body: JSON.stringify({
         model: options?.model || this.model,
-        max_tokens: options?.maxTokens || 1024,
+        max_tokens: options?.maxTokens || 4096,
         system: systemMessage?.content,
         messages: chatMessages.map(m => ({
           role: m.role,
@@ -73,7 +73,7 @@ export class ClaudeClient implements AIProviderClient {
       },
       body: JSON.stringify({
         model: options?.model || this.model,
-        max_tokens: options?.maxTokens || 1024,
+        max_tokens: options?.maxTokens || 4096,
         stream: true,
         system: systemMessage?.content,
         messages: chatMessages.map(m => ({

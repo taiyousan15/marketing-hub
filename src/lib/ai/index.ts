@@ -87,9 +87,9 @@ export {
   type CustomerPrediction
 } from "./autopilot";
 
-// Local LLM (Ollama)
+// AI テキスト生成
 export {
-  checkOllamaHealth,
+  checkAIHealth,
   generateSimulatedChat,
   generateOfferCopy,
   generateText,
