@@ -793,6 +793,112 @@ const launchFull: LPTemplate = {
 };
 
 /**
+ * アフィリエイト募集LPテンプレート
+ */
+const affiliateRecruit: LPTemplate = {
+  id: 'affiliate-recruit',
+  name: 'アフィリエイト募集LP',
+  description: 'パートナー・アフィリエイター募集に最適なLP',
+  category: 'optin',
+  thumbnail: '/templates/affiliate-recruit.png',
+  tags: ['アフィリエイト', 'パートナー募集', '収益化'],
+  popularity: 80,
+  components: [
+    {
+      id: 'aff-header-1',
+      componentType: 'header',
+      category: 'other',
+      order: 0,
+      props: {
+        logoText: 'パートナープログラム',
+        backgroundColor: '#1e40af',
+      },
+    },
+    {
+      id: 'aff-headline-1',
+      componentType: 'headline',
+      category: 'headline',
+      order: 1,
+      props: {
+        text: 'パートナーとして収益化しませんか？',
+        fontSize: 40,
+        fontSizeSp: 28,
+        textColor: '#1f2937',
+        textAlign: 'center',
+      },
+    },
+    {
+      id: 'aff-subhead-1',
+      componentType: 'subhead',
+      category: 'headline',
+      order: 2,
+      props: {
+        text: 'あなたのネットワークを活かして、成果報酬型の報酬を獲得しましょう',
+        fontSize: 20,
+        fontSizeSp: 16,
+        textColor: '#4b5563',
+        textAlign: 'center',
+      },
+    },
+    {
+      id: 'aff-spacer-1',
+      componentType: 'spacer',
+      category: 'basic',
+      order: 3,
+      props: {
+        height: 40,
+        heightSp: 20,
+      },
+    },
+    {
+      id: 'aff-bullet-1',
+      componentType: 'bullet',
+      category: 'content',
+      order: 4,
+      props: {
+        items: 'スタンダード: 売上の10%を報酬として獲得\nシルバー: 売上の12%（10件以上の成約で昇格）\nゴールド: 売上の15%（30件以上の成約で昇格）\nVIP: 売上の20%（招待制・特別パートナー向け）',
+        icon: 'check',
+        iconColor: '#1e40af',
+      },
+    },
+    {
+      id: 'aff-spacer-2',
+      componentType: 'spacer',
+      category: 'basic',
+      order: 5,
+      props: {
+        height: 40,
+        heightSp: 20,
+      },
+    },
+    {
+      id: 'aff-cta-1',
+      componentType: 'cta-button',
+      category: 'button',
+      order: 6,
+      props: {
+        text: '今すぐパートナー登録',
+        url: '/affiliate/join',
+        backgroundColor: '#1e40af',
+        textColor: '#ffffff',
+        size: 'large',
+        align: 'center',
+      },
+    },
+    {
+      id: 'aff-footer-1',
+      componentType: 'footer',
+      category: 'other',
+      order: 7,
+      props: {
+        copyright: '© 2026 Your Company. All rights reserved.',
+        links: 'プライバシーポリシー\n特定商取引法に基づく表記',
+      },
+    },
+  ],
+};
+
+/**
  * 全テンプレートをエクスポート
  */
 export const LP_TEMPLATES: LPTemplate[] = [
@@ -805,6 +911,7 @@ export const LP_TEMPLATES: LPTemplate[] = [
   webinarAuto,
   launchTeaser,
   launchFull,
+  affiliateRecruit,
 ];
 
 export default LP_TEMPLATES;

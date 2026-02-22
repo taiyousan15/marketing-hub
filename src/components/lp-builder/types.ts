@@ -251,6 +251,7 @@ export interface LPBuilderActions {
   addComponent: (component: LPComponent) => void;
   updateComponent: (componentId: string, key: string, value: string | number | boolean) => void;
   deleteComponent: (componentId: string) => void;
+  duplicateComponent: (componentId: string) => void;
   reorderComponents: (newComponents: ComponentInstance[]) => void;
   selectComponent: (componentId: string | null) => void;
   clearComponents: () => void;

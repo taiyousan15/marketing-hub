@@ -26,7 +26,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Trash2, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { Trash2, GripVertical, Eye, EyeOff, Copy } from 'lucide-react';
 import { ComponentInstance } from '../../types';
 import { getComponentByType } from '../../components-registry';
 
@@ -36,6 +36,7 @@ interface CanvasProps {
   onComponentsChange: (components: ComponentInstance[]) => void;
   onSelectComponent: (id: string | null) => void;
   onDeleteComponent?: (id: string) => void;
+  onDuplicateComponent?: (id: string) => void;
 }
 
 /**
@@ -46,11 +47,13 @@ function SortableComponentItem({
   isSelected,
   onSelect,
   onDelete,
+  onDuplicate,
 }: {
   component: ComponentInstance;
   isSelected: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  onDuplicate: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: component.id,
@@ -134,6 +137,17 @@ function SortableComponentItem({
               ) : (
                 <Eye className="h-4 w-4" />
               )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              title="複製"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDuplicate();
+              }}
+            >
+              <Copy className="h-4 w-4 text-blue-500" />
             </Button>
             <Button
               variant="ghost"
@@ -359,6 +373,7 @@ export function Canvas({
   onComponentsChange,
   onSelectComponent,
   onDeleteComponent,
+  onDuplicateComponent,
 }: CanvasProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -421,6 +436,31 @@ export function Canvas({
       }
     },
     [components, selectedId, onComponentsChange, onSelectComponent, onDeleteComponent]
+  );
+
+  // コンポーネント複製
+  const handleDuplicate = useCallback(
+    (id: string) => {
+      if (onDuplicateComponent) {
+        onDuplicateComponent(id);
+      } else {
+        const index = components.findIndex((c) => c.id === id);
+        if (index === -1) return;
+        const original = components[index];
+        const duplicate: ComponentInstance = {
+          ...original,
+          id: `${original.componentType}-${Date.now()}`,
+          order: original.order + 0.5,
+        };
+        const newComponents = [
+          ...components.slice(0, index + 1),
+          duplicate,
+          ...components.slice(index + 1),
+        ].map((c, i) => ({ ...c, order: i }));
+        onComponentsChange(newComponents);
+      }
+    },
+    [components, onComponentsChange, onDuplicateComponent]
   );
 
   // アクティブなコンポーネントを取得
@@ -492,6 +532,7 @@ export function Canvas({
                     isSelected={selectedId === component.id}
                     onSelect={() => onSelectComponent(component.id)}
                     onDelete={() => handleDelete(component.id)}
+                    onDuplicate={() => handleDuplicate(component.id)}
                   />
                 ))}
               </SortableContext>

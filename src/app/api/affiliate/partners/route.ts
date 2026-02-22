@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 import { generateAffiliateCode } from "@/lib/affiliate/service";
+import { sendPartnerApprovalEmail } from "@/lib/email/resend-client";
 
 // パートナー一覧取得
 export async function GET(request: NextRequest) {
@@ -155,10 +156,20 @@ export async function PATCH(request: NextRequest) {
         );
     }
 
+    const existingPartner = await prisma.partner.findUnique({
+      where: { id: partnerId },
+    });
+
     const partner = await prisma.partner.update({
       where: { id: partnerId },
       data,
     });
+
+    if (action === "approve" && existingPartner && process.env.RESEND_API_KEY) {
+      sendPartnerApprovalEmail(existingPartner.email, existingPartner.name).catch(
+        (err) => { console.error("Approval email failed:", err); }
+      );
+    }
 
     return NextResponse.json({ partner });
   } catch (error) {

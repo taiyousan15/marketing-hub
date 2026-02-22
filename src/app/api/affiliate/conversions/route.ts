@@ -10,6 +10,8 @@ import {
   processPurchase,
 } from "@/lib/affiliate/service";
 import { AffiliateConversionType } from "@prisma/client";
+import { sendConversionNotificationEmail } from "@/lib/email/resend-client";
+import { checkAndUpgradeRank } from "@/lib/affiliate/rank";
 
 // コンバージョン一覧取得
 export async function GET(request: NextRequest) {
@@ -159,6 +161,45 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
+    // パートナーへの通知とランク昇格チェック（非同期で実行、失敗してもレスポンスには影響しない）
+    if (result.conversionId) {
+      const conversion = await prisma.affiliateConversion.findUnique({
+        where: { id: result.conversionId },
+        include: {
+          partner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              notifyConversion: true,
+            },
+          },
+        },
+      });
+
+      if (conversion?.partner) {
+        const { partner } = conversion;
+        const commissionAmount =
+          result.commissions?.reduce(
+            (sum: number, c: { amount: number }) => sum + c.amount,
+            0
+          ) ?? 0;
+
+        if (partner.notifyConversion && process.env.RESEND_API_KEY) {
+          sendConversionNotificationEmail(
+            partner.email,
+            partner.name,
+            amount ?? 0,
+            commissionAmount
+          ).catch((err) => { console.error("Conversion email failed:", err); });
+        }
+
+        checkAndUpgradeRank(partner.id).catch(
+          (err) => { console.error("Rank upgrade failed:", err); }
+        );
+      }
+    }
+
     return NextResponse.json({
       conversionId: result.conversionId,
       commissions: result.commissions,
@@ -197,12 +238,21 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === "approve") {
-      // コンバージョンを承認
+      // パートナーの冷却期間を取得してpayableAtを計算
+      const partner = await prisma.partner.findUnique({
+        where: { id: conversion.partnerId },
+        select: { coolingPeriodDays: true },
+      });
+      const coolingDays = partner?.coolingPeriodDays ?? 30;
+      const payableAt = new Date();
+      payableAt.setDate(payableAt.getDate() + coolingDays);
+
       await prisma.affiliateConversion.update({
         where: { id: conversionId },
         data: {
           status: "APPROVED",
           approvedAt: new Date(),
+          payableAt,
         },
       });
     } else if (action === "reject") {
@@ -212,6 +262,19 @@ export async function PATCH(request: NextRequest) {
         data: {
           status: "REJECTED",
         },
+      });
+    } else if (action === "refund") {
+      // 返金処理: コンバージョンをREJECTED、関連コミッションをCANCELLED
+      await prisma.affiliateConversion.update({
+        where: { id: conversionId },
+        data: { status: "REJECTED" },
+      });
+      await prisma.affiliateCommission.updateMany({
+        where: {
+          partnerId: conversion.partnerId,
+          status: { in: ["PENDING", "APPROVED"] },
+        },
+        data: { status: "CANCELLED" },
       });
     } else {
       return NextResponse.json({ error: "Invalid action" }, { status: 400 });

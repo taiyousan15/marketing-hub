@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
+import { sendPayoutNotificationEmail } from "@/lib/email/resend-client";
 
 // 支払い一覧取得
 export async function GET(request: NextRequest) {
@@ -225,10 +226,29 @@ export async function PATCH(request: NextRequest) {
       where: { id: payoutId },
       include: {
         partner: {
-          select: { id: true, name: true, code: true, email: true },
+          select: {
+            id: true,
+            name: true,
+            code: true,
+            email: true,
+            notifyPayout: true,
+          },
         },
       },
     });
+
+    if (
+      action === "complete" &&
+      finalPayout?.partner.notifyPayout &&
+      process.env.RESEND_API_KEY
+    ) {
+      sendPayoutNotificationEmail(
+        finalPayout.partner.email,
+        finalPayout.partner.name,
+        finalPayout.amount,
+        finalPayout.paymentMethod
+      ).catch((err) => { console.error("Payout email failed:", err); });
+    }
 
     return NextResponse.json({ payout: finalPayout });
   } catch (error) {

@@ -174,6 +174,29 @@ export function LPBuilderProvider({
     [state.components, addToHistory]
   );
 
+  // コンポーネント複製
+  const duplicateComponent = useCallback(
+    (componentId: string) => {
+      const index = state.components.findIndex((c) => c.id === componentId);
+      if (index === -1) return;
+      const original = state.components[index];
+      const duplicate: ComponentInstance = {
+        ...original,
+        id: `${original.componentType}-${Date.now()}`,
+        order: original.order + 0.5,
+      };
+      const newComponents = [
+        ...state.components.slice(0, index + 1),
+        duplicate,
+        ...state.components.slice(index + 1),
+      ].map((c, i) => ({ ...c, order: i }));
+      setState((prev) => ({ ...prev, components: newComponents }));
+      addToHistory(newComponents);
+      toast.success('コンポーネントを複製しました');
+    },
+    [state.components, addToHistory]
+  );
+
   // コンポーネント並び替え
   const reorderComponents = useCallback(
     (newComponents: ComponentInstance[]) => {
@@ -486,6 +509,7 @@ export function LPBuilderProvider({
       addComponent,
       updateComponent,
       deleteComponent,
+      duplicateComponent,
       reorderComponents,
       selectComponent,
       clearComponents,
@@ -511,6 +535,7 @@ export function LPBuilderProvider({
       addComponent,
       updateComponent,
       deleteComponent,
+      duplicateComponent,
       reorderComponents,
       selectComponent,
       clearComponents,

@@ -81,6 +81,7 @@ model Contact {
   whatsappOptIn       Boolean             @default(true)
   whatsappOptInAt     DateTime?
   lineAccountId       String?
+  lifecycleStage      LifecycleStage      @default(SUBSCRIBER)
   campaignContacts    CampaignContact[]
   tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   lineAccount         LineAccount?        @relation("LineAccountContacts", fields: [lineAccountId], references: [id])
@@ -488,16 +489,38 @@ model Partner {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
   minimumPayoutAmount  Int                   @default(5000)
+  coolingPeriodDays    Int                   @default(30)
+  partnerAccessToken   String?               @unique
+  tokenExpiresAt       DateTime?
+  lineUserId           String?
+  notifyConversion     Boolean               @default(true)
+  notifyPayout         Boolean               @default(true)
+  bio                  String?
+  websiteUrl           String?
   commissions          AffiliateCommission[]
   affiliateConversions AffiliateConversion[]
   affiliateLinks       AffiliateLink[]
   payouts              AffiliatePayout[]
   tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   Referral             Referral[]
+  onboarding           AffiliateOnboarding?
 
   @@unique([tenantId, email])
   @@index([tenantId])
   @@index([code])
+}
+
+model AffiliateOnboarding {
+  id               String   @id @default(cuid())
+  partnerId        String   @unique
+  partner          Partner  @relation(fields: [partnerId], references: [id])
+  profileComplete  Boolean  @default(false)
+  channelSelected  Boolean  @default(false)
+  firstLinkCopied  Boolean  @default(false)
+  firstConversion  Boolean  @default(false)
+  completionScore  Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 model AffiliateLink {
@@ -537,6 +560,7 @@ model AffiliateClick {
 
   @@index([linkId])
   @@index([tenantId])
+  @@index([createdAt])
 }
 
 model AffiliateConversion {
@@ -549,6 +573,7 @@ model AffiliateConversion {
   commissions   Json?
   status        AffiliateStatus @default(PENDING)
   approvedAt    DateTime?
+  payableAt     DateTime?
   createdAt     DateTime        @default(now())
   AffiliateLink AffiliateLink?  @relation(fields: [linkId], references: [id])
   partner       Partner         @relation(fields: [partnerId], references: [id], onDelete: Cascade)
@@ -1655,6 +1680,7 @@ enum CommissionStatus {
   APPROVED
   PAID
   FAILED
+  CANCELLED
 }
 
 enum ConversationStatus {
@@ -1718,4 +1744,14 @@ enum WebinarStatus {
   ACTIVE
   PAUSED
   COMPLETED
+}
+
+enum LifecycleStage {
+  SUBSCRIBER
+  LEAD
+  MQL
+  SQL
+  OPPORTUNITY
+  CUSTOMER
+  EVANGELIST
 }
