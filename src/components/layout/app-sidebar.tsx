@@ -25,6 +25,8 @@ import {
   Phone,
   MessageCircle,
   ScanText,
+  KanbanSquare,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -105,6 +107,16 @@ const menuItems = [
     title: "AI OCR",
     url: "/ai/ocr",
     icon: ScanText,
+  },
+  {
+    title: "CRMパイプライン",
+    url: "/pipeline",
+    icon: KanbanSquare,
+  },
+  {
+    title: "フォーム",
+    url: "/forms",
+    icon: FileText,
   },
   {
     title: "アフィリエイト",

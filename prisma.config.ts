@@ -9,6 +9,9 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // マイグレーション: Session pooler (5432) — shadow DB作成が安定
+    // アプリ実行: Transaction pooler (6543) — src/lib/db/prisma.ts で DATABASE_URL を使用
+    // MIGRATE_DATABASE_URL (ローカル .env) または DIRECT_URL (Vercel) を優先使用
+    url: process.env["MIGRATE_DATABASE_URL"] ?? process.env["DIRECT_URL"] ?? process.env["DATABASE_URL"],
   },
 });

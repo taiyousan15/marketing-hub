@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -550,9 +551,11 @@ export default function JourneysPage() {
                             {journey.status === "PAUSED" ? "再開" : "有効化"}
                           </Button>
                         ) : null}
-                        <Button size="sm">
-                          <Settings className="h-4 w-4 mr-1" />
-                          編集
+                        <Button size="sm" asChild>
+                          <Link href={`/automation/journeys/${journey.id}`}>
+                            <Settings className="h-4 w-4 mr-1" />
+                            編集
+                          </Link>
                         </Button>
                         {journey.status !== "ACTIVE" && (
                           <Button

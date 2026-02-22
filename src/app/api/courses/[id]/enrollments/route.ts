@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/tenant";
 import { MemberRank } from "@prisma/client";
 import { getBulkCourseProgress } from "@/lib/courses/progress";
+import { advanceLifecycleStage } from "@/lib/contacts/lifecycle";
 
 type Params = { id: string };
 
@@ -168,6 +169,9 @@ export async function POST(
         },
       },
     });
+
+    // 受講登録 → ライフサイクルステージを LEAD に昇格（降格はしない）
+    await advanceLifecycleStage(contactId, "LEAD");
 
     return NextResponse.json({ enrollment }, { status: 201 });
   } catch (error) {

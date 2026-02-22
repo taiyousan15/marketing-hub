@@ -35,6 +35,11 @@ model Tenant {
   cartRecoveryCampaigns  CartRecoveryCampaign[]
   sentimentAlerts        SentimentAlert[]
   rfmSegmentDefinitions  RFMSegmentDefinition[]
+  pipelines              Pipeline[]
+  deals                  Deal[]
+  journeys               Journey[]
+  forms                  Form[]
+  abTests                ABTest[]
 
   @@index([subdomain])
 }
@@ -93,6 +98,7 @@ model Contact {
   orders              Order[]
   subscriptions       Subscription[]
   abandonedCarts      AbandonedCart[]
+  deals               Deal[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, lineUserId])
@@ -257,6 +263,7 @@ model FunnelPage {
   updatedAt      DateTime       @updatedAt
   actions        FunnelAction[]
   steps          FunnelStep[]
+  abTestVariants ABTestVariant[]
   funnel         Funnel         @relation(fields: [funnelId], references: [id], onDelete: Cascade)
 
   @@unique([funnelId, slug])
@@ -1173,6 +1180,204 @@ model RFMSegmentDefinition {
   @@index([tenantId])
 }
 
+// ==================== CRM Pipeline ====================
+
+model Pipeline {
+  id        String          @id @default(cuid())
+  tenantId  String
+  name      String
+  stages    PipelineStage[]
+  deals     Deal[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model PipelineStage {
+  id          String   @id @default(cuid())
+  pipelineId  String
+  name        String
+  order       Int
+  color       String   @default("#6366f1")
+  probability Int      @default(50)
+  deals       Deal[]
+  pipeline    Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@index([pipelineId])
+}
+
+model Deal {
+  id         String         @id @default(cuid())
+  tenantId   String
+  pipelineId String
+  stageId    String
+  contactId  String?
+  title      String
+  amount     Int            @default(0)
+  currency   String         @default("JPY")
+  status     DealStatus     @default(OPEN)
+  closedAt   DateTime?
+  assigneeId String?
+  activities DealActivity[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+  tenant     Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pipeline   Pipeline       @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  stage      PipelineStage  @relation(fields: [stageId], references: [id])
+  contact    Contact?       @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([pipelineId])
+  @@index([stageId])
+}
+
+model DealActivity {
+  id        String   @id @default(cuid())
+  dealId    String
+  type      String
+  body      String
+  createdAt DateTime @default(now())
+  deal      Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+
+  @@index([dealId])
+}
+
+// ==================== Journey Builder ====================
+
+model Journey {
+  id          String        @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  status      JourneyStatus @default(DRAFT)
+  nodes       JourneyNode[]
+  edges       JourneyEdge[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model JourneyNode {
+  id        String          @id @default(cuid())
+  journeyId String
+  type      JourneyNodeType
+  label     String
+  positionX Float           @default(0)
+  positionY Float           @default(0)
+  config    Json            @default("{}")
+  journey   Journey         @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  outEdges  JourneyEdge[]   @relation("SourceNode")
+  inEdges   JourneyEdge[]   @relation("TargetNode")
+
+  @@index([journeyId])
+}
+
+model JourneyEdge {
+  id        String      @id @default(cuid())
+  journeyId String
+  sourceId  String
+  targetId  String
+  label     String?
+  journey   Journey     @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  source    JourneyNode @relation("SourceNode", fields: [sourceId], references: [id], onDelete: Cascade)
+  target    JourneyNode @relation("TargetNode", fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([journeyId])
+}
+
+// ==================== Form Builder ====================
+
+model Form {
+  id          String           @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  status      FormStatus       @default(DRAFT)
+  fields      FormField[]
+  submissions FormSubmission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model FormField {
+  id          String  @id @default(cuid())
+  formId      String
+  type        String
+  label       String
+  placeholder String?
+  required    Boolean @default(false)
+  options     Json?
+  order       Int
+  form        Form    @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+}
+
+model FormSubmission {
+  id        String   @id @default(cuid())
+  formId    String
+  data      Json
+  ipAddress String?
+  createdAt DateTime @default(now())
+  form      Form     @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@index([formId])
+}
+
+// ==================== A/B Testing ====================
+
+model ABTest {
+  id        String          @id @default(cuid())
+  tenantId  String
+  name      String
+  status    ABTestStatus    @default(DRAFT)
+  algorithm ABTestAlgorithm @default(EQUAL_WEIGHT)
+  funnelId  String?
+  variants  ABTestVariant[]
+  results   ABTestResult[]
+  startedAt DateTime?
+  endedAt   DateTime?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+  tenant    Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+}
+
+model ABTestVariant {
+  id      String         @id @default(cuid())
+  testId  String
+  name    String
+  weight  Int            @default(50)
+  pageId  String?
+  results ABTestResult[]
+  test    ABTest         @relation(fields: [testId], references: [id], onDelete: Cascade)
+  page    FunnelPage?    @relation(fields: [pageId], references: [id])
+
+  @@index([testId])
+}
+
+model ABTestResult {
+  id          String        @id @default(cuid())
+  testId      String
+  variantId   String
+  impressions Int           @default(0)
+  conversions Int           @default(0)
+  date        DateTime      @default(now())
+  test        ABTest        @relation(fields: [testId], references: [id], onDelete: Cascade)
+  variant     ABTestVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@index([testId])
+  @@index([variantId])
+}
+
 // ==================== Enums ====================
 
 enum Plan {
@@ -1557,6 +1762,18 @@ enum OfferActionType {
   DOWNLOAD
 }
 
+enum DealStatus {
+  OPEN
+  WON
+  LOST
+}
+
+enum FormStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
 enum ABTestStatus {
   DRAFT
   RUNNING
@@ -1565,6 +1782,7 @@ enum ABTestStatus {
 }
 
 enum ABTestAlgorithm {
+  EQUAL_WEIGHT
   RANDOM
   EPSILON_GREEDY
   THOMPSON_SAMPLING

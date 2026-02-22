@@ -39,12 +39,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ContactForm } from "@/components/contacts/contact-form";
 import { CsvImportModal } from "@/components/contacts/csv-import-modal";
+import { LifecycleKanban } from "@/components/contacts/lifecycle-kanban";
 import { toast } from "sonner";
-import { getContacts, getTags, deleteContact } from "@/actions/contacts";
+import { getContacts, getTags, deleteContact, getLifecycleStats } from "@/actions/contacts";
+import { LIFECYCLE_STAGES } from "@/lib/contacts/constants";
+import type { LifecycleStage } from "@prisma/client";
 
 interface Contact {
   id: string;
@@ -53,6 +57,7 @@ interface Contact {
   lineUserId: string | null;
   phone: string | null;
   score: number;
+  lifecycleStage: LifecycleStage;
   tags: Array<{ id: string; name: string; color: string }>;
   createdAt: Date;
 }
@@ -74,6 +79,8 @@ export default function ContactsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedTagId, setSelectedTagId] = useState<string | undefined>();
+  const [selectedLifecycleStage, setSelectedLifecycleStage] = useState<LifecycleStage | undefined>();
+  const [lifecycleStats, setLifecycleStats] = useState<Array<{ stage: LifecycleStage; count: number; total: number }>>([]);
 
   // データ取得
   const fetchContacts = useCallback(async () => {
@@ -82,6 +89,7 @@ export default function ContactsPage() {
       const result = await getContacts({
         search: searchQuery || undefined,
         tagId: selectedTagId,
+        lifecycleStage: selectedLifecycleStage,
         limit: 50,
         offset: 0,
       });
@@ -93,7 +101,7 @@ export default function ContactsPage() {
     } finally {
       setLoading(false);
     }
-  }, [searchQuery, selectedTagId]);
+  }, [searchQuery, selectedTagId, selectedLifecycleStage]);
 
   const fetchTags = useCallback(async () => {
     try {
@@ -104,10 +112,20 @@ export default function ContactsPage() {
     }
   }, []);
 
+  const fetchLifecycleStats = useCallback(async () => {
+    try {
+      const result = await getLifecycleStats();
+      setLifecycleStats(result as Array<{ stage: LifecycleStage; count: number; total: number }>);
+    } catch (error) {
+      console.error("Failed to fetch lifecycle stats:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchContacts();
     fetchTags();
-  }, [fetchContacts, fetchTags]);
+    fetchLifecycleStats();
+  }, [fetchContacts, fetchTags, fetchLifecycleStats]);
 
   // 検索の遅延実行
   useEffect(() => {
@@ -115,7 +133,7 @@ export default function ContactsPage() {
       fetchContacts();
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery, selectedTagId, fetchContacts]);
+  }, [searchQuery, selectedTagId, selectedLifecycleStage, fetchContacts]);
 
   const handleExport = useCallback(() => {
     const headers = ["name", "email", "phone", "lineUserId", "score", "createdAt"];
@@ -157,8 +175,9 @@ export default function ContactsPage() {
 
   const handleRefresh = useCallback(() => {
     fetchContacts();
+    fetchLifecycleStats();
     toast.success("更新しました");
-  }, [fetchContacts]);
+  }, [fetchContacts, fetchLifecycleStats]);
 
   return (
     <div className="space-y-6">
@@ -189,6 +208,55 @@ export default function ContactsPage() {
         </div>
       </div>
 
+      <Tabs defaultValue="list">
+        <TabsList>
+          <TabsTrigger value="list">リスト</TabsTrigger>
+          <TabsTrigger value="kanban">ライフサイクル Kanban</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="kanban" className="mt-4">
+          <LifecycleKanban contacts={contacts} onContactUpdate={handleRefresh} />
+        </TabsContent>
+
+        <TabsContent value="list" className="mt-4">
+
+      {/* ライフサイクルパイプラインバー */}
+      {lifecycleStats.length > 0 && lifecycleStats[0].total > 0 && (
+        <div className="flex gap-2 flex-wrap">
+          {lifecycleStats.map(({ stage, count, total }) => {
+            const meta = LIFECYCLE_STAGES.find((s) => s.value === stage);
+            if (!meta || count === 0) return null;
+            return (
+              <button
+                key={stage}
+                onClick={() => {
+                  setSelectedLifecycleStage(selectedLifecycleStage === stage ? undefined : stage);
+                  setSelectedTagId(undefined);
+                }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  selectedLifecycleStage === stage
+                    ? `${meta.color} border-current`
+                    : "bg-background border-border hover:border-current"
+                }`}
+              >
+                <span className={`inline-block w-2 h-2 rounded-full ${meta.color.split(" ")[0]}`} />
+                {meta.label}
+                <span className="font-bold">{count}</span>
+                <span className="text-muted-foreground">({((count / total) * 100).toFixed(0)}%)</span>
+              </button>
+            );
+          })}
+          {selectedLifecycleStage && (
+            <button
+              onClick={() => setSelectedLifecycleStage(undefined)}
+              className="px-3 py-1.5 rounded-full text-xs text-muted-foreground hover:text-foreground border border-dashed"
+            >
+              × フィルター解除
+            </button>
+          )}
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center gap-4">
@@ -206,21 +274,41 @@ export default function ContactsPage() {
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm">
                   <Filter className="mr-2 h-4 w-4" />
-                  {selectedTagId
+                  {selectedLifecycleStage
+                    ? LIFECYCLE_STAGES.find((s) => s.value === selectedLifecycleStage)?.label
+                    : selectedTagId
                     ? tags.find((t) => t.id === selectedTagId)?.name
                     : "フィルター"}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent>
-                <DropdownMenuLabel>タグでフィルター</DropdownMenuLabel>
+                <DropdownMenuLabel>ステージでフィルター</DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setSelectedTagId(undefined)}>
+                <DropdownMenuItem onClick={() => setSelectedLifecycleStage(undefined)}>
                   すべて表示
                 </DropdownMenuItem>
+                {LIFECYCLE_STAGES.map((stage) => (
+                  <DropdownMenuItem
+                    key={stage.value}
+                    onClick={() => {
+                      setSelectedLifecycleStage(stage.value);
+                      setSelectedTagId(undefined);
+                    }}
+                  >
+                    <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium mr-2 ${stage.color}`}>
+                      {stage.label}
+                    </span>
+                  </DropdownMenuItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>タグでフィルター</DropdownMenuLabel>
                 {tags.map((tag) => (
                   <DropdownMenuItem
                     key={tag.id}
-                    onClick={() => setSelectedTagId(tag.id)}
+                    onClick={() => {
+                      setSelectedTagId(tag.id);
+                      setSelectedLifecycleStage(undefined);
+                    }}
                   >
                     <div
                       className="w-3 h-3 rounded-full mr-2"
@@ -239,6 +327,7 @@ export default function ContactsPage() {
               <TableRow>
                 <TableHead>名前</TableHead>
                 <TableHead>連絡先</TableHead>
+                <TableHead>ステージ</TableHead>
                 <TableHead>タグ</TableHead>
                 <TableHead>スコア</TableHead>
                 <TableHead>登録日</TableHead>
@@ -249,7 +338,7 @@ export default function ContactsPage() {
               {loading ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     読み込み中...
@@ -258,14 +347,16 @@ export default function ContactsPage() {
               ) : contacts.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
                     コンタクトが見つかりません
                   </TableCell>
                 </TableRow>
               ) : (
-                contacts.map((contact) => (
+                contacts.map((contact) => {
+                  const stageInfo = LIFECYCLE_STAGES.find((s) => s.value === contact.lifecycleStage);
+                  return (
                   <TableRow key={contact.id}>
                     <TableCell>
                       <Link
@@ -294,6 +385,13 @@ export default function ContactsPage() {
                           <Phone className="h-4 w-4 text-muted-foreground" />
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      {stageInfo && (
+                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${stageInfo.color}`}>
+                          {stageInfo.label}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1">
@@ -358,12 +456,16 @@ export default function ContactsPage() {
                       </DropdownMenu>
                     </TableCell>
                   </TableRow>
-                ))
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+        </TabsContent>
+      </Tabs>
 
       <ContactForm
         open={isFormOpen}

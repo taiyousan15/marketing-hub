@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { constructWebhookEvent } from "@/lib/stripe/client";
 import { prisma } from "@/lib/db/prisma";
 import { processPurchase } from "@/lib/affiliate/service";
+import { advanceLifecycleStage } from "@/lib/contacts/lifecycle";
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -103,6 +104,9 @@ async function handleCheckoutComplete(session: Stripe.Checkout.Session) {
       update: {},
     });
   }
+
+  // 購入完了 → ライフサイクルステージを CUSTOMER に昇格（降格はしない）
+  await advanceLifecycleStage(contactId, "CUSTOMER");
 
   // TODO: アフィリエイト報酬を処理（affiliateEnabled field needs to be added to Product model）
   // コンタクトに紹介者がいる場合、バックエンド報酬を計算

@@ -330,6 +330,231 @@ export async function sendPasswordResetEmail(
   });
 }
 
+/**
+ * パートナーポータル ログインリンクメールを送信
+ */
+export async function sendPartnerMagicLinkEmail(
+  to: string,
+  partnerName: string,
+  loginUrl: string
+): Promise<SendResult> {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+  <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); padding: 36px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">パートナーポータル</h1>
+      <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">ログインリンクのご案内</p>
+    </div>
+    <div style="padding: 36px 30px;">
+      <p style="font-size: 16px; margin: 0 0 16px;">こんにちは、<strong>${partnerName}</strong> さん</p>
+      <p style="color: #555; margin: 0 0 28px;">以下のボタンをクリックしてパートナーポータルにログインしてください。</p>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${loginUrl}"
+           style="background: #1e40af; color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 16px; font-weight: 600; letter-spacing: 0.5px;">
+          ログインする
+        </a>
+      </div>
+      <div style="background: #f8f9fa; border-radius: 8px; padding: 16px; margin-top: 24px;">
+        <p style="color: #666; font-size: 13px; margin: 0 0 8px;">ボタンが機能しない場合は、以下のURLをブラウザに貼り付けてください：</p>
+        <p style="font-size: 12px; color: #1e40af; word-break: break-all; margin: 0;">${loginUrl}</p>
+      </div>
+      <p style="color: #888; font-size: 13px; margin: 24px 0 0;">
+        ⏱ このリンクは<strong>24時間</strong>有効です。<br>
+        心当たりがない場合は、このメールを無視してください。
+      </p>
+    </div>
+    <div style="background: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #aaa; font-size: 12px; margin: 0;">
+        このメールは ${to} 宛に送信されました。
+      </p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "【パートナーポータル】ログインリンクのご案内",
+    html,
+    tags: [{ name: "category", value: "partner-magic-link" }],
+  });
+}
+
+/**
+ * パートナー承認メールを送信
+ */
+export async function sendPartnerApprovalEmail(
+  to: string,
+  name: string
+): Promise<SendResult> {
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://example.com"}/partner/login`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+  <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background: linear-gradient(135deg, #16a34a 0%, #22c55e 100%); padding: 36px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">パートナー登録承認</h1>
+      <p style="color: rgba(255,255,255,0.85); margin: 8px 0 0; font-size: 14px;">おめでとうございます！</p>
+    </div>
+    <div style="padding: 36px 30px;">
+      <p style="font-size: 16px; margin: 0 0 16px;">こんにちは、<strong>${name}</strong> さん</p>
+      <p style="color: #555; margin: 0 0 16px;">アフィリエイトパートナーとしての登録が承認されました。<br>パートナーポータルからアフィリエイトリンクの管理や成約状況の確認ができます。</p>
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${portalUrl}"
+           style="background: #16a34a; color: white; padding: 16px 40px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 16px; font-weight: 600;">
+          ポータルにログインする
+        </a>
+      </div>
+    </div>
+    <div style="background: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #aaa; font-size: 12px; margin: 0;">このメールは ${to} 宛に送信されました。</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "【パートナーポータル】パートナー登録が承認されました",
+    html,
+    tags: [{ name: "category", value: "partner-approval" }],
+  });
+}
+
+/**
+ * 成約通知メールをパートナーに送信
+ */
+export async function sendConversionNotificationEmail(
+  to: string,
+  name: string,
+  amount: number,
+  commissionAmount: number
+): Promise<SendResult> {
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://example.com"}/partner/portal/conversions`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+  <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%); padding: 36px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">成約が記録されました！</h1>
+    </div>
+    <div style="padding: 36px 30px;">
+      <p style="font-size: 16px; margin: 0 0 16px;">こんにちは、<strong>${name}</strong> さん</p>
+      <p style="color: #555; margin: 0 0 24px;">あなたのアフィリエイトリンクを経由した成約が記録されました。</p>
+      <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+          <span style="color: #666;">売上金額</span>
+          <span style="font-weight: 600;">¥${amount.toLocaleString()}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">
+          <span style="color: #7c3aed; font-weight: 600;">あなたの報酬</span>
+          <span style="color: #7c3aed; font-weight: 700; font-size: 18px;">¥${commissionAmount.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="text-align: center;">
+        <a href="${portalUrl}"
+           style="background: #7c3aed; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 15px; font-weight: 600;">
+          成約履歴を確認する
+        </a>
+      </div>
+    </div>
+    <div style="background: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #aaa; font-size: 12px; margin: 0;">このメールは ${to} 宛に送信されました。</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "【パートナーポータル】成約が記録されました！",
+    html,
+    tags: [{ name: "category", value: "partner-conversion" }],
+  });
+}
+
+/**
+ * 支払い完了通知メールをパートナーに送信
+ */
+export async function sendPayoutNotificationEmail(
+  to: string,
+  name: string,
+  amount: number,
+  paymentMethod?: string | null
+): Promise<SendResult> {
+  const methodLabel =
+    paymentMethod === "BANK_TRANSFER" ? "銀行振込" : paymentMethod ?? "銀行振込";
+  const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || "https://example.com"}/partner/portal/dashboard`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+  <div style="background: #fff; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    <div style="background: linear-gradient(135deg, #0369a1 0%, #38bdf8 100%); padding: 36px 30px; text-align: center;">
+      <h1 style="color: white; margin: 0; font-size: 24px; font-weight: 700;">報酬の支払いが完了しました</h1>
+    </div>
+    <div style="padding: 36px 30px;">
+      <p style="font-size: 16px; margin: 0 0 16px;">こんにちは、<strong>${name}</strong> さん</p>
+      <p style="color: #555; margin: 0 0 24px;">アフィリエイト報酬の支払いが完了しました。</p>
+      <div style="background: #f0f9ff; border-radius: 8px; padding: 20px; margin-bottom: 24px; border-left: 4px solid #0369a1;">
+        <div style="margin-bottom: 8px;">
+          <span style="color: #666;">支払い方法: </span>
+          <span style="font-weight: 600;">${methodLabel}</span>
+        </div>
+        <div>
+          <span style="color: #0369a1; font-weight: 600;">支払い金額: </span>
+          <span style="color: #0369a1; font-weight: 700; font-size: 20px;">¥${amount.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="text-align: center;">
+        <a href="${portalUrl}"
+           style="background: #0369a1; color: white; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-size: 15px; font-weight: 600;">
+          ポータルで確認する
+        </a>
+      </div>
+    </div>
+    <div style="background: #f8f9fa; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+      <p style="color: #aaa; font-size: 12px; margin: 0;">このメールは ${to} 宛に送信されました。</p>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  return sendEmail({
+    to,
+    subject: "【パートナーポータル】報酬の支払いが完了しました",
+    html,
+    tags: [{ name: "category", value: "partner-payout" }],
+  });
+}
+
 // ==================== 配信設定ガイド ====================
 
 /**

@@ -64,7 +64,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Campaign not found" }, { status: 404 });
     }
 
-    const { name, type, status, segmentId, useOptimalSendTime, minScoreThreshold, settings } = body;
+    const { name, type, status, segmentId, useOptimalSendTime, minScoreThreshold, settings, targetLifecycleStages } = body;
+
+    const settingsUpdate = settings || (targetLifecycleStages !== undefined
+      ? { ...(existing.settings as Record<string, unknown> || {}), targetLifecycleStages }
+      : undefined);
 
     const campaign = await prisma.campaign.update({
       where: { id },
@@ -75,7 +79,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         ...(segmentId !== undefined && { segmentId: segmentId || null }),
         ...(useOptimalSendTime !== undefined && { useOptimalSendTime }),
         ...(minScoreThreshold !== undefined && { minScoreThreshold }),
-        ...(settings && { settings }),
+        ...(settingsUpdate !== undefined && { settings: settingsUpdate }),
       },
       include: {
         steps: {

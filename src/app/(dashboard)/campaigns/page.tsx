@@ -55,6 +55,16 @@ const statusConfig: Record<CampaignStatus, { label: string; variant: "default" |
   ARCHIVED: { label: "アーカイブ", variant: "secondary" },
 };
 
+const STAGE_LABELS: Record<string, string> = {
+  SUBSCRIBER: "購読者",
+  LEAD: "リード",
+  MQL: "MQL",
+  SQL: "SQL",
+  OPPORTUNITY: "商談中",
+  CUSTOMER: "顧客",
+  EVANGELIST: "推薦者",
+};
+
 const typeConfig: Record<CampaignType, string> = {
   EMAIL_STEP: "メールステップ",
   EMAIL_BROADCAST: "メール一斉配信",
@@ -251,6 +261,19 @@ export default function CampaignsPage() {
                         >
                           {campaign.name}
                         </Link>
+                        {(() => {
+                          const stages = ((campaign.settings as Record<string, unknown>)?.targetLifecycleStages as string[] | undefined) || [];
+                          if (stages.length === 0) return null;
+                          return (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {stages.map((s) => (
+                                <span key={s} className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">
+                                  {STAGE_LABELS[s] || s}
+                                </span>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {typeConfig[campaign.type as CampaignType] || campaign.type}

@@ -15,6 +15,16 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Campaign, CampaignType, CampaignFormData } from "@/types/campaign";
 
+const LIFECYCLE_STAGE_OPTIONS: { value: string; label: string; color: string }[] = [
+  { value: "SUBSCRIBER", label: "購読者", color: "text-gray-700" },
+  { value: "LEAD", label: "リード", color: "text-blue-700" },
+  { value: "MQL", label: "MQL", color: "text-indigo-700" },
+  { value: "SQL", label: "SQL", color: "text-violet-700" },
+  { value: "OPPORTUNITY", label: "商談中", color: "text-amber-700" },
+  { value: "CUSTOMER", label: "顧客", color: "text-green-700" },
+  { value: "EVANGELIST", label: "推薦者", color: "text-rose-700" },
+];
+
 interface CampaignFormProps {
   campaign?: Campaign;
   onSubmit: (data: CampaignFormData) => Promise<void>;
@@ -30,12 +40,14 @@ const campaignTypes: { value: CampaignType; label: string; description: string }
 ];
 
 export function CampaignForm({ campaign, onSubmit, onCancel, isSubmitting }: CampaignFormProps) {
+  const campaignSettings = (campaign?.settings || {}) as Record<string, unknown>;
   const [formData, setFormData] = useState<CampaignFormData>({
     name: campaign?.name || "",
     type: campaign?.type || "LINE_STEP",
     segmentId: campaign?.segmentId || undefined,
     useOptimalSendTime: campaign?.useOptimalSendTime || false,
     minScoreThreshold: campaign?.minScoreThreshold || undefined,
+    targetLifecycleStages: (campaignSettings.targetLifecycleStages as string[] | undefined) || [],
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -85,6 +97,54 @@ export function CampaignForm({ campaign, onSubmit, onCancel, isSubmitting }: Cam
               </SelectContent>
             </Select>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>送信対象フィルター</CardTitle>
+          <CardDescription>
+            配信するコンタクトのライフサイクルステージを絞り込めます（未選択の場合はすべてを対象）
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {LIFECYCLE_STAGE_OPTIONS.map((stage) => {
+              const isChecked = (formData.targetLifecycleStages || []).includes(stage.value);
+              return (
+                <div key={stage.value} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    id={`stage-${stage.value}`}
+                    checked={isChecked}
+                    onChange={(e) => {
+                      const current = formData.targetLifecycleStages || [];
+                      setFormData({
+                        ...formData,
+                        targetLifecycleStages: e.target.checked
+                          ? [...current, stage.value]
+                          : current.filter((s) => s !== stage.value),
+                      });
+                    }}
+                    className="h-4 w-4 rounded border-gray-300 cursor-pointer"
+                  />
+                  <Label
+                    htmlFor={`stage-${stage.value}`}
+                    className={`cursor-pointer ${stage.color}`}
+                  >
+                    {stage.label}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+          {(formData.targetLifecycleStages || []).length > 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              選択中: {(formData.targetLifecycleStages || [])
+                .map((s) => LIFECYCLE_STAGE_OPTIONS.find((o) => o.value === s)?.label)
+                .join("、")}
+            </p>
+          )}
         </CardContent>
       </Card>
 

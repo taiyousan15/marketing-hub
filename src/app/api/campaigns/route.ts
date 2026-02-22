@@ -63,11 +63,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Tenant ID required" }, { status: 400 });
     }
 
-    const { name, type, segmentId, useOptimalSendTime, minScoreThreshold, settings } = body;
+    const { name, type, segmentId, useOptimalSendTime, minScoreThreshold, settings, targetLifecycleStages } = body;
 
     if (!name || !type) {
       return NextResponse.json({ error: "Name and type are required" }, { status: 400 });
     }
+
+    const mergedSettings = {
+      ...(settings || {}),
+      ...(targetLifecycleStages !== undefined && { targetLifecycleStages }),
+    };
 
     const campaign = await prisma.campaign.create({
       data: {
@@ -78,7 +83,7 @@ export async function POST(request: NextRequest) {
         segmentId: segmentId || null,
         useOptimalSendTime: useOptimalSendTime || false,
         minScoreThreshold: minScoreThreshold || null,
-        settings: settings || {},
+        settings: mergedSettings,
       },
       include: {
         steps: true,

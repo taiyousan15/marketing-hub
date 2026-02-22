@@ -59,6 +59,21 @@ interface DailyStats {
   revenue: number;
 }
 
+interface LifecyclePipelineItem {
+  stage: string;
+  count: number;
+}
+
+const STAGE_META: Record<string, { label: string; color: string; bg: string }> = {
+  SUBSCRIBER: { label: "購読者", color: "bg-gray-400", bg: "bg-gray-100" },
+  LEAD: { label: "リード", color: "bg-blue-400", bg: "bg-blue-100" },
+  MQL: { label: "MQL", color: "bg-indigo-500", bg: "bg-indigo-100" },
+  SQL: { label: "SQL", color: "bg-violet-500", bg: "bg-violet-100" },
+  OPPORTUNITY: { label: "商談中", color: "bg-amber-400", bg: "bg-amber-100" },
+  CUSTOMER: { label: "顧客", color: "bg-green-500", bg: "bg-green-100" },
+  EVANGELIST: { label: "推薦者", color: "bg-rose-400", bg: "bg-rose-100" },
+};
+
 const quickActions = [
   { title: "新規配信", icon: Send, href: "/campaigns/new" },
   { title: "LP作成", icon: Layers, href: "/funnels/new" },
@@ -71,6 +86,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [dailyStats, setDailyStats] = useState<DailyStats[]>([]);
+  const [lifecyclePipeline, setLifecyclePipeline] = useState<LifecyclePipelineItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -93,6 +109,7 @@ export default function DashboardPage() {
         setStats(data.stats);
         setActivity(data.recentActivity || []);
         setDailyStats(data.dailyStats || []);
+        setLifecyclePipeline(data.lifecyclePipeline || []);
       }
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
@@ -301,6 +318,52 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ライフサイクルパイプライン */}
+      {lifecyclePipeline.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">リードパイプライン</CardTitle>
+            <CardDescription>ライフサイクルステージ別コンタクト分布</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {/* 積み上げバー */}
+              <div className="flex h-4 rounded-full overflow-hidden gap-0.5">
+                {lifecyclePipeline.map(({ stage, count }) => {
+                  const total = lifecyclePipeline.reduce((s, i) => s + i.count, 0);
+                  const pct = total > 0 ? (count / total) * 100 : 0;
+                  const meta = STAGE_META[stage];
+                  if (pct === 0) return null;
+                  return (
+                    <div
+                      key={stage}
+                      className={`${meta.color} transition-all`}
+                      style={{ width: `${pct}%` }}
+                      title={`${meta.label}: ${count}人 (${pct.toFixed(1)}%)`}
+                    />
+                  );
+                })}
+              </div>
+              {/* ステージ一覧 */}
+              <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                {lifecyclePipeline.map(({ stage, count }) => {
+                  const total = lifecyclePipeline.reduce((s, i) => s + i.count, 0);
+                  const pct = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
+                  const meta = STAGE_META[stage];
+                  return (
+                    <div key={stage} className={`rounded-lg p-2 text-center ${meta.bg}`}>
+                      <p className="text-xs text-muted-foreground">{meta.label}</p>
+                      <p className="text-lg font-bold">{count}</p>
+                      <p className="text-xs text-muted-foreground">{pct}%</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Content Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">

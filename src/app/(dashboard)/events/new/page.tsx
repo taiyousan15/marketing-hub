@@ -116,11 +116,12 @@ export default function NewEventPage() {
         }),
       });
 
-      const data = await response.json();
-
       if (!response.ok) {
-        throw new Error(data.error || "Failed to create event");
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `サーバーエラー (${response.status})`);
       }
+
+      const data = await response.json();
 
       toast.success("イベントを作成しました");
 

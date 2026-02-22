@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import { getABTests, createABTest, startABTest, endABTest, deleteABTest } from "@/actions/ab-test";
+import { ABTestResults } from "@/components/ab-test/ab-test-results";
 import {
   Card,
   CardContent,
@@ -82,133 +85,130 @@ function formatDateJP(date: Date): string {
   return `${year}/${month}/${day}`;
 }
 
+const ALGORITHM_LABEL_MAP: Record<string, Algorithm> = {
+  EPSILON_GREEDY: 'epsilon_greedy',
+  UCB1: 'ucb1',
+  THOMPSON_SAMPLING: 'thompson_sampling',
+  EQUAL_WEIGHT: 'thompson_sampling',
+  RANDOM: 'epsilon_greedy',
+};
+
+const STATUS_MAP: Record<string, TestStatus> = {
+  DRAFT: 'draft',
+  RUNNING: 'running',
+  PAUSED: 'paused',
+  COMPLETED: 'completed',
+};
+
 export default function ABTestsPage() {
   const [isClient, setIsClient] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  const [newTestName, setNewTestName] = useState('');
+  const [newTestAlgorithm, setNewTestAlgorithm] = useState<Algorithm>('thompson_sampling');
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
 
-  const [tests, setTests] = useState<ABTest[]>([
-    {
-      id: "1",
-      name: "ウェルカムメール件名テスト",
-      status: "running",
-      algorithm: "thompson_sampling",
-      variants: [
-        {
-          id: "a",
-          name: "バリアントA（コントロール）",
-          content: "ようこそ！始めましょう",
-          impressions: 1250,
-          conversions: 187,
-          conversionRate: 14.96,
-          isControl: true
-        },
-        {
-          id: "b",
-          name: "バリアントB",
-          content: "🎉 ご登録ありがとうございます！特典をお受け取りください",
-          impressions: 1180,
-          conversions: 224,
-          conversionRate: 18.98,
-          isWinner: true
-        },
-        {
-          id: "c",
-          name: "バリアントC",
-          content: "【限定】新規会員様への特別なご案内",
-          impressions: 1070,
-          conversions: 171,
-          conversionRate: 15.98
-        }
-      ],
-      startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      targetMetric: "開封率",
-      statisticalSignificance: 94.2,
-      minSampleSize: 5000,
-      currentSampleSize: 3500
-    },
-    {
-      id: "2",
-      name: "CTA ボタンテスト",
-      status: "completed",
-      algorithm: "ucb1",
-      variants: [
-        {
-          id: "a",
-          name: "今すぐ購入",
-          content: "今すぐ購入",
-          impressions: 5200,
-          conversions: 312,
-          conversionRate: 6.0,
-          isControl: true
-        },
-        {
-          id: "b",
-          name: "特典を受け取る",
-          content: "特典を受け取る",
-          impressions: 5150,
-          conversions: 463,
-          conversionRate: 8.99,
-          isWinner: true
-        }
-      ],
-      startDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
-      endDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-      targetMetric: "クリック率",
-      statisticalSignificance: 99.1,
-      minSampleSize: 10000,
-      currentSampleSize: 10350
-    },
-    {
-      id: "3",
-      name: "送信時間テスト",
-      status: "running",
-      algorithm: "epsilon_greedy",
-      variants: [
-        {
-          id: "a",
-          name: "朝（9:00）",
-          content: "9:00 AM",
-          impressions: 890,
-          conversions: 178,
-          conversionRate: 20.0,
-          isControl: true
-        },
-        {
-          id: "b",
-          name: "昼（12:00）",
-          content: "12:00 PM",
-          impressions: 920,
-          conversions: 202,
-          conversionRate: 21.96,
-          isWinner: true
-        },
-        {
-          id: "c",
-          name: "夕方（18:00）",
-          content: "6:00 PM",
-          impressions: 880,
-          conversions: 167,
-          conversionRate: 18.98
-        },
-        {
-          id: "d",
-          name: "夜（21:00）",
-          content: "9:00 PM",
-          impressions: 810,
-          conversions: 138,
-          conversionRate: 17.04
-        }
-      ],
-      startDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-      targetMetric: "開封率",
-      statisticalSignificance: 78.5,
-      minSampleSize: 8000,
-      currentSampleSize: 3500
+  const [tests, setTests] = useState<ABTest[]>([]);
+
+  const fetchTests = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await getABTests();
+      setTests(data.map((t) => ({
+        id: t.id,
+        name: t.name,
+        status: (STATUS_MAP[t.status] ?? 'draft') as TestStatus,
+        algorithm: (ALGORITHM_LABEL_MAP[t.algorithm] ?? 'thompson_sampling') as Algorithm,
+        variants: t.variants.map((v) => ({
+          id: v.id,
+          name: v.name,
+          content: v.name,
+          impressions: 0,
+          conversions: 0,
+          conversionRate: 0,
+        })),
+        startDate: t.startedAt ?? t.createdAt,
+        targetMetric: '開封率',
+        minSampleSize: 1000,
+        currentSampleSize: 0,
+      })));
+    } catch (error) {
+      console.error('Failed to fetch AB tests:', error);
+    } finally {
+      setLoading(false);
     }
-  ]);
+  }, []);
+
+  useEffect(() => {
+    fetchTests();
+  }, [fetchTests]);
+
+  const handleCreateTest = async () => {
+    if (!newTestName.trim()) {
+      toast.error('テスト名を入力してください');
+      return;
+    }
+    setCreating(true);
+    try {
+      await createABTest({
+        name: newTestName,
+        algorithm: newTestAlgorithm.toUpperCase().replace('-', '_') as import('@prisma/client').ABTestAlgorithm,
+        variants: [
+          { name: 'バリアントA（コントロール）', weight: 50 },
+          { name: 'バリアントB', weight: 50 },
+        ],
+      });
+      toast.success('A/Bテストを作成しました');
+      setNewTestName('');
+      await fetchTests();
+    } catch (error) {
+      console.error('Failed to create test:', error);
+      toast.error('作成に失敗しました');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleStartTest = async (id: string) => {
+    try {
+      await startABTest(id);
+      toast.success('テストを開始しました');
+      await fetchTests();
+    } catch (error) {
+      console.error('Failed to start test:', error);
+      toast.error('開始に失敗しました');
+    }
+  };
+
+  const handleEndTest = async (id: string) => {
+    try {
+      await endABTest(id);
+      toast.success('テストを終了しました');
+      await fetchTests();
+    } catch (error) {
+      console.error('Failed to end test:', error);
+      toast.error('終了に失敗しました');
+    }
+  };
+
+  const handleDeleteTest = async (id: string) => {
+    if (!confirm('このテストを削除しますか？')) return;
+    try {
+      await deleteABTest(id);
+      toast.success('テストを削除しました');
+      await fetchTests();
+    } catch (error) {
+      console.error('Failed to delete test:', error);
+      toast.error('削除に失敗しました');
+    }
+  };
+
+  const selectedTest = selectedTestId ? tests.find(t => t.id === selectedTestId) : null;
+
 
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
@@ -268,12 +268,19 @@ export default function ABTestsPage() {
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>テスト名</Label>
-                <Input placeholder="例: ウェルカムメール件名テスト" />
+                <Input
+                  placeholder="例: ウェルカムメール件名テスト"
+                  value={newTestName}
+                  onChange={(e) => setNewTestName(e.target.value)}
+                />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>最適化アルゴリズム</Label>
-                  <Select defaultValue="thompson_sampling">
+                  <Select
+                    value={newTestAlgorithm}
+                    onValueChange={(v) => setNewTestAlgorithm(v as Algorithm)}
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -331,8 +338,14 @@ export default function ABTestsPage() {
               <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
                 キャンセル
               </Button>
-              <Button onClick={() => setIsCreateDialogOpen(false)}>
-                テストを作成
+              <Button
+                onClick={async () => {
+                  await handleCreateTest();
+                  setIsCreateDialogOpen(false);
+                }}
+                disabled={creating}
+              >
+                {creating ? '作成中...' : 'テストを作成'}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -385,6 +398,44 @@ export default function ABTestsPage() {
         </Card>
       </div>
 
+      {/* 詳細パネル */}
+      {selectedTest && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              {selectedTest.name} — 詳細結果
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ABTestResults
+              testName={selectedTest.name}
+              status={selectedTest.status.toUpperCase()}
+              variantStats={selectedTest.variants.map((v) => ({
+                id: v.id,
+                name: v.name,
+                weight: Math.round(100 / selectedTest.variants.length),
+                totalImpressions: v.impressions,
+                totalConversions: v.conversions,
+                conversionRate: v.conversionRate,
+              }))}
+              winner={
+                selectedTest.variants.find((v) => v.isWinner)
+                  ? {
+                      id: selectedTest.variants.find((v) => v.isWinner)!.id,
+                      name: selectedTest.variants.find((v) => v.isWinner)!.name,
+                      weight: Math.round(100 / selectedTest.variants.length),
+                      totalImpressions: selectedTest.variants.find((v) => v.isWinner)!.impressions,
+                      totalConversions: selectedTest.variants.find((v) => v.isWinner)!.conversions,
+                      conversionRate: selectedTest.variants.find((v) => v.isWinner)!.conversionRate,
+                    }
+                  : null
+              }
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* テスト一覧 */}
       <Tabs defaultValue="active" className="space-y-4">
         <TabsList>
@@ -422,17 +473,21 @@ export default function ABTestsPage() {
                     </div>
                     <div className="flex gap-2">
                       {test.status === "running" ? (
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleEndTest(test.id)}>
                           <Pause className="h-4 w-4 mr-2" />
                           一時停止
                         </Button>
                       ) : (
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={() => handleStartTest(test.id)}>
                           <Play className="h-4 w-4 mr-2" />
                           再開
                         </Button>
                       )}
-                      <Button size="sm">
+                      <Button
+                        size="sm"
+                        variant={selectedTestId === test.id ? "secondary" : "default"}
+                        onClick={() => setSelectedTestId(prev => prev === test.id ? null : test.id)}
+                      >
                         <BarChart3 className="h-4 w-4 mr-2" />
                         詳細
                       </Button>

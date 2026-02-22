@@ -133,6 +133,7 @@ export interface CampaignFormData {
   segmentId?: string;
   useOptimalSendTime: boolean;
   minScoreThreshold?: number;
+  targetLifecycleStages?: string[];
 }
 
 export interface StepFormData {

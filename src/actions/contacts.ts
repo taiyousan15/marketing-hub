@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
+import { LifecycleStage } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/tenant";
 
@@ -12,6 +13,7 @@ const contactSchema = z.object({
   phone: z.string().max(20).optional().nullable(),
   lineUserId: z.string().max(50).optional().nullable(),
   note: z.string().max(1000).optional().nullable(),
+  lifecycleStage: z.nativeEnum(LifecycleStage).optional(),
 });
 
 const tagSchema = z.object({
@@ -27,6 +29,7 @@ export type ContactFormData = z.infer<typeof contactSchema>;
 export async function getContacts(options?: {
   search?: string;
   tagId?: string;
+  lifecycleStage?: LifecycleStage;
   limit?: number;
   offset?: number;
 }) {
@@ -35,10 +38,11 @@ export async function getContacts(options?: {
     throw new Error("認証が必要です");
   }
 
-  const { search, tagId, limit = 50, offset = 0 } = options || {};
+  const { search, tagId, lifecycleStage, limit = 50, offset = 0 } = options || {};
 
   const where: {
     tenantId: string;
+    lifecycleStage?: LifecycleStage;
     OR?: Array<{ name?: { contains: string; mode: "insensitive" }; email?: { contains: string; mode: "insensitive" } }>;
     tags?: { some: { tagId: string } };
   } = {
@@ -54,6 +58,10 @@ export async function getContacts(options?: {
 
   if (tagId) {
     where.tags = { some: { tagId } };
+  }
+
+  if (lifecycleStage) {
+    where.lifecycleStage = lifecycleStage;
   }
 
   const [contacts, total] = await Promise.all([
@@ -186,6 +194,51 @@ export async function updateContact(id: string, data: Partial<ContactFormData>) 
       tenantId: user.tenantId,
     },
     data: validated,
+  });
+
+  revalidatePath("/contacts");
+  revalidatePath(`/contacts/${id}`);
+  return contact;
+}
+
+/**
+ * ライフサイクルステージ別コンタクト数を取得
+ */
+export async function getLifecycleStats() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("認証が必要です");
+
+  const grouped = await prisma.contact.groupBy({
+    by: ["lifecycleStage"],
+    where: { tenantId: user.tenantId },
+    _count: { _all: true },
+  });
+
+  const stageOrder: LifecycleStage[] = [
+    "SUBSCRIBER", "LEAD", "MQL", "SQL", "OPPORTUNITY", "CUSTOMER", "EVANGELIST",
+  ];
+
+  const total = grouped.reduce((sum, g) => sum + g._count._all, 0);
+
+  return stageOrder.map((stage) => ({
+    stage,
+    count: grouped.find((g) => g.lifecycleStage === stage)?._count._all ?? 0,
+    total,
+  }));
+}
+
+/**
+ * ライフサイクルステージ更新
+ */
+export async function updateLifecycleStage(id: string, stage: LifecycleStage) {
+  const user = await getCurrentUser();
+  if (!user) {
+    throw new Error("認証が必要です");
+  }
+
+  const contact = await prisma.contact.update({
+    where: { id, tenantId: user.tenantId },
+    data: { lifecycleStage: stage },
   });
 
   revalidatePath("/contacts");

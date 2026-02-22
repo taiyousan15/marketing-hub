@@ -25,6 +25,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getContact } from "@/actions/contacts";
+import { LIFECYCLE_STAGES } from "@/lib/contacts/constants";
+import { LifecycleStageSelector } from "@/components/contacts/lifecycle-stage-selector";
 
 export default async function ContactDetailPage({
   params,
@@ -62,6 +64,10 @@ export default async function ContactDetailPage({
                 {contact.name || "名前なし"}
               </h1>
               <div className="flex items-center gap-2 mt-1">
+                <LifecycleStageSelector
+                  contactId={contact.id}
+                  currentStage={contact.lifecycleStage}
+                />
                 {contact.tags.map((tag) => (
                   <Badge
                     key={tag.id}
@@ -182,6 +188,33 @@ export default async function ContactDetailPage({
                 ) : (
                   <p className="text-sm text-muted-foreground">タグなし</p>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>ライフサイクルステージ</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {LIFECYCLE_STAGES.map((s, index) => {
+                  const isActive = s.value === contact.lifecycleStage;
+                  const activeIndex = LIFECYCLE_STAGES.findIndex((x) => x.value === contact.lifecycleStage);
+                  return (
+                    <div key={s.value} className="flex items-center gap-2">
+                      <div className={`h-2 w-2 rounded-full ${isActive ? "ring-2 ring-offset-1 ring-current " + s.color.split(" ")[1] : index < activeIndex ? "bg-current opacity-40" : "bg-gray-200"}`} />
+                      <span className={`text-sm ${isActive ? "font-semibold " + s.color.split(" ")[1] : index < activeIndex ? "text-muted-foreground" : "text-muted-foreground/50"}`}>
+                        {s.label}
+                      </span>
+                      {isActive && (
+                        <span className={`ml-auto inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${s.color}`}>
+                          現在
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>

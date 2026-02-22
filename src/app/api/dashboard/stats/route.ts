@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
       lastMonthMessageStats,
       recentActivity,
       dailyStats,
+      lifecycleStats,
     ] = await Promise.all([
       // 総コンタクト数
       prisma.contact.count({
@@ -109,6 +110,12 @@ export async function GET(request: NextRequest) {
       }),
       // 過去30日間の日別統計
       getDailyStats(tenantId, 30),
+      // ライフサイクルステージ別コンタクト数
+      prisma.contact.groupBy({
+        by: ["lifecycleStage"],
+        where: { tenantId },
+        _count: { _all: true },
+      }),
     ]);
 
     // 開封率計算
@@ -140,6 +147,12 @@ export async function GET(request: NextRequest) {
       ? openRate - lastOpenRate
       : 0;
 
+    const stageOrder = ["SUBSCRIBER", "LEAD", "MQL", "SQL", "OPPORTUNITY", "CUSTOMER", "EVANGELIST"] as const;
+    const lifecyclePipeline = stageOrder.map((stage) => ({
+      stage,
+      count: lifecycleStats.find((s) => s.lifecycleStage === stage)?._count._all ?? 0,
+    }));
+
     return NextResponse.json({
       stats: {
         totalContacts,
@@ -151,6 +164,7 @@ export async function GET(request: NextRequest) {
         openRateChange,
         thisMonthOrders: thisMonthOrders._count,
       },
+      lifecyclePipeline,
       recentActivity: recentActivity.map((msg) => ({
         id: msg.id,
         type: msg.channel.toLowerCase(),
