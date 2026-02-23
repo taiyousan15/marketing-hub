@@ -1,17 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   Plus,
   Search,
   MoreHorizontal,
   Edit,
-  Copy,
   Trash2,
   Package,
   RefreshCw,
   CreditCard,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -39,70 +38,91 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
-const sampleProducts = [
-  {
-    id: "1",
-    name: "オンラインコース基礎編",
-    type: "one_time",
-    price: 29800,
-    currency: "jpy",
-    status: "active",
-    salesCount: 45,
-    revenue: 1341000,
-    createdAt: "2025-01-10",
-  },
-  {
-    id: "2",
-    name: "月額メンバーシップ",
-    type: "subscription",
-    price: 9800,
-    currency: "jpy",
-    status: "active",
-    salesCount: 123,
-    revenue: 1205400,
-    interval: "month",
-    createdAt: "2025-01-05",
-  },
-  {
-    id: "3",
-    name: "個別コンサルティング",
-    type: "one_time",
-    price: 50000,
-    currency: "jpy",
-    status: "active",
-    salesCount: 12,
-    revenue: 600000,
-    createdAt: "2025-01-15",
-  },
-  {
-    id: "4",
-    name: "年間プラン",
-    type: "subscription",
-    price: 98000,
-    currency: "jpy",
-    status: "draft",
-    salesCount: 0,
-    revenue: 0,
-    interval: "year",
-    createdAt: "2025-01-28",
-  },
-];
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  currency: string;
+  type: "ONE_TIME" | "SUBSCRIPTION";
+  recurringInterval: "MONTH" | "YEAR" | null;
+  isActive: boolean;
+  createdAt: string;
+  _count: { orders: number; subscriptions: number };
+}
 
-const formatPrice = (price: number, _currency: string) => {
-  const formatted = price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-  return `¥${formatted}`;
+const formatPrice = (price: number) => {
+  return new Intl.NumberFormat("ja-JP", {
+    style: "currency",
+    currency: "JPY",
+  }).format(price);
 };
 
 export default function ProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Product | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
-  const filteredProducts = sampleProducts.filter((product) =>
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/products");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setProducts(data.products ?? []);
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+      toast.error("商品の取得に失敗しました");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/products/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "Failed to delete");
+      }
+      toast.success("商品を削除しました");
+      setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "削除に失敗しました";
+      toast.error(message);
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
+    }
+  };
+
+  const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const totalRevenue = sampleProducts.reduce((sum, p) => sum + p.revenue, 0);
-  const totalSales = sampleProducts.reduce((sum, p) => sum + p.salesCount, 0);
+  const activeCount = products.filter((p) => p.isActive).length;
+  const totalSales = products.reduce((sum, p) => sum + p._count.orders, 0);
 
   return (
     <div className="space-y-6">
@@ -124,17 +144,17 @@ export default function ProductsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">総売上</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">商品数</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatPrice(totalRevenue, "jpy")}</div>
+            <div className="text-2xl font-bold">{products.length}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">総販売数</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{totalSales}</div>
@@ -146,9 +166,7 @@ export default function ProductsPage() {
             <Package className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {sampleProducts.filter((p) => p.status === "active").length}
-            </div>
+            <div className="text-2xl font-bold">{activeCount}</div>
           </CardContent>
         </Card>
       </div>
@@ -169,101 +187,121 @@ export default function ProductsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>商品名</TableHead>
-                <TableHead>タイプ</TableHead>
-                <TableHead>価格</TableHead>
-                <TableHead>ステータス</TableHead>
-                <TableHead className="text-right">販売数</TableHead>
-                <TableHead className="text-right">売上</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredProducts.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-24">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
-                    商品が見つかりません
-                  </TableCell>
+                  <TableHead>商品名</TableHead>
+                  <TableHead>タイプ</TableHead>
+                  <TableHead>価格</TableHead>
+                  <TableHead>ステータス</TableHead>
+                  <TableHead className="text-right">販売数</TableHead>
+                  <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
-              ) : (
-                filteredProducts.map((product) => (
-                  <TableRow key={product.id}>
-                    <TableCell>
-                      <Link
-                        href={"/products/" + product.id}
-                        className="font-medium hover:underline"
-                      >
-                        {product.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {product.type === "subscription" ? (
-                        <div className="flex items-center gap-1">
-                          <RefreshCw className="h-4 w-4 text-blue-500" />
-                          <span>サブスク</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <Package className="h-4 w-4" />
-                          <span>単発</span>
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {formatPrice(product.price, product.currency)}
-                      {product.type === "subscription" && (
-                        <span className="text-xs text-muted-foreground">
-                          /{product.interval === "month" ? "月" : "年"}
-                        </span>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={product.status === "active" ? "default" : "secondary"}
-                      >
-                        {product.status === "active" ? "販売中" : "下書き"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{product.salesCount}</TableCell>
-                    <TableCell className="text-right">
-                      {formatPrice(product.revenue, product.currency)}
-                    </TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem asChild>
-                            <Link href={"/products/" + product.id}>
-                              <Edit className="mr-2 h-4 w-4" />
-                              編集
-                            </Link>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>
-                            <Copy className="mr-2 h-4 w-4" />
-                            複製
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-red-600">
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            削除
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+              </TableHeader>
+              <TableBody>
+                {filteredProducts.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      商品が見つかりません
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filteredProducts.map((product) => (
+                    <TableRow key={product.id}>
+                      <TableCell>
+                        <Link
+                          href={"/products/" + product.id}
+                          className="font-medium hover:underline"
+                        >
+                          {product.name}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        {product.type === "SUBSCRIPTION" ? (
+                          <div className="flex items-center gap-1">
+                            <RefreshCw className="h-4 w-4 text-blue-500" />
+                            <span>サブスク</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1">
+                            <Package className="h-4 w-4" />
+                            <span>単発</span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {formatPrice(product.price)}
+                        {product.type === "SUBSCRIPTION" && product.recurringInterval && (
+                          <span className="text-xs text-muted-foreground">
+                            /{product.recurringInterval === "MONTH" ? "月" : "年"}
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={product.isActive ? "default" : "secondary"}>
+                          {product.isActive ? "販売中" : "非公開"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">{product._count.orders}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem asChild>
+                              <Link href={"/products/" + product.id}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                編集
+                              </Link>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => setDeleteTarget(product)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              削除
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>商品を削除しますか？</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget?.name} を削除します。注文がある場合は非アクティブ化されます。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>キャンセル</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {deleting ? "削除中..." : "削除する"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

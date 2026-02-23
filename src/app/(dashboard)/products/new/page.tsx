@@ -37,10 +37,9 @@ export default function NewProductPage() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    type: "one_time" as "one_time" | "subscription",
+    type: "ONE_TIME" as "ONE_TIME" | "SUBSCRIPTION",
     price: "",
-    currency: "jpy",
-    interval: "month" as "month" | "year",
+    recurringInterval: "MONTHLY" as "MONTHLY" | "YEARLY",
     isActive: true,
   });
 
@@ -61,13 +60,31 @@ export default function NewProductPage() {
     setIsSubmitting(true);
 
     try {
-      // デモモード: サーバーAPIが未実装のためクライアントで完結
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.name,
+          description: formData.description || undefined,
+          price,
+          currency: "JPY",
+          type: formData.type,
+          recurringInterval:
+            formData.type === "SUBSCRIPTION" ? formData.recurringInterval : null,
+          isActive: formData.isActive,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error ?? "作成に失敗しました");
+      }
 
       toast.success("商品を作成しました");
       router.push("/products");
-    } catch {
-      toast.error("作成に失敗しました");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "作成に失敗しました";
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -99,7 +116,6 @@ export default function NewProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* 基本情報 */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">基本情報</CardTitle>
@@ -133,7 +149,6 @@ export default function NewProductPage() {
           </CardContent>
         </Card>
 
-        {/* 販売タイプ */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -146,9 +161,9 @@ export default function NewProductPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <button
                 type="button"
-                onClick={() => setFormData({ ...formData, type: "one_time" })}
+                onClick={() => setFormData({ ...formData, type: "ONE_TIME" })}
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  formData.type === "one_time"
+                  formData.type === "ONE_TIME"
                     ? "border-primary bg-primary/5"
                     : "border-muted hover:border-muted-foreground/30"
                 }`}
@@ -166,10 +181,10 @@ export default function NewProductPage() {
               <button
                 type="button"
                 onClick={() =>
-                  setFormData({ ...formData, type: "subscription" })
+                  setFormData({ ...formData, type: "SUBSCRIPTION" })
                 }
                 className={`p-4 rounded-lg border-2 text-left transition-all ${
-                  formData.type === "subscription"
+                  formData.type === "SUBSCRIPTION"
                     ? "border-primary bg-primary/5"
                     : "border-muted hover:border-muted-foreground/30"
                 }`}
@@ -188,7 +203,6 @@ export default function NewProductPage() {
           </CardContent>
         </Card>
 
-        {/* 価格設定 */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">価格設定</CardTitle>
@@ -216,21 +230,21 @@ export default function NewProductPage() {
                   />
                 </div>
               </div>
-              {formData.type === "subscription" && (
+              {formData.type === "SUBSCRIPTION" && (
                 <div className="space-y-2">
                   <Label>課金間隔</Label>
                   <Select
-                    value={formData.interval}
-                    onValueChange={(value: "month" | "year") =>
-                      setFormData({ ...formData, interval: value })
+                    value={formData.recurringInterval}
+                    onValueChange={(value: "MONTHLY" | "YEARLY") =>
+                      setFormData({ ...formData, recurringInterval: value })
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="month">月額</SelectItem>
-                      <SelectItem value="year">年額</SelectItem>
+                      <SelectItem value="MONTHLY">月額</SelectItem>
+                      <SelectItem value="YEARLY">年額</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -239,7 +253,6 @@ export default function NewProductPage() {
           </CardContent>
         </Card>
 
-        {/* ステータス */}
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">公開設定</CardTitle>
@@ -249,7 +262,7 @@ export default function NewProductPage() {
               <div className="space-y-0.5">
                 <Label>すぐに販売開始</Label>
                 <p className="text-sm text-muted-foreground">
-                  OFFの場合は下書きとして保存されます
+                  OFFの場合は非公開として保存されます
                 </p>
               </div>
               <Switch
@@ -262,7 +275,6 @@ export default function NewProductPage() {
           </CardContent>
         </Card>
 
-        {/* プレビュー */}
         {formData.name && (
           <Card className="bg-muted/50">
             <CardHeader>
@@ -271,7 +283,7 @@ export default function NewProductPage() {
             <CardContent>
               <div className="flex items-start gap-4">
                 <div className="p-3 rounded-lg bg-blue-100 text-blue-600">
-                  {formData.type === "subscription" ? (
+                  {formData.type === "SUBSCRIPTION" ? (
                     <RefreshCw className="h-6 w-6" />
                   ) : (
                     <Package className="h-6 w-6" />
@@ -283,16 +295,18 @@ export default function NewProductPage() {
                     <span className="flex items-center gap-1">
                       <CreditCard className="h-4 w-4" />
                       {formatPreviewPrice()}
-                      {formData.type === "subscription" && (
-                        <span>/{formData.interval === "month" ? "月" : "年"}</span>
+                      {formData.type === "SUBSCRIPTION" && (
+                        <span>
+                          /{formData.recurringInterval === "MONTHLY" ? "月" : "年"}
+                        </span>
                       )}
                     </span>
                     <span>
-                      {formData.type === "subscription" ? "サブスクリプション" : "単発販売"}
+                      {formData.type === "SUBSCRIPTION"
+                        ? "サブスクリプション"
+                        : "単発販売"}
                     </span>
-                    <span>
-                      {formData.isActive ? "販売中" : "下書き"}
-                    </span>
+                    <span>{formData.isActive ? "販売中" : "非公開"}</span>
                   </div>
                 </div>
               </div>
@@ -300,7 +314,6 @@ export default function NewProductPage() {
           </Card>
         )}
 
-        {/* 送信ボタン */}
         <div className="flex items-center justify-end gap-4">
           <Button variant="outline" asChild>
             <Link href="/products">キャンセル</Link>

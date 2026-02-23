@@ -10,6 +10,11 @@ import {
   Pause,
   Save,
   Settings,
+  Activity,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,7 +22,28 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CampaignForm } from "@/components/campaigns/campaign-form";
 import { StepBuilder } from "@/components/campaigns/step-builder";
 import { useTenant } from "@/hooks/use-tenant";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Campaign, CampaignFormData, StepFormData, CampaignStep } from "@/types/campaign";
+
+interface CampaignExecution {
+  id: string;
+  stepId: string;
+  contactId: string;
+  channel: string;
+  status: string;
+  sentAt: string | null;
+  error: string | null;
+  createdAt: string;
+  contact: { id: string; name: string | null; email: string };
+}
 
 const statusConfig = {
   DRAFT: { label: "下書き", variant: "outline" as const },
@@ -36,6 +62,8 @@ export default function EditCampaignPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [executions, setExecutions] = useState<CampaignExecution[]>([]);
+  const [executionsLoading, setExecutionsLoading] = useState(false);
 
   const fetchCampaign = useCallback(async () => {
     if (!campaignId) return;
@@ -52,6 +80,22 @@ export default function EditCampaignPage() {
       setLoading(false);
     }
   }, [campaignId, tenantId]);
+
+  const fetchExecutions = useCallback(async () => {
+    if (!campaignId) return;
+    setExecutionsLoading(true);
+    try {
+      const res = await fetch(`/api/campaigns/${campaignId}/executions`);
+      if (res.ok) {
+        const data = await res.json();
+        setExecutions(data.executions ?? []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch executions:", error);
+    } finally {
+      setExecutionsLoading(false);
+    }
+  }, [campaignId]);
 
   useEffect(() => {
     if (campaignId) {
@@ -252,6 +296,10 @@ export default function EditCampaignPage() {
       <Tabs defaultValue="steps">
         <TabsList>
           {isStep && <TabsTrigger value="steps">ステップ</TabsTrigger>}
+          <TabsTrigger value="executions" onClick={fetchExecutions}>
+            <Activity className="mr-2 h-4 w-4" />
+            配信ログ
+          </TabsTrigger>
           <TabsTrigger value="settings">
             <Settings className="mr-2 h-4 w-4" />
             設定
@@ -271,6 +319,78 @@ export default function EditCampaignPage() {
             />
           </TabsContent>
         )}
+
+        <TabsContent value="executions" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">配信ログ</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {executionsLoading ? (
+                <div className="flex items-center justify-center h-24">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : executions.length === 0 ? (
+                <p className="text-center py-8 text-muted-foreground">
+                  配信ログはまだありません
+                </p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>コンタクト</TableHead>
+                      <TableHead>チャンネル</TableHead>
+                      <TableHead>ステータス</TableHead>
+                      <TableHead>日時</TableHead>
+                      <TableHead>エラー</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {executions.map((exec) => (
+                      <TableRow key={exec.id}>
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{exec.contact.name ?? "---"}</p>
+                            <p className="text-xs text-muted-foreground">{exec.contact.email}</p>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{exec.channel}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          {exec.status === "SENT" ? (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <CheckCircle className="h-4 w-4" />
+                              <span>送信済</span>
+                            </div>
+                          ) : exec.status === "FAILED" ? (
+                            <div className="flex items-center gap-1 text-red-600">
+                              <XCircle className="h-4 w-4" />
+                              <span>失敗</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-yellow-600">
+                              <Clock className="h-4 w-4" />
+                              <span>{exec.status}</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {exec.sentAt
+                            ? new Date(exec.sentAt).toLocaleString("ja-JP")
+                            : new Date(exec.createdAt).toLocaleString("ja-JP")}
+                        </TableCell>
+                        <TableCell className="text-sm text-red-500 max-w-[200px] truncate">
+                          {exec.error ?? "---"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
 
         <TabsContent value="settings" className="mt-6">
           <div className="max-w-2xl">

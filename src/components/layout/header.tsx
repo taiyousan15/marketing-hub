@@ -1,15 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, Search, User } from "lucide-react";
+import { Search, User } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { NotificationCenter } from "@/components/layout/notification-center";
+import { CommandPalette } from "@/components/layout/command-palette";
 
-// Clerkが設定されているかチェック
 const isClerkConfigured =
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY &&
   process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY.startsWith("pk_");
@@ -22,7 +22,6 @@ function UserAvatar() {
   }, []);
 
   if (!mounted) {
-    // サーバー側のレンダリングではダミーアバターを表示
     return (
       <Avatar className="h-8 w-8">
         <AvatarFallback>
@@ -45,7 +44,6 @@ function UserAvatar() {
     );
   }
 
-  // Clerkが設定されていない場合はダミーアバター
   return (
     <Avatar className="h-8 w-8">
       <AvatarFallback>
@@ -57,32 +55,34 @@ function UserAvatar() {
 
 export function Header() {
   return (
-    <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
-      <SidebarTrigger className="-ml-1" />
+    <>
+      <CommandPalette />
+      <header className="flex h-14 items-center gap-4 border-b bg-background px-4 lg:px-6">
+        <SidebarTrigger className="-ml-1" />
 
-      <div className="flex-1">
-        <form className="hidden md:block">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="検索..."
-              className="w-full max-w-sm pl-8 bg-muted/50"
-            />
-          </div>
-        </form>
-      </div>
+        <div className="flex-1">
+          <Button
+            variant="outline"
+            className="hidden md:flex items-center gap-2 w-full max-w-sm text-muted-foreground justify-start"
+            onClick={() => {
+              document.dispatchEvent(
+                new KeyboardEvent("keydown", { key: "k", metaKey: true })
+              );
+            }}
+          >
+            <Search className="h-4 w-4" />
+            <span>検索...</span>
+            <kbd className="ml-auto pointer-events-none inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
+        </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-4 w-4" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-red-500 text-[10px] font-medium text-white flex items-center justify-center">
-            3
-          </span>
-        </Button>
-
-        <UserAvatar />
-      </div>
-    </header>
+        <div className="flex items-center gap-2">
+          <NotificationCenter />
+          <UserAvatar />
+        </div>
+      </header>
+    </>
   );
 }

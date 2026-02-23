@@ -99,6 +99,7 @@ model Contact {
   subscriptions       Subscription[]
   abandonedCarts      AbandonedCart[]
   deals               Deal[]
+  campaignExecutions  CampaignExecution[]
 
   @@unique([tenantId, email])
   @@unique([tenantId, lineUserId])
@@ -149,6 +150,7 @@ model Campaign {
   tenant             Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   contacts           CampaignContact[]
   steps              CampaignStep[]
+  executions         CampaignExecution[]
 
   @@index([tenantId])
   @@index([tenantId, status])
@@ -193,6 +195,24 @@ model CampaignContact {
   @@index([campaignId])
   @@index([contactId])
   @@index([status, nextStepAt])
+}
+
+model CampaignExecution {
+  id         String   @id @default(cuid())
+  campaignId String
+  stepId     String
+  contactId  String
+  channel    String
+  status     String   @default("PENDING")
+  sentAt     DateTime?
+  error      String?
+  createdAt  DateTime @default(now())
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact    Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([campaignId, stepId])
 }
 
 model MessageHistory {
