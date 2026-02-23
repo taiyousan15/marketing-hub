@@ -259,6 +259,8 @@ model FunnelPage {
   isVariant      Boolean        @default(false)
   variantWeight  Int            @default(50)
   order          Int            @default(0)
+  pageViews      Int            @default(0)
+  conversions    Int            @default(0)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
   actions        FunnelAction[]

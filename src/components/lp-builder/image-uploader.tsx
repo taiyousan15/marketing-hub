@@ -57,7 +57,7 @@ export function ImageUploader({
         const formData = new FormData();
         formData.append('file', file);
 
-        const res = await fetch('/api/lp-builder/upload', {
+        const res = await fetch('/api/upload', {
           method: 'POST',
           body: formData,
         });

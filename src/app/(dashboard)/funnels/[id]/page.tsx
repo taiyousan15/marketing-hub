@@ -51,6 +51,15 @@ interface FunnelStep {
   } | null;
 }
 
+interface FunnelPageData {
+  id: string;
+  name: string;
+  slug: string;
+  order: number;
+  pageViews: number;
+  conversions: number;
+}
+
 interface Funnel {
   id: string;
   name: string;
@@ -58,12 +67,7 @@ interface Funnel {
   status: string;
   domain: string | null;
   settings: Record<string, unknown>;
-  pages: Array<{
-    id: string;
-    name: string;
-    slug: string;
-    order: number;
-  }>;
+  pages: FunnelPageData[];
   steps: FunnelStep[];
 }
 
@@ -268,10 +272,19 @@ export default function FunnelDetailPage({
               ビルダー
             </Link>
           </Button>
-          <Button variant="outline">
-            <Eye className="mr-2 h-4 w-4" />
-            プレビュー
-          </Button>
+          {funnel.pages.length > 0 && (
+            <Button variant="outline" asChild>
+              <a
+                href={`/p/${id}/${funnel.pages[0].slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                プレビュー
+                <ExternalLink className="ml-1 h-3 w-3" />
+              </a>
+            </Button>
+          )}
           <Button onClick={handlePublish}>
             {funnel.status === "PUBLISHED" ? "非公開にする" : "公開する"}
           </Button>
@@ -446,56 +459,93 @@ export default function FunnelDetailPage({
 
         {/* 分析タブ */}
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-4">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">総訪問者</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">0</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">コンバージョン</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">0</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">CVR</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">0%</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm">売上</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-bold">¥0</p>
-              </CardContent>
-            </Card>
-          </div>
+          {(() => {
+            const totalViews = funnel.pages.reduce((s, p) => s + p.pageViews, 0);
+            const totalConversions = funnel.pages.reduce((s, p) => s + p.conversions, 0);
+            const cvr = totalViews > 0 ? ((totalConversions / totalViews) * 100).toFixed(1) : "0";
 
-          <Card>
-            <CardHeader>
-              <CardTitle>ステップ別分析</CardTitle>
-              <CardDescription>
-                各ステップの離脱率とコンバージョンを確認
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-center py-8 text-muted-foreground">
-                <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>まだデータがありません</p>
-                <p className="text-sm">ファネルを公開するとデータが表示されます</p>
-              </div>
-            </CardContent>
-          </Card>
+            return (
+              <>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">総ページビュー</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-bold">{totalViews.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">コンバージョン</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-bold">{totalConversions.toLocaleString()}</p>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">CVR</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-2xl font-bold">{cvr}%</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>ページ別統計</CardTitle>
+                    <CardDescription>
+                      各ページのPV・CV・CVRを確認
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {funnel.pages.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                        <p>ページがありません</p>
+                        <p className="text-sm">ファネルにページを追加してください</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {funnel.pages.map((page) => {
+                          const pageCvr =
+                            page.pageViews > 0
+                              ? ((page.conversions / page.pageViews) * 100).toFixed(1)
+                              : "0";
+                          const barWidth =
+                            totalViews > 0
+                              ? Math.max((page.pageViews / totalViews) * 100, 2)
+                              : 2;
+
+                          return (
+                            <div key={page.id} className="rounded-lg border p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="font-medium text-sm">{page.name}</span>
+                                <span className="text-xs text-muted-foreground">/{page.slug}</span>
+                              </div>
+                              <div className="w-full bg-muted rounded-full h-2 mb-2">
+                                <div
+                                  className="bg-primary h-2 rounded-full"
+                                  style={{ width: `${barWidth}%` }}
+                                />
+                              </div>
+                              <div className="flex gap-4 text-xs text-muted-foreground">
+                                <span>PV: <strong className="text-foreground">{page.pageViews}</strong></span>
+                                <span>CV: <strong className="text-foreground">{page.conversions}</strong></span>
+                                <span>CVR: <strong className="text-foreground">{pageCvr}%</strong></span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            );
+          })()}
         </TabsContent>
       </Tabs>
     </div>
