@@ -138,7 +138,7 @@ export default function FormsPage() {
                     </Button>
                     {form.status === 'PUBLISHED' && (
                       <Button variant="outline" size="sm" asChild>
-                        <Link href={`/forms/${form.id}/public`} target="_blank">
+                        <Link href={`/form/${form.id}`} target="_blank">
                           <ExternalLink className="h-3.5 w-3.5" />
                         </Link>
                       </Button>

@@ -52,7 +52,7 @@ export default async function FormEditorPage({
           </Button>
           {form.status === 'PUBLISHED' && (
             <Button variant="outline" size="sm" asChild>
-              <Link href={`/f/${id}`} target="_blank">
+              <Link href={`/form/${id}`} target="_blank">
                 <ExternalLink className="h-4 w-4 mr-1" />
                 公開URL
               </Link>
