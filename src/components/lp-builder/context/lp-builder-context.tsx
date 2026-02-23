@@ -301,16 +301,25 @@ export function LPBuilderProvider({
 
   // ウィザード: LP生成
   const generateLPFromWizard = useCallback(async () => {
-    setState((prev) => ({
-      ...prev,
-      wizardState: { ...prev.wizardState, isGenerating: true, error: null },
-    }));
+    // Capture the latest answers via functional setState updater.
+    // This ensures we pick up any pending state updates (e.g. ctaType set in the same
+    // event handler tick as onGenerate is called), since batched setState updaters run
+    // in order: the ctaType updater runs before this one, so prev.wizardState.answers
+    // already includes ctaType.
+    let latestAnswers: Partial<WizardAnswers> = {};
+    setState((prev) => {
+      latestAnswers = prev.wizardState.answers;
+      return { ...prev, wizardState: { ...prev.wizardState, isGenerating: true, error: null } };
+    });
+
+    // Yield to let React flush the batched state updates before making the fetch.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
     try {
       const response = await fetch('/api/ai/lp-generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: state.wizardState.answers }),
+        body: JSON.stringify({ answers: latestAnswers }),
       });
 
       if (!response.ok) {
@@ -341,7 +350,7 @@ export function LPBuilderProvider({
       }));
       toast.error('LP生成に失敗しました');
     }
-  }, [state.wizardState.answers]);
+  }, []);
 
   // ウィザード: リセット
   const resetWizard = useCallback(() => {
