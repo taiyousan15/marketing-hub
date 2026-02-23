@@ -266,12 +266,14 @@ export default function FunnelDetailPage({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/funnels/${id}/builder`}>
-              <Edit className="mr-2 h-4 w-4" />
-              ビルダー
-            </Link>
-          </Button>
+          {funnel.pages.length > 0 && (
+            <Button variant="outline" asChild>
+              <Link href={`/funnels/${id}/pages/${funnel.pages[0].id}`}>
+                <Edit className="mr-2 h-4 w-4" />
+                ビルダー
+              </Link>
+            </Button>
+          )}
           {funnel.pages.length > 0 && (
             <Button variant="outline" asChild>
               <a
