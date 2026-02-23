@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
-  Bot,
   Plus,
   Trash2,
   Save,
   MessageSquare,
   Zap,
-  Clock,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -41,39 +40,35 @@ interface AutoReplyRule {
   isActive: boolean;
 }
 
-const sampleRules: AutoReplyRule[] = [
-  {
-    id: "1",
-    trigger: "営業時間",
-    triggerType: "contains",
-    response: "営業時間は平日9:00〜18:00です。土日祝日はお休みをいただいております。",
-    isActive: true,
-  },
-  {
-    id: "2",
-    trigger: "料金",
-    triggerType: "contains",
-    response: "料金プランについては以下のページをご覧ください。\nhttps://example.com/pricing",
-    isActive: true,
-  },
-  {
-    id: "3",
-    trigger: "こんにちは|こんばんは|おはよう",
-    triggerType: "regex",
-    response: "こんにちは！お問い合わせありがとうございます。何かお手伝いできることはありますか？",
-    isActive: true,
-  },
-];
-
 export default function BotSettingsPage() {
   const [isBotEnabled, setIsBotEnabled] = useState(true);
-  const [rules, setRules] = useState<AutoReplyRule[]>(sampleRules);
+  const [rules, setRules] = useState<AutoReplyRule[]>([]);
   const [newRule, setNewRule] = useState<Partial<AutoReplyRule>>({
     trigger: "",
     triggerType: "contains",
     response: "",
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/bot");
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      setIsBotEnabled(data.isEnabled ?? true);
+      setRules(data.rules ?? []);
+    } catch (error) {
+      console.error("Failed to load bot settings:", error);
+      toast.error("Bot設定の読み込みに失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleAddRule = () => {
     if (!newRule.trigger || !newRule.response) {
@@ -107,10 +102,35 @@ export default function BotSettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast.success("設定を保存しました");
+    try {
+      const res = await fetch("/api/settings/bot", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          isEnabled: isBotEnabled,
+          rules,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "保存に失敗しました");
+      }
+      toast.success("設定を保存しました");
+    } catch (error) {
+      console.error("Failed to save bot settings:", error);
+      toast.error(error instanceof Error ? error.message : "保存に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

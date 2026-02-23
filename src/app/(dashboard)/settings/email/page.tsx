@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Save, ExternalLink, Mail, TestTube, Send } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Save, ExternalLink, Mail, Send, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function EmailSettingsPage() {
   const [apiKey, setApiKey] = useState("");
@@ -22,25 +23,85 @@ export default function EmailSettingsPage() {
   const [replyTo, setReplyTo] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/email");
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      setApiKey(data.apiKey ?? "");
+      setFromEmail(data.fromEmail ?? "");
+      setFromName(data.fromName ?? "");
+      setReplyTo(data.replyTo ?? "");
+      setIsConnected(!!data.apiKey);
+    } catch (error) {
+      console.error("Failed to load email settings:", error);
+      toast.error("メール設定の読み込みに失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      const res = await fetch("/api/settings/email", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "resend",
+          apiKey,
+          fromEmail,
+          fromName,
+          replyTo,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "保存に失敗しました");
+      }
+      const result = await res.json();
+      setApiKey(result.settings?.apiKey ?? apiKey);
+      setIsConnected(!!result.settings?.apiKey);
+      toast.success("設定を保存しました");
+    } catch (error) {
+      console.error("Failed to save email settings:", error);
+      toast.error(error instanceof Error ? error.message : "保存に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleSendTest = async () => {
     setIsTesting(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsTesting(false);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      toast.info("テストメール機能は準備中です");
+    } finally {
+      setIsTesting(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">メール設定</h1>
         <p className="text-muted-foreground">
-          SendGridを使用したメール配信を設定します
+          Resendを使用したメール配信を設定します
         </p>
       </div>
 
@@ -50,15 +111,21 @@ export default function EmailSettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>接続状態</CardTitle>
-                <CardDescription>SendGridとの接続状態</CardDescription>
+                <CardDescription>Resendとの接続状態</CardDescription>
               </div>
-              <Badge variant="secondary">未接続</Badge>
+              <Badge variant={isConnected ? "default" : "secondary"}>
+                {isConnected ? "接続済み" : "未接続"}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <Mail className="h-5 w-5" />
-              <span>SendGridを接続してメール配信を開始しましょう</span>
+              <span>
+                {isConnected
+                  ? "Resendに接続されています"
+                  : "Resendを接続してメール配信を開始しましょう"}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -67,7 +134,7 @@ export default function EmailSettingsPage() {
           <CardHeader>
             <CardTitle>API設定</CardTitle>
             <CardDescription>
-              SendGridダッシュボードからAPIキーを取得して入力してください
+              ResendダッシュボードからAPIキーを取得して入力してください
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -76,12 +143,12 @@ export default function EmailSettingsPage() {
               <Input
                 id="apiKey"
                 type="password"
-                placeholder="SG.xxxxxxxx..."
+                placeholder="re_xxxxxxxx..."
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
               />
               <p className="text-xs text-muted-foreground">
-                「Mail Send」権限を持つAPIキーを使用してください
+                Resend APIキーを使用してください
               </p>
             </div>
 
@@ -174,12 +241,12 @@ export default function EmailSettingsPage() {
             <p className="text-sm text-muted-foreground">
               詳細は
               <a
-                href="https://docs.sendgrid.com/ui/account-and-settings/how-to-set-up-domain-authentication"
+                href="https://resend.com/docs/dashboard/domains/introduction"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:underline inline-flex items-center mx-1"
               >
-                SendGridのドキュメント
+                Resendのドキュメント
                 <ExternalLink className="ml-1 h-3 w-3" />
               </a>
               を参照してください。
@@ -195,22 +262,22 @@ export default function EmailSettingsPage() {
             <ol className="list-decimal list-inside space-y-3 text-sm">
               <li>
                 <a
-                  href="https://app.sendgrid.com/"
+                  href="https://resend.com/"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-primary hover:underline inline-flex items-center"
                 >
-                  SendGridダッシュボード
+                  Resendダッシュボード
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </a>
                 にログイン（アカウントがない場合は作成）
               </li>
-              <li>「Settings」→「API Keys」→「Create API Key」</li>
-              <li>名前を入力し、「Mail Send」権限を付与</li>
+              <li>「API Keys」→「Create API Key」をクリック</li>
+              <li>名前を入力し、必要な権限を付与</li>
               <li>作成されたAPIキーをコピー（一度しか表示されません）</li>
               <li>上記フォームにAPIキーを入力して保存</li>
               <li>送信元メールアドレスを設定</li>
-              <li>（推奨）ドメイン認証を設定</li>
+              <li>（推奨）ドメインを追加してDNS認証を設定</li>
             </ol>
           </CardContent>
         </Card>

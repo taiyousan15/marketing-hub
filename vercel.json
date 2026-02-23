@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/campaign-executor",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/automation-trigger",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

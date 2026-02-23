@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Save, ExternalLink, CreditCard, TestTube, Copy, Check } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { Save, ExternalLink, CreditCard, TestTube, Copy, Check, Loader2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,17 +14,42 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function PaymentsSettingsPage() {
   const [secretKey, setSecretKey] = useState("");
   const [publishableKey, setPublishableKey] = useState("");
   const [webhookSecret, setWebhookSecret] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const webhookUrl = typeof window !== "undefined"
     ? window.location.origin + "/api/webhooks/stripe"
     : "https://your-domain.com/api/webhooks/stripe";
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/payments");
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      setSecretKey(data.secretKey ?? "");
+      setPublishableKey(data.publishableKey ?? "");
+      setWebhookSecret(data.webhookSecret ?? "");
+      setIsConnected(!!data.secretKey);
+    } catch (error) {
+      console.error("Failed to load payment settings:", error);
+      toast.error("決済設定の読み込みに失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleCopyWebhook = () => {
     navigator.clipboard.writeText(webhookUrl);
@@ -34,9 +59,65 @@ export default function PaymentsSettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
+    try {
+      const res = await fetch("/api/settings/payments", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secretKey, publishableKey, webhookSecret }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "保存に失敗しました");
+      }
+      const result = await res.json();
+      if (result.settings) {
+        setSecretKey(result.settings.secretKey ?? "");
+        setPublishableKey(result.settings.publishableKey ?? "");
+        setWebhookSecret(result.settings.webhookSecret ?? "");
+        setIsConnected(!!result.settings.secretKey);
+      }
+      toast.success("設定を保存しました");
+    } catch (error) {
+      console.error("Failed to save payment settings:", error);
+      toast.error(error instanceof Error ? error.message : "保存に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  const handleConnectionTest = async () => {
+    if (!secretKey || secretKey.startsWith("***")) {
+      toast.error("新しいSecret Keyを入力してからテストしてください");
+      return;
+    }
+    setIsTesting(true);
+    try {
+      const res = await fetch("/api/settings/payments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secretKey }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("Stripe接続テスト成功");
+      } else {
+        toast.error(data.error || "接続テストに失敗しました");
+      }
+    } catch (error) {
+      console.error("Connection test failed:", error);
+      toast.error("接続テストに失敗しました");
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -55,13 +136,19 @@ export default function PaymentsSettingsPage() {
                 <CardTitle>接続状態</CardTitle>
                 <CardDescription>Stripeとの接続状態</CardDescription>
               </div>
-              <Badge variant="secondary">未接続</Badge>
+              <Badge variant={isConnected ? "default" : "secondary"}>
+                {isConnected ? "接続済み" : "未接続"}
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <CreditCard className="h-5 w-5" />
-              <span>Stripeアカウントを接続して決済を受け付けましょう</span>
+              <span>
+                {isConnected
+                  ? "Stripeに接続されています"
+                  : "Stripeアカウントを接続して決済を受け付けましょう"}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -142,10 +229,11 @@ export default function PaymentsSettingsPage() {
               </Button>
               <Button
                 variant="outline"
-                disabled={!secretKey}
+                onClick={handleConnectionTest}
+                disabled={isTesting || !secretKey}
               >
                 <TestTube className="mr-2 h-4 w-4" />
-                接続テスト
+                {isTesting ? "テスト中..." : "接続テスト"}
               </Button>
             </div>
           </CardContent>

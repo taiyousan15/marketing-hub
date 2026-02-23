@@ -1,0 +1,47 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/tenant";
+import { getBotSettings, updateBotSettings, botSettingsSchema } from "@/actions/settings";
+
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.tenantId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const settings = await getBotSettings();
+    return NextResponse.json(settings);
+  } catch (error) {
+    console.error("GET /api/settings/bot error:", error);
+    return NextResponse.json({ error: "Failed to get bot settings" }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user?.tenantId) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const validation = botSettingsSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: "Validation failed",
+          details: validation.error.issues.map((e) => ({
+            field: e.path.join("."),
+            message: e.message,
+          })),
+        },
+        { status: 400 }
+      );
+    }
+
+    const settings = await updateBotSettings(validation.data);
+    return NextResponse.json({ success: true, settings });
+  } catch (error) {
+    console.error("PUT /api/settings/bot error:", error);
+    return NextResponse.json({ error: "Failed to update bot settings" }, { status: 500 });
+  }
+}

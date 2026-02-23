@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Sparkles,
   Save,
@@ -10,6 +10,7 @@ import {
   MessageSquare,
   AlertCircle,
   CheckCircle,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,14 +25,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { toast } from "sonner";
 
@@ -41,37 +34,45 @@ interface FAQ {
   answer: string;
 }
 
-const sampleFAQs: FAQ[] = [
-  {
-    id: "1",
-    question: "商品の配送にはどのくらいかかりますか？",
-    answer: "通常、ご注文から3営業日以内に発送いたします。お届けまでは発送後1〜3日程度です。",
-  },
-  {
-    id: "2",
-    question: "返品・交換はできますか？",
-    answer: "商品到着後7日以内であれば、未開封・未使用の場合に限り返品・交換を承ります。",
-  },
-  {
-    id: "3",
-    question: "支払い方法は何がありますか？",
-    answer: "クレジットカード（VISA、MasterCard、JCB、AMEX）、銀行振込、コンビニ決済がご利用いただけます。",
-  },
-];
-
 export default function AISettingsPage() {
   const [isAIEnabled, setIsAIEnabled] = useState(true);
   const [mode, setMode] = useState<"support" | "sales" | "faq">("support");
   const [temperature, setTemperature] = useState([0.7]);
   const [maxTokens, setMaxTokens] = useState(500);
   const [customPrompt, setCustomPrompt] = useState("");
-  const [faqs, setFaqs] = useState<FAQ[]>(sampleFAQs);
+  const [faqs, setFaqs] = useState<FAQ[]>([]);
   const [newFaq, setNewFaq] = useState({ question: "", answer: "" });
   const [apiKey, setApiKey] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [handoffKeywords, setHandoffKeywords] = useState(
     "クレーム,返金,キャンセル,解約,担当者"
   );
+
+  const loadSettings = useCallback(async () => {
+    try {
+      const res = await fetch("/api/settings/ai");
+      if (!res.ok) throw new Error("Failed to load");
+      const data = await res.json();
+      setIsAIEnabled(data.isEnabled ?? true);
+      setMode(data.mode ?? "support");
+      setTemperature([data.temperature ?? 0.7]);
+      setMaxTokens(data.maxTokens ?? 500);
+      setCustomPrompt(data.customPrompt ?? "");
+      setHandoffKeywords(data.handoffKeywords ?? "クレーム,返金,キャンセル,解約,担当者");
+      setApiKey(data.apiKey ?? "");
+      setFaqs(data.faqs ?? []);
+    } catch (error) {
+      console.error("Failed to load AI settings:", error);
+      toast.error("AI設定の読み込みに失敗しました");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadSettings();
+  }, [loadSettings]);
 
   const handleAddFaq = () => {
     if (!newFaq.question || !newFaq.answer) {
@@ -90,10 +91,46 @@ export default function AISettingsPage() {
 
   const handleSave = async () => {
     setIsSaving(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-    setIsSaving(false);
-    toast.success("設定を保存しました");
+    try {
+      const res = await fetch("/api/settings/ai", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider: "anthropic",
+          apiKey,
+          mode,
+          temperature: temperature[0],
+          maxTokens,
+          customPrompt,
+          handoffKeywords,
+          isEnabled: isAIEnabled,
+          faqs,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "保存に失敗しました");
+      }
+      const result = await res.json();
+      if (result.settings?.apiKey) {
+        setApiKey(result.settings.apiKey);
+      }
+      toast.success("設定を保存しました");
+    } catch (error) {
+      console.error("Failed to save AI settings:", error);
+      toast.error(error instanceof Error ? error.message : "保存に失敗しました");
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -281,6 +318,12 @@ export default function AISettingsPage() {
                 </div>
               </div>
             ))}
+
+            {faqs.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground text-sm">
+                FAQがありません。下のフォームから追加してください。
+              </div>
+            )}
 
             <div className="border-t pt-4 space-y-4">
               <div className="space-y-2">

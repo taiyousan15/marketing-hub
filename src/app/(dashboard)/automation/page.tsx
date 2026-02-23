@@ -19,6 +19,7 @@ import {
   Copy,
   Trash2,
   Pencil,
+  Loader2,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -68,54 +69,43 @@ interface AutomationRule {
   _count: { executions: number };
 }
 
-const segmentData = [
-  { name: "チャンピオン", count: 125, color: "bg-green-500", percentage: 8 },
-  { name: "ロイヤル顧客", count: 340, color: "bg-emerald-500", percentage: 22 },
-  { name: "新規顧客", count: 280, color: "bg-blue-500", percentage: 18 },
-  { name: "有望顧客", count: 210, color: "bg-cyan-500", percentage: 14 },
-  { name: "要注意", count: 180, color: "bg-yellow-500", percentage: 12 },
-  { name: "リスク顧客", count: 150, color: "bg-orange-500", percentage: 10 },
-  { name: "休眠顧客", count: 250, color: "bg-gray-500", percentage: 16 },
-];
+interface ExecutionRecord {
+  id: string;
+  ruleId: string;
+  contactId: string;
+  status: string;
+  aiDecision: unknown;
+  triggeredAt: string;
+  completedAt: string | null;
+  errorMessage: string | null;
+  rule: { name: string };
+}
 
-const recentTriggers = [
-  {
-    id: "1",
-    contact: "山田太郎",
-    trigger: "商品ページ閲覧",
-    action: "ナーチャリングシーケンス開始",
-    time: "2分前",
-    aiDecision: true,
-  },
-  {
-    id: "2",
-    contact: "佐藤花子",
-    trigger: "カート放棄",
-    action: "リマインドメッセージ送信",
-    time: "5分前",
-    aiDecision: true,
-  },
-  {
-    id: "3",
-    contact: "鈴木一郎",
-    trigger: "購入完了",
-    action: "サンクスメール送信",
-    time: "12分前",
-    aiDecision: false,
-  },
-  {
-    id: "4",
-    contact: "田中美咲",
-    trigger: "スコア変更",
-    action: "VIPシーケンスに分岐",
-    time: "18分前",
-    aiDecision: true,
-  },
-];
+interface SegmentItem {
+  name: string;
+  count: number;
+  color: string;
+  percentage: number;
+}
+
+interface TodaySummary {
+  total: number;
+  completed: number;
+  failed: number;
+  pending: number;
+}
 
 export default function AutomationPage() {
   const [rules, setRules] = useState<AutomationRule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [executions, setExecutions] = useState<ExecutionRecord[]>([]);
+  const [todaySummary, setTodaySummary] = useState<TodaySummary>({
+    total: 0,
+    completed: 0,
+    failed: 0,
+    pending: 0,
+  });
+  const [segments, setSegments] = useState<SegmentItem[]>([]);
 
   const fetchRules = useCallback(async () => {
     try {
@@ -131,15 +121,40 @@ export default function AutomationPage() {
     }
   }, []);
 
+  const fetchExecutions = useCallback(async () => {
+    try {
+      const res = await fetch("/api/automation/executions?limit=10");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setExecutions(data.executions || []);
+      setTodaySummary(data.todaySummary || { total: 0, completed: 0, failed: 0, pending: 0 });
+    } catch (error) {
+      console.error("Failed to fetch executions:", error);
+    }
+  }, []);
+
+  const fetchSegments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/analytics/rfm");
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      setSegments(data.segments || []);
+    } catch {
+      // RFM API may not exist yet — use empty state
+      setSegments([]);
+    }
+  }, []);
+
   useEffect(() => {
     fetchRules();
-  }, [fetchRules]);
+    fetchExecutions();
+    fetchSegments();
+  }, [fetchRules, fetchExecutions, fetchSegments]);
 
   const toggleRule = async (id: string) => {
     const target = rules.find((r) => r.id === id);
     if (!target) return;
 
-    // Optimistic update
     setRules(
       rules.map((rule) =>
         rule.id === id ? { ...rule, isActive: !rule.isActive } : rule
@@ -155,7 +170,6 @@ export default function AutomationPage() {
       if (!res.ok) throw new Error("Failed to update");
       toast.success("自動化ルールを更新しました");
     } catch {
-      // Revert on error
       setRules(
         rules.map((rule) =>
           rule.id === id ? { ...rule, isActive: target.isActive } : rule
@@ -205,6 +219,16 @@ export default function AutomationPage() {
   };
 
   const totalExecutions = rules.reduce((sum, r) => sum + r._count.executions, 0);
+
+  const formatTimeAgo = (dateStr: string) => {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const minutes = Math.floor(diff / 60000);
+    if (minutes < 1) return "たった今";
+    if (minutes < 60) return `${minutes}分前`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `${hours}時間前`;
+    return `${Math.floor(hours / 24)}日前`;
+  };
 
   return (
     <div className="space-y-6">
@@ -261,14 +285,14 @@ export default function AutomationPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              コンバージョン率
+              今日の実行
             </CardTitle>
             <Target className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{rules.length}</div>
+            <div className="text-2xl font-bold">{todaySummary.total}</div>
             <p className="text-xs text-muted-foreground">
-              登録済みワークフロー
+              完了: {todaySummary.completed} / 失敗: {todaySummary.failed}
             </p>
           </CardContent>
         </Card>
@@ -276,13 +300,15 @@ export default function AutomationPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              AI判断精度
+              AI対応ルール
             </CardTitle>
             <Brain className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">94.2%</div>
-            <p className="text-xs text-muted-foreground">過去7日間の平均</p>
+            <div className="text-2xl font-bold">
+              {rules.filter((r) => r.aiEnabled).length}
+            </div>
+            <p className="text-xs text-muted-foreground">AI判断付きワークフロー</p>
           </CardContent>
         </Card>
       </div>
@@ -307,7 +333,7 @@ export default function AutomationPage() {
           {loading && (
             <Card>
               <CardContent className="flex items-center justify-center py-12">
-                <div className="text-muted-foreground">読み込み中...</div>
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </CardContent>
             </Card>
           )}
@@ -452,7 +478,12 @@ export default function AutomationPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {segmentData.map((segment) => (
+              {segments.length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  セグメントデータがありません
+                </div>
+              )}
+              {segments.map((segment) => (
                 <div key={segment.name} className="space-y-2">
                   <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center gap-2">
@@ -551,9 +582,14 @@ export default function AutomationPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {recentTriggers.map((trigger) => (
+                {executions.length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    実行ログがありません
+                  </div>
+                )}
+                {executions.map((exec) => (
                   <div
-                    key={trigger.id}
+                    key={exec.id}
                     className="flex items-center justify-between p-3 rounded-lg border"
                   >
                     <div className="flex items-center gap-4">
@@ -561,18 +597,32 @@ export default function AutomationPage() {
                         <Users className="h-5 w-5 text-gray-600" />
                       </div>
                       <div>
-                        <p className="font-medium">{trigger.contact}</p>
+                        <p className="font-medium">{exec.rule.name}</p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="outline" className="text-xs">
-                            {trigger.trigger}
+                          <Badge
+                            variant="outline"
+                            className={
+                              exec.status === "COMPLETED"
+                                ? "border-green-300 text-green-700"
+                                : exec.status === "FAILED"
+                                ? "border-red-300 text-red-700"
+                                : exec.status === "IN_PROGRESS"
+                                ? "border-blue-300 text-blue-700"
+                                : "border-yellow-300 text-yellow-700"
+                            }
+                          >
+                            {exec.status}
                           </Badge>
-                          <ArrowRight className="h-3 w-3" />
-                          <span>{trigger.action}</span>
+                          {exec.errorMessage && (
+                            <span className="text-red-500 text-xs truncate max-w-[200px]">
+                              {exec.errorMessage}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      {trigger.aiDecision && (
+                      {!!exec.aiDecision && (
                         <Badge
                           variant="secondary"
                           className="bg-purple-100 text-purple-700"
@@ -583,7 +633,7 @@ export default function AutomationPage() {
                       )}
                       <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         <Clock className="h-3 w-3" />
-                        {trigger.time}
+                        {formatTimeAgo(exec.triggeredAt)}
                       </div>
                     </div>
                   </div>
@@ -599,16 +649,22 @@ export default function AutomationPage() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="text-center p-4 rounded-lg bg-blue-50">
-                  <p className="text-3xl font-bold text-blue-600">847</p>
+                  <p className="text-3xl font-bold text-blue-600">
+                    {todaySummary.total}
+                  </p>
                   <p className="text-sm text-blue-800">トリガー発火</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-green-50">
-                  <p className="text-3xl font-bold text-green-600">156</p>
-                  <p className="text-sm text-green-800">コンバージョン</p>
+                  <p className="text-3xl font-bold text-green-600">
+                    {todaySummary.completed}
+                  </p>
+                  <p className="text-sm text-green-800">完了</p>
                 </div>
                 <div className="text-center p-4 rounded-lg bg-purple-50">
-                  <p className="text-3xl font-bold text-purple-600">623</p>
-                  <p className="text-sm text-purple-800">AI判断</p>
+                  <p className="text-3xl font-bold text-purple-600">
+                    {todaySummary.pending}
+                  </p>
+                  <p className="text-sm text-purple-800">待機中</p>
                 </div>
               </div>
             </CardContent>
