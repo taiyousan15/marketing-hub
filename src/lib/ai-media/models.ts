@@ -82,6 +82,17 @@ export const IMAGE_MODELS: ImageModel[] = [
     aspectRatios: ["1:1", "16:9", "9:16"],
   },
   {
+    id: "imagen-3",
+    name: "Imagen 3 (Google)",
+    provider: "google",
+    apiId: "imagen-3.0-generate-002",
+    description: "Google Gemini Imagen 3。高品質な画像生成。GEMINI_API_KEYで利用可能。",
+    pricePerImage: 0.04,
+    quality: "premium",
+    supportsNegativePrompt: false,
+    aspectRatios: ["1:1", "16:9", "9:16", "4:3", "3:4"],
+  },
+  {
     id: "dall-e-3",
     name: "DALL-E 3",
     provider: "openai",

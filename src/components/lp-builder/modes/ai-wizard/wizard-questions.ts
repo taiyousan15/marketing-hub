@@ -1,6 +1,6 @@
 /**
  * AIウィザード 質問定義
- * 5ステップでLP生成に必要な情報を収集
+ * 6ステップでLP生成に必要な情報を収集
  */
 
 import { WizardAnswers } from '../../types';
@@ -29,6 +29,25 @@ export const WIZARD_QUESTIONS: WizardQuestionConfig[] = [
       'ダイエットプログラム',
       'ビジネススキル講座',
       '投資入門コース',
+    ],
+  },
+  {
+    key: 'industry',
+    question: 'どんな業界・ジャンルですか？（画像生成に使用）',
+    helpText: '商品・サービスの業界を選択してください。画像検索の精度が向上します。',
+    placeholder: '',
+    type: 'select',
+    required: false,
+    options: [
+      { label: 'ビジネス・コンサルティング', value: 'business consulting' },
+      { label: '教育・オンライン講座', value: 'education online learning' },
+      { label: 'ダイエット・フィットネス', value: 'fitness health wellness' },
+      { label: '美容・コスメ', value: 'beauty cosmetics skincare' },
+      { label: '投資・マネー', value: 'finance investment' },
+      { label: 'テクノロジー・IT', value: 'technology software' },
+      { label: '飲食・フード', value: 'food restaurant' },
+      { label: '不動産・住宅', value: 'real estate architecture' },
+      { label: 'その他', value: '' },
     ],
   },
   {

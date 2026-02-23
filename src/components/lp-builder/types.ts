@@ -185,6 +185,7 @@ export interface WizardAnswers {
   problems: string[];
   benefits: string[];
   uniqueValue: string;
+  industry?: string;
   ctaType: 'optin' | 'purchase' | 'contact' | 'webinar';
   urgency?: string;
   testimonials?: string;

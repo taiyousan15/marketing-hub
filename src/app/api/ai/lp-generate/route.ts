@@ -5,8 +5,19 @@ import { auth } from '@clerk/nextjs/server';
 
 /**
  * LP生成API
- * AIウィザードの回答を元にAI（プロバイダー層経由）でLPコンポーネントを生成
+ * GemsAPI + Gemini + 画像生成（Imagen 3 / Pexels）統合
+ * 3並列実行: コピー生成 + ヒーロー画像 + ベネフィット画像
  */
+
+// --- Config ---
+
+const GEMS_API_URL = process.env.GEMS_API_URL || '';
+const GEMS_GEM_NAME = process.env.GEMS_GEM_NAME || 'taiyo-lp-generator';
+const GEMS_API_TOKEN = process.env.GEMS_API_TOKEN || '';
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY || '';
+const AI_TIMEOUT_MS = 60_000;
+const IMAGE_TIMEOUT_MS = 15_000;
 
 // --- Schemas ---
 
@@ -17,6 +28,7 @@ const WizardAnswersSchema = z.object({
   problems: z.array(z.string().max(300)).min(1).max(10),
   benefits: z.array(z.string().max(300)).min(1).max(10),
   uniqueValue: z.string().max(500).optional(),
+  industry: z.string().max(200).optional(),
   ctaType: z.enum(['optin', 'purchase', 'contact', 'webinar']),
   urgency: z.string().max(300).optional(),
   testimonials: z.string().max(1000).optional(),
@@ -54,11 +66,14 @@ interface ComponentInstance {
 
 type ComponentDef = Omit<ComponentInstance, 'id' | 'order'>;
 
+interface GeneratedImage {
+  url: string;
+  alt: string;
+  credit?: string;
+}
+
 // --- Helpers ---
 
-const AI_TIMEOUT_MS = 60_000;
-
-/** プロンプトインジェクション対策: ユーザー入力をサニタイズ */
 function sanitizeForPrompt(value: string): string {
   return value
     .replace(/^#{1,6}\s+/gm, '')
@@ -67,7 +82,6 @@ function sanitizeForPrompt(value: string): string {
     .slice(0, 500);
 }
 
-/** HTMLエスケープ: AI出力をコンポーネントpropsに入れる前にサニタイズ */
 function escapeHtml(str: string): string {
   return str
     .replace(/&/g, '&amp;')
@@ -76,7 +90,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-/** JSON抽出: LLMレスポンスからJSONブロックを安全に取り出す */
 function extractJson(content: string): string | null {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (fenced) return fenced[1].trim();
@@ -90,14 +103,138 @@ function extractJson(content: string): string | null {
       JSON.parse(candidate);
       return candidate;
     } catch {
-      // shorter candidate
+      // try shorter candidate
     }
   }
   return null;
 }
 
-// --- AI Generation ---
+// ============================================
+// Copy Generation (3-tier fallback)
+// ============================================
 
+/**
+ * 1. GemsAPI経由でカスタムGemを実行してLPコピー生成
+ */
+async function generateCopyWithGemsAPI(answers: WizardAnswers): Promise<AIGeneratedCopy> {
+  if (!GEMS_API_URL) throw new Error('GEMS_API_URL not configured');
+
+  const prompt = buildGemsPrompt(answers);
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (GEMS_API_TOKEN) {
+    headers['Authorization'] = `Bearer ${GEMS_API_TOKEN}`;
+  }
+
+  const response = await fetch(`${GEMS_API_URL}/api/gems/execute`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ gem_name: GEMS_GEM_NAME, prompt }),
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`GemsAPI error ${response.status}: ${errorText}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  const responseText = String(
+    data.response ?? data.content ?? data.text ?? data.result ?? '',
+  );
+
+  const jsonStr = extractJson(responseText);
+  if (!jsonStr) throw new Error('GemsAPI response contained no JSON block');
+
+  const raw = JSON.parse(jsonStr);
+  return convertGemsResponseToStandardCopy(raw, answers);
+}
+
+/**
+ * GemsAPIのレスポンスを標準コピー形式に変換
+ * GemsAPIは太陽スタイル形式（headline.main/sub, empathy, problem, solution, benefits, proof, cta）
+ * を返すので、AIGeneratedCopy形式に変換する
+ */
+function convertGemsResponseToStandardCopy(
+  gemsData: Record<string, unknown>,
+  answers: WizardAnswers,
+): AIGeneratedCopy {
+  const headline = gemsData.headline as Record<string, string> | string | undefined;
+  const headlineMain =
+    typeof headline === 'object' ? headline?.main : (headline as string | undefined);
+  const headlineSub =
+    typeof headline === 'object' ? headline?.sub : undefined;
+
+  const cta = gemsData.cta as Record<string, string> | undefined;
+  const gemsBenefits = gemsData.benefits as string[] | undefined;
+
+  return AIGeneratedCopySchema.parse({
+    headline: headlineMain || `${answers.productName}で理想の結果を手に入れる`,
+    subheadline: headlineSub || `${answers.targetAudience}のあなたへ`,
+    problemHeading: 'こんなお悩みありませんか？',
+    problems:
+      answers.problems.length > 0 ? answers.problems : ['成果が出ない'],
+    benefitHeading: `${answers.productName}で得られること`,
+    benefits: gemsBenefits || answers.benefits,
+    targetMessage:
+      (gemsData.empathy as string) ||
+      `${answers.targetAudience}の方に最適なプログラムです。`,
+    ctaHeading: '今すぐ始めよう',
+    ctaDescription:
+      (gemsData.solution as string) || cta?.subText || '今すぐ行動して理想の未来を手に入れましょう。',
+    ctaButtonText: cta?.buttonText || '今すぐ始める',
+    urgencyHeading: '今すぐ行動を！',
+    urgencyText:
+      cta?.urgencyText || '迷っている時間がもったいないです。今日が一番若い日です。',
+    faq: [
+      { question: '初心者でも大丈夫ですか？', answer: 'はい、基礎から丁寧に解説します。' },
+      { question: 'サポートはありますか？', answer: 'はい、メールサポートをご利用いただけます。' },
+      { question: '返金保証はありますか？', answer: (gemsData.proof as string) || '30日間の返金保証があります。' },
+    ],
+  });
+}
+
+function buildGemsPrompt(answers: WizardAnswers): string {
+  const safeName = sanitizeForPrompt(answers.productName);
+  const safeAudience = sanitizeForPrompt(answers.targetAudience);
+  const safeProblems = answers.problems.map(sanitizeForPrompt);
+  const safeBenefits = answers.benefits.map(sanitizeForPrompt);
+
+  return `以下の商品情報をもとに、高成約率ランディングページのコンテンツをJSON形式で生成してください。
+
+商品名: ${safeName}
+ターゲット: ${safeAudience}
+悩み:
+${safeProblems.map((p) => `- ${p}`).join('\n')}
+ベネフィット:
+${safeBenefits.map((b) => `- ${b}`).join('\n')}
+CTAタイプ: ${answers.ctaType}${answers.urgency ? `\n緊急性: ${sanitizeForPrompt(answers.urgency)}` : ''}${answers.pricing ? `\n価格: ${sanitizeForPrompt(answers.pricing)}` : ''}
+
+以下のJSON形式のみで出力してください（余分な説明不要）:
+{
+  "headline": {
+    "main": "メインヘッドライン（数字入り・30文字以内・断定形）",
+    "sub": "サブヘッドライン（ターゲットへの共感・50文字以内）"
+  },
+  "empathy": "共感文（〜でお悩みではありませんか？の形式・2-3文）",
+  "problem": "問題提起文（具体的な悩みの描写・2-3文）",
+  "solution": "解決策文（商品が解決する方法・2-3文）",
+  "benefits": ["箇条書き1（感情的アンカー+具体的結果）", "箇条書き2", "箇条書き3", "箇条書き4", "箇条書き5"],
+  "proof": "信頼構築文（実績・根拠・保証・2-3文）",
+  "cta": {
+    "buttonText": "ボタンテキスト（動詞始まり・8-15文字）",
+    "subText": "サポートテキスト（行動後の約束・30文字以内）",
+    "urgencyText": "緊急性テキスト（今すぐ行動する理由・20文字以内）",
+    "reassurance": "安心テキスト（リスク解消・20文字以内）"
+  }
+}`;
+}
+
+/**
+ * 2. Gemini直接でLPコピー生成
+ */
 async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCopy> {
   const { getAIClient } = await import('@/lib/ai/provider');
   const client = await getAIClient();
@@ -136,14 +273,17 @@ async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCo
 {"headline":"メインの見出し","subheadline":"サブ見出し","problemHeading":"問題提起の見出し","problems":["悩み1","悩み2","悩み3"],"benefitHeading":"ベネフィットの見出し","benefits":["ベネフィット1","ベネフィット2","ベネフィット3"],"targetMessage":"ターゲットへのメッセージ","ctaHeading":"行動喚起の見出し","ctaDescription":"行動を促す説明文","ctaButtonText":"ボタンテキスト","urgencyHeading":"緊急性の見出し","urgencyText":"緊急性のメッセージ","faq":[{"question":"質問1","answer":"回答1"},{"question":"質問2","answer":"回答2"},{"question":"質問3","answer":"回答3"}]}`;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
-    setTimeout(() => reject(new Error('AI生成タイムアウト（60秒）')), AI_TIMEOUT_MS);
+    setTimeout(
+      () => reject(new Error('AI生成タイムアウト（60秒）')),
+      AI_TIMEOUT_MS,
+    );
   });
 
   const result = await Promise.race([
-    client.complete(
-      [{ role: 'user', content: prompt }],
-      { temperature: 0.7, maxTokens: 4096 },
-    ),
+    client.complete([{ role: 'user', content: prompt }], {
+      temperature: 0.7,
+      maxTokens: 4096,
+    }),
     timeoutPromise,
   ]);
 
@@ -156,8 +296,9 @@ async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCo
   return AIGeneratedCopySchema.parse(raw);
 }
 
-// --- Fallback Template Generation ---
-
+/**
+ * 3. テンプレートフォールバック
+ */
 function generateFallbackCopy(answers: WizardAnswers): AIGeneratedCopy {
   const mainBenefit = answers.benefits[0] || '理想の結果';
 
@@ -206,7 +347,8 @@ function generateFallbackCopy(answers: WizardAnswers): AIGeneratedCopy {
   };
 
   return {
-    headline: headlineMap[answers.ctaType] || `${answers.productName}で${mainBenefit}`,
+    headline:
+      headlineMap[answers.ctaType] || `${answers.productName}で${mainBenefit}`,
     subheadline: `${answers.targetAudience}のあなたへ。${mainBenefit}を手に入れる方法をお伝えします。`,
     problemHeading: 'こんなお悩みありませんか？',
     problems: answers.problems,
@@ -222,16 +364,180 @@ function generateFallbackCopy(answers: WizardAnswers): AIGeneratedCopy {
   };
 }
 
-// --- Component Builders ---
+// ============================================
+// Image Generation
+// ============================================
+
+/**
+ * Imagen 3でヒーロー画像を生成
+ */
+async function generateImageWithImagen(prompt: string): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${GEMINI_API_KEY}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      instances: [{ prompt }],
+      parameters: {
+        sampleCount: 1,
+        aspectRatio: '16:9',
+      },
+    }),
+    signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`Imagen 3 error ${response.status}: ${errorText}`);
+  }
+
+  const data = await response.json();
+  const predictions = data.predictions ?? data.generatedImages;
+  if (!predictions || predictions.length === 0) return null;
+
+  const base64 =
+    predictions[0].bytesBase64Encoded ??
+    predictions[0].image?.bytesBase64Encoded;
+  if (!base64) return null;
+
+  return `data:image/png;base64,${base64}`;
+}
+
+/**
+ * Pexelsでストック画像を取得
+ */
+async function fetchPexelsPhoto(
+  query: string,
+  orientation: 'landscape' | 'portrait' | 'square' = 'landscape',
+): Promise<GeneratedImage | null> {
+  if (!PEXELS_API_KEY) return null;
+
+  const params = new URLSearchParams({
+    query,
+    orientation,
+    per_page: '1',
+    size: 'medium',
+  });
+
+  const response = await fetch(
+    `https://api.pexels.com/v1/search?${params.toString()}`,
+    {
+      headers: { Authorization: PEXELS_API_KEY },
+      signal: AbortSignal.timeout(10_000),
+    },
+  );
+
+  if (!response.ok) return null;
+
+  const data = await response.json();
+  const photos = data.photos;
+  if (!photos || photos.length === 0) return null;
+
+  return {
+    url: photos[0].src.large,
+    alt: photos[0].alt || query,
+    credit: `Photo by ${photos[0].photographer} on Pexels`,
+  };
+}
+
+/**
+ * ヒーロー画像: Imagen 3 → Pexels → null
+ */
+async function resolveHeroImage(
+  productName: string,
+  targetAudience: string,
+  industry?: string,
+): Promise<GeneratedImage | null> {
+  const imagePrompt = `Professional, modern hero image for a landing page about "${productName}". Target audience: ${targetAudience}. ${industry ? `Industry: ${industry}.` : ''} Clean, high-quality, aspirational photography style. No text overlay.`;
+
+  try {
+    const base64Url = await generateImageWithImagen(imagePrompt);
+    if (base64Url) {
+      return { url: base64Url, alt: productName };
+    }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.debug('[LP Generate] Imagen 3 failed, falling back to Pexels:', msg);
+  }
+
+  const pexelsQuery = industry
+    ? `${industry} ${productName}`
+    : `${productName} professional`;
+  try {
+    return await fetchPexelsPhoto(pexelsQuery, 'landscape');
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.debug('[LP Generate] Pexels hero failed:', msg);
+    return null;
+  }
+}
+
+/**
+ * ベネフィット画像: Pexels x3 → 画像なし
+ */
+async function resolveBenefitImages(
+  benefits: string[],
+  industry?: string,
+): Promise<GeneratedImage[]> {
+  if (!PEXELS_API_KEY) return [];
+
+  const queries = benefits.slice(0, 3).map((benefit) =>
+    industry ? `${industry} ${benefit}` : benefit,
+  );
+
+  const results = await Promise.allSettled(
+    queries.map((q) => fetchPexelsPhoto(q, 'square')),
+  );
+
+  return results
+    .filter(
+      (r): r is PromiseFulfilledResult<GeneratedImage | null> =>
+        r.status === 'fulfilled' && r.value !== null,
+    )
+    .map((r) => r.value!);
+}
+
+// ============================================
+// Component Builders
+// ============================================
 
 function buildHeaderSection(answers: WizardAnswers): ComponentDef[] {
   return [
     {
       componentType: 'header',
       category: 'other',
-      props: { logoText: escapeHtml(answers.productName), backgroundColor: '#ffffff', sticky: false },
+      props: {
+        logoText: escapeHtml(answers.productName),
+        backgroundColor: '#ffffff',
+        sticky: false,
+      },
     },
   ];
+}
+
+function buildHeroImageSection(heroImage: GeneratedImage | null): ComponentDef[] {
+  if (!heroImage) return [];
+
+  const defs: ComponentDef[] = [
+    {
+      componentType: 'image',
+      category: 'basic',
+      props: {
+        src: heroImage.url,
+        alt: escapeHtml(heroImage.alt),
+        width: 100,
+      },
+    },
+  ];
+
+  if (heroImage.credit) {
+    defs[0].props.credit = heroImage.credit;
+  }
+
+  return defs;
 }
 
 function buildHeroSection(copy: AIGeneratedCopy): ComponentDef[] {
@@ -239,12 +545,25 @@ function buildHeroSection(copy: AIGeneratedCopy): ComponentDef[] {
     {
       componentType: 'headline',
       category: 'headline',
-      props: { text: escapeHtml(copy.headline), fontSize: 36, fontSizeSp: 24, textColor: '#1f2937', textAlign: 'center', shadowStyle: 'none' },
+      props: {
+        text: escapeHtml(copy.headline),
+        fontSize: 36,
+        fontSizeSp: 24,
+        textColor: '#1f2937',
+        textAlign: 'center',
+        shadowStyle: 'none',
+      },
     },
     {
       componentType: 'subhead',
       category: 'headline',
-      props: { text: escapeHtml(copy.subheadline), fontSize: 20, fontSizeSp: 16, textColor: '#6b7280', textAlign: 'center' },
+      props: {
+        text: escapeHtml(copy.subheadline),
+        fontSize: 20,
+        fontSizeSp: 16,
+        textColor: '#6b7280',
+        textAlign: 'center',
+      },
     },
     { componentType: 'spacer', category: 'basic', props: { height: 40, heightSp: 20 } },
   ];
@@ -255,31 +574,107 @@ function buildProblemSection(copy: AIGeneratedCopy): ComponentDef[] {
     {
       componentType: 'subhead',
       category: 'headline',
-      props: { text: escapeHtml(copy.problemHeading), fontSize: 28, fontSizeSp: 20, textColor: '#dc2626', textAlign: 'center' },
+      props: {
+        text: escapeHtml(copy.problemHeading),
+        fontSize: 28,
+        fontSizeSp: 20,
+        textColor: '#dc2626',
+        textAlign: 'center',
+      },
     },
     {
       componentType: 'bullet',
       category: 'content',
-      props: { items: copy.problems.map(escapeHtml).join('\n'), icon: 'arrow', iconColor: '#dc2626', fontSize: 16 },
+      props: {
+        items: copy.problems.map(escapeHtml).join('\n'),
+        icon: 'arrow',
+        iconColor: '#dc2626',
+        fontSize: 16,
+      },
     },
     { componentType: 'spacer', category: 'basic', props: { height: 40, heightSp: 20 } },
   ];
 }
 
-function buildBenefitSection(copy: AIGeneratedCopy): ComponentDef[] {
-  return [
+function buildBenefitSection(
+  copy: AIGeneratedCopy,
+  benefitImages: GeneratedImage[],
+): ComponentDef[] {
+  const defs: ComponentDef[] = [
     {
       componentType: 'subhead',
       category: 'headline',
-      props: { text: escapeHtml(copy.benefitHeading), fontSize: 28, fontSizeSp: 20, textColor: '#1f2937', textAlign: 'center' },
+      props: {
+        text: escapeHtml(copy.benefitHeading),
+        fontSize: 28,
+        fontSizeSp: 20,
+        textColor: '#1f2937',
+        textAlign: 'center',
+      },
     },
-    {
+  ];
+
+  if (benefitImages.length > 0) {
+    copy.benefits.slice(0, 3).forEach((benefit, index) => {
+      const image = benefitImages[index];
+      if (image) {
+        defs.push({
+          componentType: 'imageText',
+          category: 'content',
+          props: {
+            image: image.url,
+            title: escapeHtml(benefit),
+            text: '',
+            imagePosition: index % 2 === 0 ? 'left' : 'right',
+            ...(image.credit ? { credit: image.credit } : {}),
+          },
+        });
+      } else {
+        defs.push({
+          componentType: 'bullet',
+          category: 'content',
+          props: {
+            items: escapeHtml(benefit),
+            icon: 'check',
+            iconColor: '#22c55e',
+            fontSize: 16,
+          },
+        });
+      }
+    });
+
+    const remainingBenefits = copy.benefits.slice(3);
+    if (remainingBenefits.length > 0) {
+      defs.push({
+        componentType: 'bullet',
+        category: 'content',
+        props: {
+          items: remainingBenefits.map(escapeHtml).join('\n'),
+          icon: 'check',
+          iconColor: '#22c55e',
+          fontSize: 16,
+        },
+      });
+    }
+  } else {
+    defs.push({
       componentType: 'bullet',
       category: 'content',
-      props: { items: copy.benefits.map(escapeHtml).join('\n'), icon: 'check', iconColor: '#22c55e', fontSize: 16 },
-    },
-    { componentType: 'spacer', category: 'basic', props: { height: 40, heightSp: 20 } },
-  ];
+      props: {
+        items: copy.benefits.map(escapeHtml).join('\n'),
+        icon: 'check',
+        iconColor: '#22c55e',
+        fontSize: 16,
+      },
+    });
+  }
+
+  defs.push({
+    componentType: 'spacer',
+    category: 'basic',
+    props: { height: 40, heightSp: 20 },
+  });
+  return defs;
 }
 
 function buildTargetSection(copy: AIGeneratedCopy): ComponentDef[] {
@@ -289,8 +684,12 @@ function buildTargetSection(copy: AIGeneratedCopy): ComponentDef[] {
       category: 'basic',
       props: {
         content: escapeHtml(copy.targetMessage),
-        fontSize: 18, fontSizeSp: 16, lineHeight: 1.8,
-        textColor: '#374151', backgroundColor: '#f9fafb', textAlign: 'center',
+        fontSize: 18,
+        fontSizeSp: 16,
+        lineHeight: 1.8,
+        textColor: '#374151',
+        backgroundColor: '#f9fafb',
+        textAlign: 'center',
       },
     },
     { componentType: 'spacer', category: 'basic', props: { height: 40, heightSp: 20 } },
@@ -302,12 +701,26 @@ function buildCtaSection(copy: AIGeneratedCopy, ctaType: string): ComponentDef[]
     {
       componentType: 'subhead',
       category: 'headline',
-      props: { text: escapeHtml(copy.ctaHeading), fontSize: 28, fontSizeSp: 20, textColor: '#1f2937', textAlign: 'center' },
+      props: {
+        text: escapeHtml(copy.ctaHeading),
+        fontSize: 28,
+        fontSizeSp: 20,
+        textColor: '#1f2937',
+        textAlign: 'center',
+      },
     },
     {
       componentType: 'text',
       category: 'basic',
-      props: { content: escapeHtml(copy.ctaDescription), fontSize: 16, fontSizeSp: 14, lineHeight: 1.6, textColor: '#6b7280', backgroundColor: 'transparent', textAlign: 'center' },
+      props: {
+        content: escapeHtml(copy.ctaDescription),
+        fontSize: 16,
+        fontSizeSp: 14,
+        lineHeight: 1.6,
+        textColor: '#6b7280',
+        backgroundColor: 'transparent',
+        textAlign: 'center',
+      },
     },
   ];
 
@@ -330,7 +743,8 @@ function buildCtaSection(copy: AIGeneratedCopy, ctaType: string): ComponentDef[]
       category: 'form',
       props: {
         title: escapeHtml(copy.ctaHeading),
-        fields: 'お名前|text\nメールアドレス|email\n電話番号|text\nご相談内容|textarea',
+        fields:
+          'お名前|text\nメールアドレス|email\n電話番号|text\nご相談内容|textarea',
         buttonText: escapeHtml(copy.ctaButtonText),
         buttonColor: '#3b82f6',
       },
@@ -342,27 +756,45 @@ function buildCtaSection(copy: AIGeneratedCopy, ctaType: string): ComponentDef[]
       props: {
         text: escapeHtml(copy.ctaButtonText),
         subText: escapeHtml(copy.ctaDescription),
-        action: 'link', url: '',
-        backgroundColor: '#dc2626', textColor: '#ffffff',
-        fontSize: 20, width: 80, borderRadius: 8, animation: 'shine',
+        action: 'link',
+        url: '',
+        backgroundColor: '#dc2626',
+        textColor: '#ffffff',
+        fontSize: 20,
+        width: 80,
+        borderRadius: 8,
+        animation: 'shine',
       },
     });
   }
 
-  defs.push({ componentType: 'spacer', category: 'basic', props: { height: 60, heightSp: 30 } });
+  defs.push({
+    componentType: 'spacer',
+    category: 'basic',
+    props: { height: 60, heightSp: 30 },
+  });
   return defs;
 }
 
 function buildFaqSection(copy: AIGeneratedCopy): ComponentDef[] {
   const faqItems = copy.faq
-    .map((f) => `${escapeHtml(f.question).replace(/\|/g, '｜')}|${escapeHtml(f.answer).replace(/\|/g, '｜')}`)
+    .map(
+      (f) =>
+        `${escapeHtml(f.question).replace(/\|/g, '｜')}|${escapeHtml(f.answer).replace(/\|/g, '｜')}`,
+    )
     .join('\n');
 
   return [
     {
       componentType: 'subhead',
       category: 'headline',
-      props: { text: 'よくある質問', fontSize: 28, fontSizeSp: 20, textColor: '#1f2937', textAlign: 'center' },
+      props: {
+        text: 'よくある質問',
+        fontSize: 28,
+        fontSizeSp: 20,
+        textColor: '#1f2937',
+        textAlign: 'center',
+      },
     },
     {
       componentType: 'accordion',
@@ -378,17 +810,43 @@ function buildUrgencySection(copy: AIGeneratedCopy): ComponentDef[] {
     {
       componentType: 'headline',
       category: 'headline',
-      props: { text: escapeHtml(copy.urgencyHeading), fontSize: 28, fontSizeSp: 20, textColor: '#ffffff', textAlign: 'center', shadowStyle: 'none' },
+      props: {
+        text: escapeHtml(copy.urgencyHeading),
+        fontSize: 28,
+        fontSizeSp: 20,
+        textColor: '#ffffff',
+        textAlign: 'center',
+        shadowStyle: 'none',
+      },
     },
     {
       componentType: 'text',
       category: 'basic',
-      props: { content: escapeHtml(copy.urgencyText), fontSize: 16, fontSizeSp: 14, lineHeight: 1.6, textColor: '#fecaca', backgroundColor: '#dc2626', textAlign: 'center' },
+      props: {
+        content: escapeHtml(copy.urgencyText),
+        fontSize: 16,
+        fontSizeSp: 14,
+        lineHeight: 1.6,
+        textColor: '#fecaca',
+        backgroundColor: '#dc2626',
+        textAlign: 'center',
+      },
     },
     {
       componentType: 'button',
       category: 'button',
-      props: { text: escapeHtml(copy.ctaButtonText), subText: '', action: 'scroll', url: '', backgroundColor: '#ffffff', textColor: '#dc2626', fontSize: 20, width: 60, borderRadius: 8, animation: 'shake' },
+      props: {
+        text: escapeHtml(copy.ctaButtonText),
+        subText: '',
+        action: 'scroll',
+        url: '',
+        backgroundColor: '#ffffff',
+        textColor: '#dc2626',
+        fontSize: 20,
+        width: 60,
+        borderRadius: 8,
+        animation: 'shake',
+      },
     },
     { componentType: 'spacer', category: 'basic', props: { height: 40, heightSp: 20 } },
   ];
@@ -402,19 +860,25 @@ function buildFooterSection(productName: string): ComponentDef[] {
       props: {
         copyright: `\u00a9 ${new Date().getFullYear()} ${escapeHtml(productName)}. All rights reserved.`,
         links: 'プライバシーポリシー\n特定商取引法に基づく表記',
-        backgroundColor: '#1f2937', textColor: '#ffffff',
+        backgroundColor: '#1f2937',
+        textColor: '#ffffff',
       },
     },
   ];
 }
 
-/** すべてのセクションを結合し、id と order を付与 */
-function buildComponents(copy: AIGeneratedCopy, answers: WizardAnswers): ComponentInstance[] {
+function buildComponents(
+  copy: AIGeneratedCopy,
+  answers: WizardAnswers,
+  heroImage: GeneratedImage | null,
+  benefitImages: GeneratedImage[],
+): ComponentInstance[] {
   const defs: ComponentDef[] = [
     ...buildHeaderSection(answers),
+    ...buildHeroImageSection(heroImage),
     ...buildHeroSection(copy),
     ...buildProblemSection(copy),
-    ...buildBenefitSection(copy),
+    ...buildBenefitSection(copy, benefitImages),
     ...buildTargetSection(copy),
     ...buildCtaSection(copy, answers.ctaType),
     ...buildFaqSection(copy),
@@ -429,7 +893,9 @@ function buildComponents(copy: AIGeneratedCopy, answers: WizardAnswers): Compone
   }));
 }
 
-// --- Route Handler ---
+// ============================================
+// Route Handler
+// ============================================
 
 export async function POST(request: NextRequest) {
   const { userId } = await auth();
@@ -437,7 +903,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const bodyResult = z.object({ answers: WizardAnswersSchema }).safeParse(await request.json());
+  const bodyResult = z
+    .object({ answers: WizardAnswersSchema })
+    .safeParse(await request.json());
   if (!bodyResult.success) {
     return NextResponse.json(
       { error: '入力が不正です', details: bodyResult.error.flatten() },
@@ -448,29 +916,56 @@ export async function POST(request: NextRequest) {
   const { answers } = bodyResult.data;
 
   try {
+    // 3並列実行: コピー + ヒーロー画像 + ベネフィット画像
+    const [copyResult, heroResult, benefitResult] = await Promise.allSettled([
+      // 1. LP Copy: GemsAPI → Gemini → Template (3段フォールバック)
+      generateCopyWithGemsAPI(answers)
+        .catch((gemsErr) => {
+          console.debug('[LP Generate] GemsAPI failed, trying AI direct:', gemsErr instanceof Error ? gemsErr.message : String(gemsErr));
+          return generateCopyWithAI(answers);
+        }),
+      // 2. Hero image: Imagen 3 → Pexels → null
+      resolveHeroImage(
+        answers.productName,
+        answers.targetAudience,
+        answers.industry,
+      ),
+      // 3. Benefit images: Pexels x3
+      resolveBenefitImages(answers.benefits, answers.industry),
+    ]);
+
+    // Copy: 成功/フォールバック判定
     let copy: AIGeneratedCopy;
     let usedAI = false;
+    let copySource: string = 'template';
 
-    try {
-      copy = await generateCopyWithAI(answers);
+    if (copyResult.status === 'fulfilled') {
+      copy = copyResult.value;
       usedAI = true;
-    } catch (aiError) {
-      const reason = aiError instanceof Error ? aiError.message : String(aiError);
+      copySource = GEMS_API_URL ? 'gems-api' : 'gemini';
+    } else {
+      console.debug('[LP Generate] All AI copy generation failed, using template:', copyResult.reason);
       copy = generateFallbackCopy(answers);
-      return NextResponse.json({
-        success: true,
-        components: buildComponents(copy, answers),
-        usedAI: false,
-        fallbackReason: reason,
-        message: 'テンプレートベースでLPを生成しました（AIサービスが利用できないため）',
-      });
     }
+
+    // Images
+    const heroImage =
+      heroResult.status === 'fulfilled' ? heroResult.value : null;
+    const benefitImages =
+      benefitResult.status === 'fulfilled' ? benefitResult.value : [];
+
+    const components = buildComponents(copy, answers, heroImage, benefitImages);
 
     return NextResponse.json({
       success: true,
-      components: buildComponents(copy, answers),
+      components,
       usedAI,
-      message: 'AIモデルでLPを生成しました',
+      copySource,
+      hasHeroImage: heroImage !== null,
+      benefitImageCount: benefitImages.length,
+      message: usedAI
+        ? `AIでLPを生成しました（${copySource}）`
+        : 'テンプレートベースでLPを生成しました（AIサービスが利用できないため）',
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : '不明なエラー';

@@ -3,7 +3,7 @@
  * ローカルLLM (Ollama) と Claude API を切り替え可能
  */
 
-export type AIProvider = 'ollama' | 'claude' | 'openai';
+export type AIProvider = 'ollama' | 'claude' | 'openai' | 'gemini';
 
 export interface AIMessage {
   role: 'system' | 'user' | 'assistant';
@@ -39,7 +39,7 @@ export interface AIProviderClient {
  */
 export function getProvider(): AIProvider {
   const provider = process.env.AI_PROVIDER as AIProvider;
-  return provider || 'ollama'; // デフォルトはローカル
+  return provider || 'gemini'; // デフォルトはGemini
 }
 
 /**
@@ -60,6 +60,10 @@ export async function getAIClient(): Promise<AIProviderClient> {
     case 'openai':
       const { OpenAIClient } = await import('./providers/openai');
       return new OpenAIClient();
+
+    case 'gemini':
+      const { GeminiClient } = await import('./providers/gemini');
+      return new GeminiClient();
 
     default:
       throw new Error(`Unknown AI provider: ${provider}`);

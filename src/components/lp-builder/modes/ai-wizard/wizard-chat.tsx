@@ -203,9 +203,17 @@ export function WizardChat({
               </div>
               <Card className="bg-purple-50 p-4">
                 <p className="font-medium text-purple-900">LPを生成中...</p>
-                <p className="mt-1 text-sm text-purple-600">
-                  AIがあなたの回答を元に最適なLPを作成しています
-                </p>
+                <div className="mt-2 space-y-1">
+                  <p className="text-sm text-purple-600">
+                    AIがコピーを作成しています...
+                  </p>
+                  <p className="text-sm text-purple-600">
+                    画像を生成・検索しています...
+                  </p>
+                  <p className="text-xs text-purple-400">
+                    10〜15秒ほどお待ちください
+                  </p>
+                </div>
               </Card>
             </div>
           )}

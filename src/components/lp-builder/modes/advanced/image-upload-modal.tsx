@@ -151,7 +151,7 @@ export function ImageUploadModal({
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ prompt: aiPrompt }),
+        body: JSON.stringify({ prompt: aiPrompt, modelId: 'imagen-3' }),
       });
 
       const data = await response.json();
@@ -160,7 +160,7 @@ export function ImageUploadModal({
         throw new Error(data.error || '画像生成に失敗しました');
       }
 
-      setGeneratedImageUrl(data.url);
+      setGeneratedImageUrl(data.imageUrl);
       setGenerateStatus('success');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : '画像生成に失敗しました');
@@ -334,7 +334,7 @@ export function ImageUploadModal({
                   className="mt-1 min-h-[100px]"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  NanoBanana Pro（Google Gemini）で画像を生成します
+                  Imagen 3（Google）で画像を生成します
                 </p>
               </div>
 
