@@ -368,18 +368,93 @@ function generateFallbackCopy(answers: WizardAnswers): AIGeneratedCopy {
 // Image Generation
 // ============================================
 
+/** GemsAPIが持つ画像プロンプト生成Gem名 */
+const GEMS_IMAGE_PROMPTER = 'taiyo-lp-image-prompter';
+
+interface GemsImagePrompts {
+  hero: string;
+  benefit1?: string;
+  benefit2?: string;
+  benefit3?: string;
+}
+
 /**
- * Imagen 4 (Fast) でヒーロー画像を生成
- * モデル: imagen-4.0-fast-generate-001, エンドポイント: :predict
- * フォールバック: gemini-2.0-flash-exp-image-generation (:generateContent)
+ * GemsAPIの taiyo-lp-image-prompter Gem で画像プロンプトを生成
  */
-async function generateImageWithImagen(prompt: string): Promise<string | null> {
+async function buildImagePromptsViaGems(answers: WizardAnswers): Promise<GemsImagePrompts | null> {
+  if (!GEMS_API_URL) return null;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (GEMS_API_TOKEN) headers['Authorization'] = `Bearer ${GEMS_API_TOKEN}`;
+
+  const userPrompt = `
+商品名: ${sanitizeForPrompt(answers.productName)}
+ターゲット: ${sanitizeForPrompt(answers.targetAudience)}
+業界: ${answers.industry ? sanitizeForPrompt(answers.industry) : '未指定'}
+ベネフィット:
+${answers.benefits.slice(0, 3).map((b) => `- ${sanitizeForPrompt(b)}`).join('\n')}
+`.trim();
+
+  try {
+    const response = await fetch(`${GEMS_API_URL}/api/gems/execute`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ gem_name: GEMS_IMAGE_PROMPTER, prompt: userPrompt }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!response.ok) return null;
+
+    const data = (await response.json()) as Record<string, unknown>;
+    const text = String(data.response ?? '');
+    const jsonStr = extractJson(text);
+    if (!jsonStr) return null;
+
+    return JSON.parse(jsonStr) as GemsImagePrompts;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * GemsAPIの /api/gems/generate-image エンドポイントで画像生成
+ * GemsAPI内部で Gemini Flash Image → Imagen 4 の順に試行する
+ */
+async function generateImageViaGemsAPI(
+  prompt: string,
+  aspectRatio: '16:9' | '1:1' = '16:9',
+): Promise<string | null> {
+  if (!GEMS_API_URL) return null;
+
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (GEMS_API_TOKEN) headers['Authorization'] = `Bearer ${GEMS_API_TOKEN}`;
+
+  const response = await fetch(`${GEMS_API_URL}/api/gems/generate-image`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ prompt, aspect_ratio: aspectRatio }),
+    signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    throw new Error(`GemsAPI generate-image error ${response.status}: ${errorText}`);
+  }
+
+  const data = (await response.json()) as Record<string, unknown>;
+  return typeof data.image === 'string' ? data.image : null;
+}
+
+/**
+ * 直接API呼び出しでの画像生成フォールバック
+ * (GemsAPI未起動時に使用)
+ */
+async function generateImageDirectly(prompt: string): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
 
-  // --- 1st try: Imagen 4 Fast (:predict) ---
+  // 1st: Imagen 4 Fast
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${GEMINI_API_KEY}`;
-    const response = await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -388,47 +463,49 @@ async function generateImageWithImagen(prompt: string): Promise<string | null> {
       }),
       signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
     });
-
-    if (response.ok) {
-      const data = await response.json();
-      const predictions = data.predictions ?? [];
-      const base64 = predictions[0]?.bytesBase64Encoded ?? predictions[0]?.image?.bytesBase64Encoded;
-      const mimeType = predictions[0]?.mimeType ?? 'image/png';
+    if (res.ok) {
+      const data = await res.json();
+      const pred = (data.predictions ?? [])[0];
+      const base64 = pred?.bytesBase64Encoded;
+      const mimeType = pred?.mimeType ?? 'image/png';
       if (base64) return `data:${mimeType};base64,${base64}`;
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.debug('[LP Generate] Imagen 4 failed, trying Gemini Flash image:', msg);
+    console.debug('[LP Generate] Direct Imagen 4 failed:', err instanceof Error ? err.message : err);
   }
 
-  // --- 2nd try: Gemini 2.0 Flash Exp Image Generation (:generateContent) ---
-  const url2 = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`;
-  const response2 = await fetch(url2, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
-    }),
-    signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
-  });
-
-  if (!response2.ok) {
-    const errorText = await response2.text().catch(() => '');
-    throw new Error(`Gemini Flash image error ${response2.status}: ${errorText}`);
+  // 2nd: Gemini Flash Image
+  try {
+    const url2 = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`;
+    const res2 = await fetch(url2, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      }),
+      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+    });
+    if (res2.ok) {
+      const data2 = await res2.json();
+      const parts = data2.candidates?.[0]?.content?.parts ?? [];
+      const imagePart = parts.find((p: Record<string, unknown>) => 'inlineData' in p) as
+        | Record<string, { mimeType: string; data: string }>
+        | undefined;
+      if (imagePart) {
+        const { mimeType, data: base64 } = imagePart.inlineData;
+        return `data:${mimeType};base64,${base64}`;
+      }
+    }
+  } catch (err) {
+    console.debug('[LP Generate] Direct Gemini Flash image failed:', err instanceof Error ? err.message : err);
   }
 
-  const data2 = await response2.json();
-  const parts = data2.candidates?.[0]?.content?.parts ?? [];
-  const imagePart = parts.find((p: Record<string, unknown>) => 'inlineData' in p) as Record<string, { mimeType: string; data: string }> | undefined;
-  if (!imagePart) return null;
-
-  const { mimeType, data: base64 } = imagePart.inlineData;
-  return `data:${mimeType};base64,${base64}`;
+  return null;
 }
 
 /**
- * Pexelsでストック画像を取得
+ * Pexelsでストック画像を取得（APIキーがある場合のみ）
  */
 async function fetchPexelsPhoto(
   query: string,
@@ -436,23 +513,13 @@ async function fetchPexelsPhoto(
 ): Promise<GeneratedImage | null> {
   if (!PEXELS_API_KEY) return null;
 
-  const params = new URLSearchParams({
-    query,
-    orientation,
-    per_page: '1',
-    size: 'medium',
+  const params = new URLSearchParams({ query, orientation, per_page: '1', size: 'medium' });
+  const response = await fetch(`https://api.pexels.com/v1/search?${params.toString()}`, {
+    headers: { Authorization: PEXELS_API_KEY },
+    signal: AbortSignal.timeout(10_000),
   });
 
-  const response = await fetch(
-    `https://api.pexels.com/v1/search?${params.toString()}`,
-    {
-      headers: { Authorization: PEXELS_API_KEY },
-      signal: AbortSignal.timeout(10_000),
-    },
-  );
-
   if (!response.ok) return null;
-
   const data = await response.json();
   const photos = data.photos;
   if (!photos || photos.length === 0) return null;
@@ -465,52 +532,82 @@ async function fetchPexelsPhoto(
 }
 
 /**
- * ヒーロー画像: Imagen 3 → Pexels → null
+ * ヒーロー画像の解決
+ * 優先順: GemsAPI画像生成 → 直接API呼び出し → Pexels → null
  */
 async function resolveHeroImage(
   productName: string,
   targetAudience: string,
   industry?: string,
+  prebuiltPrompt?: string,
 ): Promise<GeneratedImage | null> {
-  const imagePrompt = `Professional, modern hero image for a landing page about "${productName}". Target audience: ${targetAudience}. ${industry ? `Industry: ${industry}.` : ''} Clean, high-quality, aspirational photography style. No text overlay.`;
+  const imagePrompt = prebuiltPrompt
+    ?? `Professional, modern hero image for a landing page about "${productName}". Target audience: ${targetAudience}. ${industry ? `Industry: ${industry}.` : ''} Clean, high-quality, aspirational photography style. No text overlay.`;
 
+  // 1. GemsAPI経由（カスタムGemのモデル選定に委ねる）
   try {
-    const base64Url = await generateImageWithImagen(imagePrompt);
+    const base64Url = await generateImageViaGemsAPI(imagePrompt, '16:9');
     if (base64Url) {
+      console.debug('[LP Generate] Hero image generated via GemsAPI');
       return { url: base64Url, alt: productName };
     }
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.debug('[LP Generate] Imagen 3 failed, falling back to Pexels:', msg);
+    console.debug('[LP Generate] GemsAPI image failed, trying direct API:', error instanceof Error ? error.message : error);
   }
 
-  const pexelsQuery = industry
-    ? `${industry} ${productName}`
-    : `${productName} professional`;
+  // 2. 直接API呼び出し（GemsAPIが使えない場合のフォールバック）
+  try {
+    const base64Url = await generateImageDirectly(imagePrompt);
+    if (base64Url) {
+      console.debug('[LP Generate] Hero image generated via direct API');
+      return { url: base64Url, alt: productName };
+    }
+  } catch (error) {
+    console.debug('[LP Generate] Direct API image failed, trying Pexels:', error instanceof Error ? error.message : error);
+  }
+
+  // 3. Pexels（ストック写真）
+  const pexelsQuery = industry ? `${industry} ${productName}` : `${productName} professional`;
   try {
     return await fetchPexelsPhoto(pexelsQuery, 'landscape');
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    console.debug('[LP Generate] Pexels hero failed:', msg);
+    console.debug('[LP Generate] Pexels hero failed:', error instanceof Error ? error.message : error);
     return null;
   }
 }
 
 /**
- * ベネフィット画像: Pexels x3 → 画像なし
+ * ベネフィット画像の解決 (最大3枚)
+ * 優先順: GemsAPI画像生成 → Pexels → []
  */
 async function resolveBenefitImages(
   benefits: string[],
   industry?: string,
+  prebuiltPrompts?: Array<string | undefined>,
 ): Promise<GeneratedImage[]> {
-  if (!PEXELS_API_KEY) return [];
-
-  const queries = benefits.slice(0, 3).map((benefit) =>
-    industry ? `${industry} ${benefit}` : benefit,
-  );
+  const targetBenefits = benefits.slice(0, 3);
 
   const results = await Promise.allSettled(
-    queries.map((q) => fetchPexelsPhoto(q, 'square')),
+    targetBenefits.map(async (benefit, index) => {
+      const prompt = prebuiltPrompts?.[index]
+        ?? (industry ? `${industry} ${benefit}, professional square photo` : `${benefit}, professional photography`);
+
+      // 1. GemsAPI経由
+      try {
+        const base64Url = await generateImageViaGemsAPI(prompt, '1:1');
+        if (base64Url) return { url: base64Url, alt: benefit };
+      } catch {
+        // fall through
+      }
+
+      // 2. Pexels
+      const pexelsQuery = industry ? `${industry} ${benefit}` : benefit;
+      try {
+        return await fetchPexelsPhoto(pexelsQuery, 'square');
+      } catch {
+        return null;
+      }
+    }),
   );
 
   return results
@@ -937,22 +1034,33 @@ export async function POST(request: NextRequest) {
   const { answers } = bodyResult.data;
 
   try {
-    // 3並列実行: コピー + ヒーロー画像 + ベネフィット画像
+    // Step 1: GemsAPI画像プロンプト生成 (並列実行の前に取得 — 画像品質向上のため)
+    // taiyo-lp-image-prompter Gemが商品情報から最適な英語プロンプトを生成する
+    const imagePromptsResult = await buildImagePromptsViaGems(answers).catch(() => null);
+
+    // Step 2: 4並列実行: コピー + ヒーロー画像 + ベネフィット画像x3
     const [copyResult, heroResult, benefitResult] = await Promise.allSettled([
-      // 1. LP Copy: GemsAPI → Gemini → Template (3段フォールバック)
+      // 1. LP Copy: GemsAPI (taiyo-lp-generator) → Gemini直接 → テンプレート
       generateCopyWithGemsAPI(answers)
         .catch((gemsErr) => {
-          console.debug('[LP Generate] GemsAPI failed, trying AI direct:', gemsErr instanceof Error ? gemsErr.message : String(gemsErr));
+          console.debug('[LP Generate] GemsAPI copy failed, trying AI direct:', gemsErr instanceof Error ? gemsErr.message : String(gemsErr));
           return generateCopyWithAI(answers);
         }),
-      // 2. Hero image: Imagen 3 → Pexels → null
+      // 2. Hero image: GemsAPI generate-image → 直接API → Pexels
       resolveHeroImage(
         answers.productName,
         answers.targetAudience,
         answers.industry,
+        imagePromptsResult?.hero,   // Gemが生成した最適化プロンプトを使用
       ),
-      // 3. Benefit images: Pexels x3
-      resolveBenefitImages(answers.benefits, answers.industry),
+      // 3. Benefit images: GemsAPI generate-image → Pexels (各ベネフィット)
+      resolveBenefitImages(
+        answers.benefits,
+        answers.industry,
+        imagePromptsResult          // Gemが生成したベネフィット別プロンプト
+          ? [imagePromptsResult.benefit1, imagePromptsResult.benefit2, imagePromptsResult.benefit3]
+          : undefined,
+      ),
     ]);
 
     // Copy: 成功/フォールバック判定
@@ -970,10 +1078,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Images
-    const heroImage =
-      heroResult.status === 'fulfilled' ? heroResult.value : null;
-    const benefitImages =
-      benefitResult.status === 'fulfilled' ? benefitResult.value : [];
+    const heroImage = heroResult.status === 'fulfilled' ? heroResult.value : null;
+    const benefitImages = benefitResult.status === 'fulfilled' ? benefitResult.value : [];
 
     const components = buildComponents(copy, answers, heroImage, benefitImages);
 
@@ -984,6 +1090,9 @@ export async function POST(request: NextRequest) {
       copySource,
       hasHeroImage: heroImage !== null,
       benefitImageCount: benefitImages.length,
+      imageSource: heroImage
+        ? (GEMS_API_URL ? 'gems-api' : 'direct-api')
+        : 'none',
       message: usedAI
         ? `AIでLPを生成しました（${copySource}）`
         : 'テンプレートベースでLPを生成しました（AIサービスが利用できないため）',
