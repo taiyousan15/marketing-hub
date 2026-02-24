@@ -369,41 +369,62 @@ function generateFallbackCopy(answers: WizardAnswers): AIGeneratedCopy {
 // ============================================
 
 /**
- * Imagen 3でヒーロー画像を生成
+ * Imagen 4 (Fast) でヒーロー画像を生成
+ * モデル: imagen-4.0-fast-generate-001, エンドポイント: :predict
+ * フォールバック: gemini-2.0-flash-exp-image-generation (:generateContent)
  */
 async function generateImageWithImagen(prompt: string): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:generateImages?key=${GEMINI_API_KEY}`;
+  // --- 1st try: Imagen 4 Fast (:predict) ---
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-fast-generate-001:predict?key=${GEMINI_API_KEY}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: { sampleCount: 1, aspectRatio: '16:9' },
+      }),
+      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+    });
 
-  const response = await fetch(url, {
+    if (response.ok) {
+      const data = await response.json();
+      const predictions = data.predictions ?? [];
+      const base64 = predictions[0]?.bytesBase64Encoded ?? predictions[0]?.image?.bytesBase64Encoded;
+      const mimeType = predictions[0]?.mimeType ?? 'image/png';
+      if (base64) return `data:${mimeType};base64,${base64}`;
+    }
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.debug('[LP Generate] Imagen 4 failed, trying Gemini Flash image:', msg);
+  }
+
+  // --- 2nd try: Gemini 2.0 Flash Exp Image Generation (:generateContent) ---
+  const url2 = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp-image-generation:generateContent?key=${GEMINI_API_KEY}`;
+  const response2 = await fetch(url2, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      instances: [{ prompt }],
-      parameters: {
-        sampleCount: 1,
-        aspectRatio: '16:9',
-      },
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
     }),
     signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
   });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    throw new Error(`Imagen 3 error ${response.status}: ${errorText}`);
+  if (!response2.ok) {
+    const errorText = await response2.text().catch(() => '');
+    throw new Error(`Gemini Flash image error ${response2.status}: ${errorText}`);
   }
 
-  const data = await response.json();
-  const predictions = data.predictions ?? data.generatedImages;
-  if (!predictions || predictions.length === 0) return null;
+  const data2 = await response2.json();
+  const parts = data2.candidates?.[0]?.content?.parts ?? [];
+  const imagePart = parts.find((p: Record<string, unknown>) => 'inlineData' in p) as Record<string, { mimeType: string; data: string }> | undefined;
+  if (!imagePart) return null;
 
-  const base64 =
-    predictions[0].bytesBase64Encoded ??
-    predictions[0].image?.bytesBase64Encoded;
-  if (!base64) return null;
-
-  return `data:image/png;base64,${base64}`;
+  const { mimeType, data: base64 } = imagePart.inlineData;
+  return `data:${mimeType};base64,${base64}`;
 }
 
 /**
