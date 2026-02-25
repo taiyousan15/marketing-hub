@@ -114,9 +114,9 @@ type Conversion = {
   partnerId: string;
   amount: number;
   status: string;
-  approvedAt: string | null;
-  payableAt: string | null;
-  createdAt: string;
+  approvedAt: string | Date | null;
+  payableAt: string | Date | null;
+  createdAt: string | Date;
   partner: { id: string; name: string; code: string };
 };
 

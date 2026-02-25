@@ -867,10 +867,28 @@ model LiveStream {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   event            Event?           @relation(fields: [eventId], references: [id], onDelete: SetNull)
+  chatMessages     LiveChatMessage[]
 
   @@index([tenantId])
   @@index([tenantId, status])
   @@index([eventId])
+}
+
+model LiveChatMessage {
+  id            String     @id @default(cuid())
+  tenantId      String
+  livestreamId  String
+  senderName    String
+  content       String
+  messageType   String     @default("CHAT")
+  contactId     String?
+  isHighlighted Boolean    @default(false)
+  isPinned      Boolean    @default(false)
+  createdAt     DateTime   @default(now())
+  livestream    LiveStream @relation(fields: [livestreamId], references: [id], onDelete: Cascade)
+
+  @@index([livestreamId])
+  @@index([tenantId])
 }
 
 model AutomatedWebinar {
@@ -1984,6 +2002,7 @@ enum WebinarStatus {
   ACTIVE
   PAUSED
   COMPLETED
+  ARCHIVED
 }
 
 enum LifecycleStage {
