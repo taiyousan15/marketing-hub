@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { auth } from '@clerk/nextjs/server';
+import { getDesignStyle, autoSelectStyle, buildStylePrompt, getCopywritingTone } from '@/lib/lp-design-styles';
 
 /**
  * LP生成API
@@ -34,6 +35,7 @@ const WizardAnswersSchema = z.object({
   testimonials: z.string().max(1000).optional(),
   pricing: z.string().max(300).optional(),
   style: z.string().max(100).optional(),
+  designStyle: z.string().max(10).optional(),
 });
 
 type WizardAnswers = z.infer<typeof WizardAnswersSchema>;
@@ -232,8 +234,45 @@ CTAタイプ: ${answers.ctaType}${answers.urgency ? `\n緊急性: ${sanitizeForP
 }`;
 }
 
+/** LP Designer Pro コピーライティング システムインストラクション */
+const LP_DESIGNER_PRO_SYSTEM_INSTRUCTION = `あなたはLP Designer Pro — ランディングページのコピーライティング専門AIです。
+
+## コピーライティングフレームワーク
+
+【PASBECONA（9要素・日本市場最適）】
+P-Problem → A-Affinity → S-Solution → B-Benefit → E-Evidence → C-Contents → O-Offer → N-Narrow → A-Action
+この流れでLP全体のコピー構成を設計する。
+
+【QUEST（海外実績フォーミュラ）】
+Qualify → Understand → Educate → Stimulate → Transition
+ターゲット選定〜行動喚起の流れに使用。
+
+【The Stack（価値積み上げ・価格提示）】
+特典を積み上げ → 合計価値を見せてから → 特別価格を提示。
+
+【CTA最適化ルール（実証データ）】
+- 一人称動詞を使用（「今すぐ手に入れる」→ +202% CV率）
+- マイクロコピー追加（「無料」「30秒」「解約いつでも」→ +30% CV率）
+- 緊急性・希少性を含める
+
+【Cialdini 7原則のLP適用】
+- 返報性: 無料コンテンツを先に提供
+- 一貫性: 「はい」を引き出す質問→登録
+- 社会的証明: お客様の声、参加者数
+- 権威: 実績数値、メディア掲載
+- 好意: 提供者ストーリー、共感
+- 希少性: 限定◯名、期間限定
+- 統一性: 「私たち」コミュニティ感
+
+## 出力ルール
+- 必ずJSON形式のみで返答する
+- 日本語で出力する
+- 見出しは数字・感情的アンカー・断定形を使う
+- 具体的な数字（日数・成果数値）を含める
+- 余分な説明文・前置きは一切不要`;
+
 /**
- * 2. Gemini直接でLPコピー生成
+ * 2. Gemini直接でLPコピー生成（LP Designer Pro system instruction適用）
  */
 async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCopy> {
   const { getAIClient } = await import('@/lib/ai/provider');
@@ -251,8 +290,12 @@ async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCo
   const safeProblems = answers.problems.map(sanitizeForPrompt);
   const safeBenefits = answers.benefits.map(sanitizeForPrompt);
 
-  const prompt = `あなたはプロのダイレクトレスポンスマーケティングのコピーライターです。
-以下の情報を元に、高コンバージョンのランディングページ用コピーを生成してください。
+  // デザインスタイルのトーン指示を追加
+  const styleId = answers.designStyle || (answers.industry ? autoSelectStyle(answers.industry) : '1');
+  const designStyle = getDesignStyle(styleId);
+  const styleTone = getCopywritingTone(designStyle);
+
+  const prompt = `以下の商品情報をもとに高コンバージョンのLPコピーをJSON形式で生成してください。
 
 ## 商品情報
 - 商品名: ${safeName}
@@ -260,17 +303,11 @@ async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCo
 - お客様の悩み: ${safeProblems.join('、')}
 - ベネフィット: ${safeBenefits.join('、')}
 - CTAタイプ: ${ctaTypeLabels[answers.ctaType] || answers.ctaType}
-
-## ルール
-- PASBECONAフレームワークを意識する
-- Cialdiniの影響力の武器を活用する
-- 読み手の感情に訴えかける表現を使う
-- 具体的な数字やデータを含める
-- 日本語で書く
+- ${styleTone}${answers.urgency ? `\n- 緊急性: ${sanitizeForPrompt(answers.urgency)}` : ''}${answers.pricing ? `\n- 価格: ${sanitizeForPrompt(answers.pricing)}` : ''}
 
 ## 出力形式
 以下のJSON形式のみ出力し、他のテキストは含めないでください。
-{"headline":"メインの見出し","subheadline":"サブ見出し","problemHeading":"問題提起の見出し","problems":["悩み1","悩み2","悩み3"],"benefitHeading":"ベネフィットの見出し","benefits":["ベネフィット1","ベネフィット2","ベネフィット3"],"targetMessage":"ターゲットへのメッセージ","ctaHeading":"行動喚起の見出し","ctaDescription":"行動を促す説明文","ctaButtonText":"ボタンテキスト","urgencyHeading":"緊急性の見出し","urgencyText":"緊急性のメッセージ","faq":[{"question":"質問1","answer":"回答1"},{"question":"質問2","answer":"回答2"},{"question":"質問3","answer":"回答3"}]}`;
+{"headline":"メインの見出し（数字入り・断定形）","subheadline":"サブ見出し（ターゲットへの共感）","problemHeading":"問題提起の見出し","problems":["悩み1","悩み2","悩み3"],"benefitHeading":"ベネフィットの見出し","benefits":["ベネフィット1（感情的アンカー+具体的結果）","ベネフィット2","ベネフィット3"],"targetMessage":"ターゲットへのメッセージ（PASBECONA Affinity）","ctaHeading":"行動喚起の見出し","ctaDescription":"行動を促す説明文","ctaButtonText":"ボタンテキスト（一人称動詞始まり・8-15文字）","urgencyHeading":"緊急性の見出し","urgencyText":"緊急性のメッセージ（Cialdini希少性）","faq":[{"question":"質問1","answer":"回答1"},{"question":"質問2","answer":"回答2"},{"question":"質問3","answer":"回答3"}]}`;
 
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(
@@ -280,10 +317,16 @@ async function generateCopyWithAI(answers: WizardAnswers): Promise<AIGeneratedCo
   });
 
   const result = await Promise.race([
-    client.complete([{ role: 'user', content: prompt }], {
-      temperature: 0.7,
-      maxTokens: 4096,
-    }),
+    client.complete(
+      [
+        { role: 'system', content: LP_DESIGNER_PRO_SYSTEM_INSTRUCTION },
+        { role: 'user', content: prompt },
+      ],
+      {
+        temperature: 0.7,
+        maxTokens: 4096,
+      },
+    ),
     timeoutPromise,
   ]);
 
@@ -540,9 +583,18 @@ async function resolveHeroImage(
   targetAudience: string,
   industry?: string,
   prebuiltPrompt?: string,
+  designStyleId?: string,
 ): Promise<GeneratedImage | null> {
+  const styleId = designStyleId || (industry ? autoSelectStyle(industry) : '1');
+  const designStyle = getDesignStyle(styleId);
+  const stylePrompt = buildStylePrompt(designStyle);
+
+  // NOTE: Product name and target audience text must NOT be included directly in image prompts
+  // as AI models will attempt to render them as image text, causing garbled characters.
+  // Use abstract/conceptual descriptions instead.
+  const industryHint = industry ? `${industry} industry, ` : '';
   const imagePrompt = prebuiltPrompt
-    ?? `Professional, modern hero image for a landing page about "${productName}". Target audience: ${targetAudience}. ${industry ? `Industry: ${industry}.` : ''} Clean, high-quality, aspirational photography style. No text overlay.`;
+    ?? `Professional hero illustration for a Japanese marketing landing page. ${industryHint}${stylePrompt}, 9:16 vertical format, NO text, NO words, NO letters, NO Japanese characters, NO typography, pure illustration.`;
 
   // 1. GemsAPI経由（カスタムGemのモデル選定に委ねる）
   try {
@@ -584,13 +636,20 @@ async function resolveBenefitImages(
   benefits: string[],
   industry?: string,
   prebuiltPrompts?: Array<string | undefined>,
+  designStyleId?: string,
 ): Promise<GeneratedImage[]> {
   const targetBenefits = benefits.slice(0, 3);
+  const styleId = designStyleId || (industry ? autoSelectStyle(industry) : '1');
+  const designStyle = getDesignStyle(styleId);
+  const stylePrompt = buildStylePrompt(designStyle);
 
   const results = await Promise.allSettled(
     targetBenefits.map(async (benefit, index) => {
+      // NOTE: Benefit text (Japanese) must NOT be used verbatim in image prompts.
+      // Use industry/concept keywords only to avoid garbled text in generated images.
+      const conceptHint = industry || 'business success lifestyle';
       const prompt = prebuiltPrompts?.[index]
-        ?? (industry ? `${industry} ${benefit}, professional square photo` : `${benefit}, professional photography`);
+        ?? `${conceptHint} concept illustration, ${stylePrompt}, 1:1 square format, Japanese LP illustration, NO text, NO words, NO letters, NO Japanese characters, pure illustration only`;
 
       // 1. GemsAPI経由
       try {
@@ -1052,6 +1111,7 @@ export async function POST(request: NextRequest) {
         answers.targetAudience,
         answers.industry,
         imagePromptsResult?.hero,   // Gemが生成した最適化プロンプトを使用
+        answers.designStyle,        // LP Designer Pro デザインスタイル
       ),
       // 3. Benefit images: GemsAPI generate-image → Pexels (各ベネフィット)
       resolveBenefitImages(
@@ -1060,6 +1120,7 @@ export async function POST(request: NextRequest) {
         imagePromptsResult          // Gemが生成したベネフィット別プロンプト
           ? [imagePromptsResult.benefit1, imagePromptsResult.benefit2, imagePromptsResult.benefit3]
           : undefined,
+        answers.designStyle,        // LP Designer Pro デザインスタイル
       ),
     ]);
 
@@ -1071,7 +1132,7 @@ export async function POST(request: NextRequest) {
     if (copyResult.status === 'fulfilled') {
       copy = copyResult.value;
       usedAI = true;
-      copySource = GEMS_API_URL ? 'gems-api' : 'gemini';
+      copySource = GEMS_API_URL ? 'gems-api' : 'gemini-lp-designer-pro';
     } else {
       console.debug('[LP Generate] All AI copy generation failed, using template:', copyResult.reason);
       copy = generateFallbackCopy(answers);

@@ -37,6 +37,7 @@ import { ModeSelector, CompactModeSelector } from './modes/mode-selector';
 import { AdvancedMode } from './modes/advanced';
 import { TemplateMode } from './modes/template';
 import { AIWizardMode } from './modes/ai-wizard';
+import { SectionBuilderMode } from './modes/section-builder';
 import { BuilderMode, ComponentInstance, BUILDER_MODE_LABELS } from './types';
 
 export interface LPBuilderProps {
@@ -249,6 +250,7 @@ function LPBuilderInner({
       {state.mode === 'advanced' && <AdvancedMode />}
       {state.mode === 'template' && <TemplateMode />}
       {state.mode === 'ai-wizard' && <AIWizardMode />}
+      {state.mode === 'section-builder' && <SectionBuilderMode />}
     </div>
   );
 }

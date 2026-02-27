@@ -20,7 +20,7 @@ export type ComponentCategory =
 /**
  * LP Builder モード
  */
-export type BuilderMode = 'ai-wizard' | 'template' | 'advanced';
+export type BuilderMode = 'ai-wizard' | 'template' | 'advanced' | 'section-builder';
 
 /**
  * コンポーネント表示モード
@@ -191,6 +191,8 @@ export interface WizardAnswers {
   testimonials?: string;
   pricing?: string;
   style: 'minimal' | 'professional' | 'creative' | 'bold';
+  /** LP Designer Pro デザインスタイル番号 ('1'〜'12') */
+  designStyle?: string;
 }
 
 /**
@@ -309,4 +311,40 @@ export const BUILDER_MODE_LABELS: Record<BuilderMode, string> = {
   'ai-wizard': 'AIウィザード',
   'template': 'テンプレート',
   'advanced': 'アドバンスド',
+  'section-builder': 'セクションビルダー',
 };
+
+// ============================================
+// セクションビルダー型定義
+// ============================================
+
+/** LPのセクション種別 */
+export type LPSectionType =
+  | 'header'
+  | 'hero'
+  | 'problem'
+  | 'benefit'
+  | 'testimonial'
+  | 'cta'
+  | 'faq'
+  | 'footer';
+
+/** LPの種類 */
+export type SectionBuilderLPType = 'optin' | 'sales' | 'webinar';
+
+/** コンテンツ入力方法 */
+export type SectionBuilderInputMethod = 'script' | 'manual';
+
+/** セクション単体の状態 */
+export interface SectionBuilderSection {
+  id: string;
+  type: LPSectionType;
+  name: string;
+  description: string;
+  content: string;
+  imageUrl: string | null;
+  imagePrompt: string;
+  referenceImageBase64: string | null;
+  referenceImageName: string | null;
+  status: 'pending' | 'editing' | 'generating' | 'done';
+}

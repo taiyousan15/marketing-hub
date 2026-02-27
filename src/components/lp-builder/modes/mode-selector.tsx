@@ -7,7 +7,7 @@
 
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, FileText, Wrench, ArrowRight } from 'lucide-react';
+import { Sparkles, FileText, Wrench, Layers, ArrowRight } from 'lucide-react';
 import { BuilderMode, BUILDER_MODE_LABELS } from '../types';
 
 interface ModeSelectorProps {
@@ -62,6 +62,18 @@ const MODE_OPTIONS: ModeOption[] = [
     ],
     level: '上級者向け',
   },
+  {
+    mode: 'section-builder',
+    icon: Layers,
+    title: 'セクションビルダー',
+    description: '1セクションずつ画像を生成してLPを組み立て',
+    features: [
+      'セクションごとに画像生成',
+      '参照画像でスタイル指定',
+      '台本アップロード対応',
+    ],
+    level: 'AI画像特化',
+  },
 ];
 
 export function ModeSelector({ onSelectMode }: ModeSelectorProps) {
@@ -79,7 +91,7 @@ export function ModeSelector({ onSelectMode }: ModeSelectorProps) {
         </div>
 
         {/* モードカード */}
-        <div className="grid gap-6 md:grid-cols-3">
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {MODE_OPTIONS.map((option) => (
             <ModeCard
               key={option.mode}
@@ -135,6 +147,8 @@ function ModeCard({ option, onSelect }: ModeCardProps) {
                 ? 'bg-purple-100'
                 : option.mode === 'template'
                 ? 'bg-blue-100'
+                : option.mode === 'section-builder'
+                ? 'bg-green-100'
                 : 'bg-gray-100'
             }`}
           >
@@ -144,6 +158,8 @@ function ModeCard({ option, onSelect }: ModeCardProps) {
                   ? 'text-purple-600'
                   : option.mode === 'template'
                   ? 'text-blue-600'
+                  : option.mode === 'section-builder'
+                  ? 'text-green-600'
                   : 'text-gray-600'
               }`}
             />
@@ -169,6 +185,8 @@ function ModeCard({ option, onSelect }: ModeCardProps) {
                     ? 'bg-purple-500'
                     : option.mode === 'template'
                     ? 'bg-blue-500'
+                    : option.mode === 'section-builder'
+                    ? 'bg-green-500'
                     : 'bg-gray-500'
                 }`}
               >
@@ -186,12 +204,15 @@ function ModeCard({ option, onSelect }: ModeCardProps) {
               ? 'bg-purple-600 text-white group-hover:bg-purple-700'
               : option.mode === 'template'
               ? 'bg-blue-600 text-white group-hover:bg-blue-700'
+              : option.mode === 'section-builder'
+              ? 'bg-green-600 text-white group-hover:bg-green-700'
               : 'bg-gray-900 text-white group-hover:bg-gray-800'
           }`}
         >
           {option.mode === 'ai-wizard' && '✨ '}
           {option.mode === 'template' && '📄 '}
           {option.mode === 'advanced' && '🛠 '}
+          {option.mode === 'section-builder' && '🖼 '}
           このモードで始める
           <ArrowRight className="h-4 w-4" />
         </div>
