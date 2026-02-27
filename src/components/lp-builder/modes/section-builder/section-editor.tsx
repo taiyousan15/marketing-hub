@@ -186,10 +186,10 @@ export function SectionEditor({
             />
           </div>
 
-          {/* 画像プロンプト（詳細設定） */}
+          {/* 追加キーワード（詳細設定） */}
           <div className="mb-6">
             <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-              画像プロンプト（任意）
+              追加キーワード（任意）
             </label>
             <input
               type="text"
@@ -197,11 +197,11 @@ export function SectionEditor({
               onChange={(e) =>
                 onUpdateSection(section.id, { imagePrompt: e.target.value })
               }
-              placeholder="空欄にするとAIが自動でプロンプトを生成します"
+              placeholder="例: blue gradient, technology, professional office"
               className="w-full rounded-lg border border-gray-300 px-4 py-2 text-sm focus:border-green-500 focus:outline-none focus:ring-1 focus:ring-green-500"
             />
             <p className="mt-1 text-xs text-gray-500">
-              英語で入力すると画像に文字が入らず、きれいな仕上がりになります
+              画像に含めたい雰囲気・色・モチーフを英語で入力。AIが上の「セクション内容」から自動でプロンプトを生成するので、空欄でも大丈夫です。
             </p>
           </div>
 
@@ -331,10 +331,11 @@ export function SectionEditor({
               画像生成のコツ
             </h4>
             <ul className="space-y-1 text-xs text-blue-700">
+              <li>• <strong>セクション内容</strong>を入力するとAIが自動でプロンプトを生成</li>
+              <li>• Gemのプロンプトエンジニアが最適な英語プロンプトに変換します</li>
               <li>• 参照画像をアップロードすると近いスタイルで生成</li>
               <li>• 気に入らない場合は「再生成する」でやり直し</li>
-              <li>• プロンプトを英語で書くと文字が入りにくい</li>
-              <li>• セクション内容を入力すると概念が反映される</li>
+              <li>• 追加キーワードは英語で（例: minimalist, warm colors）</li>
             </ul>
           </div>
         </div>
