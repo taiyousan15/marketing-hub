@@ -26,7 +26,7 @@ import {
 
 const initialWizardState: WizardState = {
   step: 0,
-  totalSteps: 6,
+  totalSteps: 7,
   answers: {},
   generatedLP: null,
   isGenerating: false,

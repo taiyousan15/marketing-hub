@@ -77,8 +77,14 @@ async function getOrCreateDevTenant(): Promise<{
   }
 }
 
+// 本番環境かどうか
+const isProduction = process.env.NODE_ENV === "production";
+
 /**
  * 現在のユーザーとテナント情報を取得
+ *
+ * - 本番環境（isProduction）: Clerk認証必須。失敗時はnullを返す
+ * - 開発環境（!isProduction）: Clerk未設定またはauth失敗時は開発用テナントにフォールバック
  */
 export async function getCurrentUser(): Promise<{
   userId: string;
@@ -86,35 +92,31 @@ export async function getCurrentUser(): Promise<{
   user: User | null;
   tenant: Tenant | null;
 } | null> {
+  // Clerkが未設定の場合は開発用テナントを使用
   if (!isClerkConfigured) {
-    // 開発用のダミーユーザーとテナントを取得または作成
     return getOrCreateDevTenant();
   }
 
   try {
-    const { auth, currentUser } = await import("@clerk/nextjs/server");
+    const { auth } = await import("@clerk/nextjs/server");
     const { userId } = await auth();
 
     if (!userId) {
-      // Clerk認証が失敗した場合は開発用テナントを使用
-      return getOrCreateDevTenant();
+      // 本番: 未認証 → null（401を返す）
+      // 開発: 未認証 → 開発用テナントにフォールバック
+      return isProduction ? null : getOrCreateDevTenant();
     }
 
-    const clerkUser = await currentUser();
-    if (!clerkUser) {
-      // Clerk認証が失敗した場合は開発用テナントを使用
-      return getOrCreateDevTenant();
-    }
-
-    // DBからユーザーを取得（または作成）
+    // DBからユーザーを取得
     const user = await prisma.user.findUnique({
       where: { clerkUserId: userId },
       include: { tenant: true },
     });
 
     if (!user) {
-      // Clerk認証されているがDB未登録の場合は開発用テナントを使用
-      return getOrCreateDevTenant();
+      // 本番: DBに未登録 → null
+      // 開発: DBに未登録 → 開発用テナントにフォールバック
+      return isProduction ? null : getOrCreateDevTenant();
     }
 
     return {
@@ -123,9 +125,11 @@ export async function getCurrentUser(): Promise<{
       user,
       tenant: user.tenant,
     };
-  } catch {
-    // エラー時も開発用テナントを使用（開発環境向け）
-    return getOrCreateDevTenant();
+  } catch (error) {
+    console.error("getCurrentUser failed:", error instanceof Error ? error.message : error);
+    // 本番: エラー → null
+    // 開発: エラー → 開発用テナントにフォールバック
+    return isProduction ? null : getOrCreateDevTenant();
   }
 }
 

@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Users, TrendingUp, DollarSign, MousePointerClick } from "lucide-react";
+import { ArrowLeft, Users, TrendingUp, DollarSign, MousePointerClick, Building2 } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/tenant";
 import {
@@ -19,6 +19,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
+import {
+  type BankAccountInfo,
+  maskAccountNumber,
+  ACCOUNT_TYPE_LABELS,
+  isBankAccountComplete,
+} from "@/lib/validations/bank-account";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -187,6 +194,63 @@ export default async function PartnerDetailPage({ params }: PageProps) {
           </CardContent>
         </Card>
       </div>
+
+      {/* 口座情報 */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <div>
+            <CardTitle>口座情報</CardTitle>
+            <CardDescription>振込先口座</CardDescription>
+          </div>
+          <Building2 className="h-4 w-4 text-muted-foreground" />
+        </CardHeader>
+        <CardContent>
+          {isBankAccountComplete(partner.bankAccountInfo) ? (
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">銀行名</p>
+                <p className="font-medium">
+                  {(partner.bankAccountInfo as BankAccountInfo).bankName}
+                  （{(partner.bankAccountInfo as BankAccountInfo).bankCode}）
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">支店名</p>
+                <p className="font-medium">
+                  {(partner.bankAccountInfo as BankAccountInfo).branchName}
+                  （{(partner.bankAccountInfo as BankAccountInfo).branchCode}）
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">口座種別</p>
+                <p className="font-medium">
+                  {ACCOUNT_TYPE_LABELS[
+                    (partner.bankAccountInfo as BankAccountInfo).accountType
+                  ] ?? "-"}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">口座番号</p>
+                <p className="font-medium font-mono">
+                  {maskAccountNumber(
+                    (partner.bankAccountInfo as BankAccountInfo).accountNumber
+                  )}
+                </p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-muted-foreground">口座名義</p>
+                <p className="font-medium">
+                  {(partner.bankAccountInfo as BankAccountInfo).accountHolderName}
+                </p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              口座情報が未登録です
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* コンバージョン一覧 */}
       <Card>

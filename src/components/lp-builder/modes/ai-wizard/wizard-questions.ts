@@ -1,6 +1,6 @@
 /**
  * AIウィザード 質問定義
- * 6ステップでLP生成に必要な情報を収集
+ * 7ステップでLP生成に必要な情報を収集
  */
 
 import { WizardAnswers } from '../../types';
@@ -104,6 +104,28 @@ export const WIZARD_QUESTIONS: WizardQuestionConfig[] = [
       { label: '商品購入', value: 'purchase' },
       { label: 'お問い合わせ・無料相談', value: 'contact' },
       { label: 'ウェビナー・セミナー登録', value: 'webinar' },
+    ],
+  },
+  {
+    key: 'designStyle',
+    question: 'LPのデザインスタイルを選んでください（LP Designer Pro）',
+    helpText: '選んだスタイルの色・雰囲気が画像生成とコピーのトーンに反映されます。迷ったら①を選択。',
+    placeholder: '',
+    type: 'select',
+    required: false,
+    options: [
+      { label: '① フラットイラスト（万能・デフォルト）', value: '1' },
+      { label: '② ミニマル・クリーン（ハイブランド・高単価）', value: '2' },
+      { label: '③ 北欧ナチュラル（ライフスタイル・女性向け）', value: '3' },
+      { label: '④ ペーパークラフト（教育・子育て・温かみ）', value: '4' },
+      { label: '⑤ かわいい・パステル（美容・占い・女性向け）', value: '5' },
+      { label: '⑥ 和風・墨絵（和食・旅館・伝統産業）', value: '6' },
+      { label: '⑦ 禅・ミニマル（スピリチュアル・ヒーリング）', value: '7' },
+      { label: '⑧ ダークモード・テック（IT・SaaS・AI）', value: '8' },
+      { label: '⑨ グラスモーフィズム（アプリ・Fintech）', value: '9' },
+      { label: '⑩ 構成主義・ボールド（強メッセージ・革新）', value: '10' },
+      { label: '⑪ レトロ・ヴィンテージ（カフェ・音楽・個性派）', value: '11' },
+      { label: '⑫ グラレコ風（セミナー・教育・コーチング）', value: '12' },
     ],
   },
 ];

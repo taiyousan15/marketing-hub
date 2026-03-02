@@ -107,6 +107,7 @@ type Payout = {
   paymentMethod: string | null;
   paidAt: string | null;
   createdAt: string;
+  hasBankAccount: boolean;
 };
 
 type Conversion = {
@@ -857,15 +858,20 @@ export default function AffiliatePage() {
                             : "-"}
                         </TableCell>
                         <TableCell>
-                          {payout.status === "PENDING" && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handlePayout(payout.id)}
-                            >
-                              支払処理
-                            </Button>
-                          )}
+                          {payout.status === "PENDING" &&
+                            (payout.hasBankAccount ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handlePayout(payout.id)}
+                              >
+                                支払処理
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-destructive">
+                                口座未登録
+                              </span>
+                            ))}
                         </TableCell>
                       </TableRow>
                     ))

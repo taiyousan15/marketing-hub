@@ -5,13 +5,16 @@
  * 全セクションの一覧と進捗状態を表示する
  */
 
-import { CheckCircle2, Circle, Loader2, Pencil, Image as ImageIcon } from 'lucide-react';
+import { CheckCircle2, Circle, Loader2, Pencil, Image as ImageIcon, MonitorPlay } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { SectionBuilderSection } from '../../types';
 
 interface SectionListProps {
   sections: SectionBuilderSection[];
   activeSectionId: string | null;
   onSelectSection: (id: string) => void;
+  onShowFullPreview?: () => void;
+  generatedCount?: number;
 }
 
 const STATUS_CONFIG = {
@@ -41,7 +44,13 @@ const STATUS_CONFIG = {
   },
 };
 
-export function SectionList({ sections, activeSectionId, onSelectSection }: SectionListProps) {
+export function SectionList({
+  sections,
+  activeSectionId,
+  onSelectSection,
+  onShowFullPreview,
+  generatedCount = 0,
+}: SectionListProps) {
   const doneCount = sections.filter((s) => s.status === 'done').length;
   const progress = sections.length > 0 ? Math.round((doneCount / sections.length) * 100) : 0;
 
@@ -139,10 +148,29 @@ export function SectionList({ sections, activeSectionId, onSelectSection }: Sect
       </div>
 
       {/* フッター */}
-      <div className="border-t border-gray-200 px-4 py-3 text-center">
-        <p className="text-xs text-gray-500">
-          全セクション完了後にLPを出力できます
-        </p>
+      <div className="border-t border-gray-200 px-4 py-3 space-y-2">
+        {onShowFullPreview && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onShowFullPreview}
+            disabled={generatedCount === 0}
+            className="w-full gap-2 text-xs"
+          >
+            <MonitorPlay className="h-3.5 w-3.5" />
+            LP全体を見る
+            {generatedCount > 0 && (
+              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-green-700">
+                {generatedCount}
+              </span>
+            )}
+          </Button>
+        )}
+        {generatedCount === 0 && (
+          <p className="text-center text-xs text-gray-400">
+            画像を生成するとLP全体を確認できます
+          </p>
+        )}
       </div>
     </div>
   );

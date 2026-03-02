@@ -7,6 +7,7 @@ import {
   sendPartnerApprovalEmail,
   sendPayoutNotificationEmail,
 } from "@/lib/email/resend-client";
+import { isBankAccountComplete } from "@/lib/validations/bank-account";
 
 export async function getAffiliatePartners(options?: {
   status?: string;
@@ -140,7 +141,9 @@ export async function getAffiliatePayouts(options?: {
     prisma.affiliatePayout.findMany({
       where: { tenantId: user.tenantId },
       include: {
-        partner: { select: { id: true, name: true, email: true } },
+        partner: {
+          select: { id: true, name: true, email: true, bankAccountInfo: true },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * limit,
@@ -159,6 +162,7 @@ export async function getAffiliatePayouts(options?: {
       paymentMethod: p.paymentMethod,
       paidAt: p.paidAt?.toISOString() ?? null,
       createdAt: p.createdAt.toISOString(),
+      hasBankAccount: isBankAccountComplete(p.partner.bankAccountInfo),
     })),
     pagination: { page, limit, total, pages: Math.ceil(total / limit) },
   };
@@ -199,35 +203,35 @@ export async function getAffiliateStats() {
 export async function getAffiliateConversions(params?: {
   status?: string;
   partnerId?: string;
+  page?: number;
+  limit?: number;
 }) {
   const user = await getCurrentUser();
   if (!user) throw new Error("認証が必要です");
 
-  const { status, partnerId } = params ?? {};
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const { status, partnerId, page = 1, limit = 20 } = params ?? {};
 
-  const searchParams = new URLSearchParams({ tenantId: user.tenantId });
-  if (status) searchParams.set("status", status);
-  if (partnerId) searchParams.set("partnerId", partnerId);
+  const where: Record<string, unknown> = { tenantId: user.tenantId };
+  if (status) where.status = status;
+  if (partnerId) where.partnerId = partnerId;
 
-  const res = await fetch(
-    `${baseUrl}/api/affiliate/conversions?${searchParams.toString()}`,
-    { cache: "no-store" }
-  );
-  if (!res.ok) throw new Error("コンバージョンの取得に失敗しました");
-  return res.json() as Promise<{
-    conversions: Array<{
-      id: string;
-      partnerId: string;
-      amount: number;
-      status: string;
-      approvedAt: string | null;
-      payableAt: string | null;
-      createdAt: string;
-      partner: { id: string; name: string; code: string };
-    }>;
-    pagination: { page: number; limit: number; total: number; pages: number };
-  }>;
+  const [conversions, total] = await Promise.all([
+    prisma.affiliateConversion.findMany({
+      where,
+      include: {
+        partner: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
+    prisma.affiliateConversion.count({ where }),
+  ]);
+
+  return {
+    conversions,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+  };
 }
 
 export async function approveConversion(
@@ -367,14 +371,33 @@ export async function processPayoutById(
   const payout = await prisma.affiliatePayout.findFirst({
     where: { id: payoutId, tenantId: user.tenantId },
     include: {
-      partner: { select: { name: true, email: true, notifyPayout: true } },
+      partner: {
+        select: {
+          name: true,
+          email: true,
+          notifyPayout: true,
+          bankAccountInfo: true,
+        },
+      },
     },
   });
   if (!payout) return { success: false, error: "支払いが見つかりません" };
 
+  if (!isBankAccountComplete(payout.partner.bankAccountInfo)) {
+    return {
+      success: false,
+      error: "パートナーの口座情報が未登録または不完全です",
+    };
+  }
+
   await prisma.affiliatePayout.update({
     where: { id: payoutId },
-    data: { status: "COMPLETED", paidAt: new Date(), updatedAt: new Date() },
+    data: {
+      status: "COMPLETED",
+      paidAt: new Date(),
+      updatedAt: new Date(),
+      paymentDetails: payout.partner.bankAccountInfo as object,
+    },
   });
 
   if (payout.partner.notifyPayout && process.env.RESEND_API_KEY) {
@@ -417,12 +440,18 @@ export async function processBulkPayouts(): Promise<{
     const minimumPayout = partner.minimumPayoutAmount || 5000;
     if (totalAmount < minimumPayout) { skipped++; continue; }
 
+    if (!isBankAccountComplete(partner.bankAccountInfo)) {
+      skipped++;
+      continue;
+    }
+
     await prisma.affiliatePayout.create({
       data: {
         tenantId,
         partnerId,
         amount: totalAmount,
         paymentMethod: "BANK_TRANSFER",
+        paymentDetails: partner.bankAccountInfo as object,
         status: "PENDING",
         updatedAt: new Date(),
       },

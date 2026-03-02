@@ -526,6 +526,7 @@ model Partner {
   notifyPayout         Boolean               @default(true)
   bio                  String?
   websiteUrl           String?
+  bankAccountInfo      Json?
   commissions          AffiliateCommission[]
   affiliateConversions AffiliateConversion[]
   affiliateLinks       AffiliateLink[]

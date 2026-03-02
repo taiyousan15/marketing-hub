@@ -347,4 +347,8 @@ export interface SectionBuilderSection {
   referenceImageBase64: string | null;
   referenceImageName: string | null;
   status: 'pending' | 'editing' | 'generating' | 'done';
+  /** APIが実際に使用した画像生成プロンプト */
+  usedPrompt?: string;
+  /** 画像生成に使用したプロバイダー */
+  provider?: 'nano-banana-2' | 'gems' | 'imagen4' | 'gemini-flash';
 }

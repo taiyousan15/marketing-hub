@@ -12,8 +12,11 @@ import { buildSectionImageConcept } from '@/components/lp-builder/modes/section-
  * 2. Gemini Flash: Gemが使えない場合のフォールバック（同様の変換を直接実行）
  * 3. buildSectionImageConcept + buildStylePrompt: どちらも失敗した場合の基本プロンプト
  *
- * 画像生成フロー（3段階フォールバック）:
- * 1. GemsAPI（NanaBanana2）→ 2. Imagen 4 Fast → 3. Gemini Flash Image
+ * 画像生成フロー（4段階フォールバック）:
+ * 1. Nano Banana 2 (gemini-3.1-flash-image-preview) — 最高品質、直接 Gemini API
+ * 2. Imagen 4 Fast (imagen-4.0-fast-generate-001) — 高速・高品質
+ * 3. GemsAPI（ローカル Gem サーバー稼働時のみ）
+ * 4. Gemini Flash Image (gemini-2.0-flash-exp-image-generation)
  *
  * NOTE: customPrompt は追加キーワードとして扱い、生の画像プロンプトとして使用しない。
  * Gem または Gemini が入力コンテンツを英語の画像概念に変換するので、
@@ -24,7 +27,7 @@ const GEMS_API_URL = process.env.GEMS_API_URL || '';
 const GEMS_API_TOKEN = process.env.GEMS_API_TOKEN || '';
 const GEMS_IMAGE_PROMPTER = 'taiyo-lp-image-prompter';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
-const IMAGE_TIMEOUT_MS = 30_000;
+const IMAGE_TIMEOUT_MS = 60_000; // 60秒（Nano Banana 2 / Imagen 4 は高解像度で時間がかかる）
 
 const requestSchema = z.object({
   /** セクション種別 */
@@ -37,8 +40,12 @@ const requestSchema = z.object({
   designStyleId: z.string().max(5).optional(),
   /** 業界キーワード */
   industry: z.string().max(200).optional(),
-  /** アスペクト比 */
-  aspectRatio: z.enum(['16:9', '1:1']).default('16:9'),
+  /**
+   * アスペクト比
+   * UTAGE LP Builder 推奨: 横幅 1000〜1200px → 16:9 横型がデフォルト
+   * 選択肢: 16:9（約1200×675px）/ 4:3（約1200×900px）/ 1:1（約1024×1024px）/ 9:16（約675×1200px）
+   */
+  aspectRatio: z.enum(['16:9', '4:3', '1:1', '9:16']).default('16:9'),
   /** 参照画像 (base64 data URL) — スタイルの参考として使用 */
   referenceImageBase64: z.string().optional().nullable(),
   /**
@@ -47,6 +54,12 @@ const requestSchema = z.object({
    * プロンプト強化のヒントとして使用し、そのまま画像生成APIには渡さない。
    */
   customPrompt: z.string().max(1000).optional(),
+  /**
+   * ダイレクトプロンプト（最大10,000文字）
+   * 設定されている場合、Gem/Gemini によるプロンプト強化をスキップして
+   * このプロンプトをそのまま画像生成に使用する。
+   */
+  directPrompt: z.string().max(10000).optional(),
 });
 
 type RequestBody = z.infer<typeof requestSchema>;
@@ -177,23 +190,32 @@ async function enrichPromptViaGemini(
 
   const sectionLabel = SECTION_TYPE_LABELS[sectionType] ?? sectionType;
 
-  const instruction = `You are an expert AI image prompt engineer for Japanese marketing landing pages.
-Convert the following LP section information into a professional English image generation prompt.
+  const instruction = `You are an expert LP Designer Pro image prompt engineer specializing in high-converting Japanese marketing landing pages (UTAGE LP Builder compatible).
+Transform the following LP section information into a detailed English image generation prompt that RENDERS Japanese text accurately inside the image.
 
-REQUIREMENTS:
-- English only
-- NO text, NO words, NO letters, NO typography should appear IN the generated image
-- Professional, modern, clean visual suitable for a marketing landing page
-- Focus on visual composition, mood, lighting, colors — not literal text content
-- The image should represent the CONCEPT abstractly
+LP DESIGNER PRO REQUIREMENTS:
+- Image format: 9:16 vertical portrait (1400×2506px), smartphone-optimized
+- Center safe zone: 750-900px wide in the center of the image
+- RENDER JAPANESE TEXT ACCURATELY IN THE IMAGE — text must be legible and correctly written
+- Follow Type A-H template structure for this section type
+- Professional marketing quality: premium design, high-converting layout
+- Text hierarchy: large bold headline → medium sub-headline → body text
+- Mobile-readable font sizes: headline at least 60px equivalent
+
+TEXT RENDERING RULES:
+- Extract the key Japanese text from the content and render it accurately in the image
+- Headline text: bold, large, high contrast (white on dark or dark on light)
+- Sub-text: medium weight, properly sized
+- DO NOT omit or alter the Japanese text — render it exactly as provided
+- If content has lists, render them as styled bullet points or cards in the image
 
 SECTION TYPE: ${sectionLabel}
-JAPANESE CONTENT: ${content || '(not provided)'}
-${industry ? `INDUSTRY: ${industry}` : ''}
+JAPANESE CONTENT TO RENDER IN IMAGE: ${content || '(auto-generate appropriate placeholder Japanese text for this section type)'}
+${industry ? `INDUSTRY CONTEXT: ${industry}` : ''}
 ${customHint ? `ADDITIONAL VISUAL KEYWORDS: ${customHint}` : ''}
-STYLE: ${stylePrompt}
+DESIGN STYLE: ${stylePrompt}
 
-Return ONLY the final image prompt (1-3 sentences, English), nothing else.`;
+OUTPUT FORMAT: Return ONLY the final image prompt (3-5 sentences in English). Describe composition, text placement, visual elements, colors, and typography. No explanations, no labels, just the prompt.`;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
@@ -239,12 +261,52 @@ function buildBasePrompt(body: RequestBody): string {
 // ------------------------------------------------
 
 /**
+ * Nano Banana 2 / Gemini Flash Image Preview（最高品質・直接 Gemini API）
+ * Google Flow の内部モデルと同等: gemini-3.1-flash-image-preview
+ */
+async function generateViaNanaBanana2(
+  prompt: string,
+): Promise<string | null> {
+  if (!GEMINI_API_KEY) return null;
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      }),
+      signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      console.debug('[SectionImage] Nano Banana 2 HTTP error:', res.status);
+      return null;
+    }
+
+    const data = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = parts.find(
+      (p: Record<string, unknown>) => 'inlineData' in p,
+    ) as Record<string, { mimeType: string; data: string }> | undefined;
+
+    if (!imagePart) return null;
+    const { mimeType, data: base64 } = imagePart.inlineData;
+    return `data:${mimeType};base64,${base64}`;
+  } catch (err) {
+    console.debug('[SectionImage] Nano Banana 2 failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+/**
  * GemsAPI /api/gems/generate-image（NanaBanana2 = Gemini + Imagen）
  * 参照画像がある場合はリクエストボディに含める
  */
 async function generateViaGemsAPI(
   prompt: string,
-  aspectRatio: '16:9' | '1:1',
+  aspectRatio: '16:9' | '4:3' | '1:1' | '9:16',
   referenceImageBase64?: string | null,
 ): Promise<string | null> {
   if (!GEMS_API_URL) return null;
@@ -281,7 +343,7 @@ async function generateViaGemsAPI(
  */
 async function generateViaImagen4Fast(
   prompt: string,
-  aspectRatio: '16:9' | '1:1',
+  aspectRatio: '16:9' | '4:3' | '1:1' | '9:16',
 ): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
 
@@ -356,62 +418,72 @@ export async function POST(request: NextRequest) {
     const designStyle = getDesignStyle(styleId);
     const stylePrompt = buildStylePrompt(designStyle);
 
-    // ---- プロンプト強化（3段階） ----
-    // customPrompt は「追加キーワード」として各ステップのヒントに渡す。
-    // 日本語指示文が来ても Gem/Gemini が適切に英語画像プロンプトへ変換する。
+    // ---- プロンプト強化（3段階 or ダイレクト） ----
 
-    // Step 1: taiyo-lp-image-prompter Gem
-    let imagePrompt =
-      await enrichPromptViaGems(
-        body.sectionType,
-        body.content,
-        stylePrompt,
-        body.industry,
-        body.customPrompt,
-      );
+    let imagePrompt: string;
 
-    // Step 2: Gemini Flash でのプロンプト生成
-    if (!imagePrompt) {
-      imagePrompt = await enrichPromptViaGemini(
-        body.sectionType,
-        body.content,
-        stylePrompt,
-        body.industry,
-        body.customPrompt,
-      );
+    if (body.directPrompt && body.directPrompt.trim().length > 0) {
+      // ダイレクトプロンプトが指定されている場合はそのまま使用（強化スキップ）
+      imagePrompt = body.directPrompt.trim();
+    } else {
+      // customPrompt は「追加キーワード」として各ステップのヒントに渡す。
+      // 日本語指示文が来ても Gem/Gemini が適切に英語画像プロンプトへ変換する。
+
+      // Step 1: taiyo-lp-image-prompter Gem
+      imagePrompt =
+        await enrichPromptViaGems(
+          body.sectionType,
+          body.content,
+          stylePrompt,
+          body.industry,
+          body.customPrompt,
+        ) ?? '';
+
+      // Step 2: Gemini Flash でのプロンプト生成
+      if (!imagePrompt) {
+        imagePrompt = await enrichPromptViaGemini(
+          body.sectionType,
+          body.content,
+          stylePrompt,
+          body.industry,
+          body.customPrompt,
+        ) ?? '';
+      }
+
+      // Step 3: 基本プロンプト（静的構成）
+      if (!imagePrompt) {
+        imagePrompt = buildBasePrompt(body);
+      }
     }
 
-    // Step 3: 基本プロンプト（静的構成）
-    if (!imagePrompt) {
-      imagePrompt = buildBasePrompt(body);
+    // ---- 画像生成（4段階フォールバック） ----
+
+    // 1. Nano Banana 2 (gemini-3.1-flash-image-preview) — 最高品質
+    const nanaBananaUrl = await generateViaNanaBanana2(imagePrompt);
+    if (nanaBananaUrl) {
+      return NextResponse.json({ imageUrl: nanaBananaUrl, provider: 'nano-banana-2', usedPrompt: imagePrompt });
     }
 
-    // ---- 画像生成（3段階フォールバック） ----
-
-    // 1. GemsAPI (NanaBanana2) — 参照画像があれば含める
-    const gemsUrl = await generateViaGemsAPI(
-      imagePrompt,
-      body.aspectRatio,
-      body.referenceImageBase64,
-    );
-    if (gemsUrl) {
-      return NextResponse.json({ imageUrl: gemsUrl, provider: 'gems' });
-    }
-
-    // 2. Imagen 4 Fast (direct)
+    // 2. Imagen 4 Fast (direct) — 高速・高品質
     const imagen4Url = await generateViaImagen4Fast(imagePrompt, body.aspectRatio);
     if (imagen4Url) {
-      return NextResponse.json({ imageUrl: imagen4Url, provider: 'imagen4' });
+      return NextResponse.json({ imageUrl: imagen4Url, provider: 'imagen4', usedPrompt: imagePrompt });
     }
 
-    // 3. Gemini Flash Image (direct)
+    // 3. GemsAPI（ローカル Gem サーバー稼働時のみ）
+    const gemsUrl = await generateViaGemsAPI(imagePrompt, body.aspectRatio, body.referenceImageBase64);
+    if (gemsUrl) {
+      return NextResponse.json({ imageUrl: gemsUrl, provider: 'gems', usedPrompt: imagePrompt });
+    }
+
+    // 4. Gemini Flash Image (direct) — 最終フォールバック
     const flashUrl = await generateViaGeminiFlash(imagePrompt);
     if (flashUrl) {
-      return NextResponse.json({ imageUrl: flashUrl, provider: 'gemini-flash' });
+      return NextResponse.json({ imageUrl: flashUrl, provider: 'gemini-flash', usedPrompt: imagePrompt });
     }
 
     return NextResponse.json(
-      { error: '画像生成に失敗しました。GEMINI_API_KEY または GEMS_API_URL を設定してください。' },
+      { error: '画像生成に失敗しました。GEMINI_API_KEY を確認してください。' },
       { status: 503 },
     );
   } catch (error) {

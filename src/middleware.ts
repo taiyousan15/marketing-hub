@@ -18,6 +18,8 @@ const isPublicRoute = createRouteMatcher([
   "/w/(.*)",           // ウェビナーページ
   "/affiliate/join(.*)", // パートナー公開募集ページ
   "/api/affiliate/join(.*)", // パートナー公開登録API
+  "/api/partner/(.*)",      // パートナーポータルAPI（独自認証）
+  "/partner/(.*)",          // パートナーポータル（独自認証）
   "/unsubscribe/(.*)",
 ]);
 

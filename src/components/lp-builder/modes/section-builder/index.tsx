@@ -11,12 +11,13 @@
 
 import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, ExternalLink } from 'lucide-react';
+import { Download, ExternalLink, MonitorPlay } from 'lucide-react';
 import { toast } from 'sonner';
 import { SectionBuilderSection } from '../../types';
 import { SetupScreen, SetupConfig } from './setup-screen';
 import { SectionList } from './section-list';
 import { SectionEditor } from './section-editor';
+import { LPFullPreview } from './lp-full-preview';
 import { createSectionsFromTemplate } from './section-templates';
 
 type Phase = 'setup' | 'editing' | 'done';
@@ -26,6 +27,7 @@ export function SectionBuilderMode() {
   const [config, setConfig] = useState<SetupConfig | null>(null);
   const [sections, setSections] = useState<SectionBuilderSection[]>([]);
   const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
+  const [showFullPreview, setShowFullPreview] = useState(false);
 
   // ------------------------------------------------
   // セットアップ完了
@@ -140,32 +142,47 @@ export function SectionBuilderMode() {
 
   if (!activeSection || !config) return null;
 
+  const generatedCount = sections.filter((s) => s.imageUrl).length;
+
   return (
-    <div className="flex h-full overflow-hidden">
-      {/* 左: セクションリスト */}
-      <div className="w-64 flex-shrink-0">
-        <SectionList
-          sections={sections}
-          activeSectionId={activeSectionId}
-          onSelectSection={setActiveSectionId}
-        />
+    <>
+      <div className="flex h-full overflow-hidden">
+        {/* 左: セクションリスト */}
+        <div className="w-64 flex-shrink-0">
+          <SectionList
+            sections={sections}
+            activeSectionId={activeSectionId}
+            onSelectSection={setActiveSectionId}
+            onShowFullPreview={() => setShowFullPreview(true)}
+            generatedCount={generatedCount}
+          />
+        </div>
+
+        {/* 右: セクションエディター */}
+        <div className="flex-1 overflow-hidden">
+          <SectionEditor
+            section={activeSection}
+            sectionIndex={activeIndex}
+            totalSections={sections.length}
+            designStyleId={config.designStyleId}
+            industry={config.industry}
+            onUpdateSection={handleUpdateSection}
+            onPrev={handlePrev}
+            onNext={handleNext}
+            onMarkDone={handleMarkDone}
+          />
+        </div>
       </div>
 
-      {/* 右: セクションエディター */}
-      <div className="flex-1 overflow-hidden">
-        <SectionEditor
-          section={activeSection}
-          sectionIndex={activeIndex}
-          totalSections={sections.length}
-          designStyleId={config.designStyleId}
-          industry={config.industry}
-          onUpdateSection={handleUpdateSection}
-          onPrev={handlePrev}
-          onNext={handleNext}
-          onMarkDone={handleMarkDone}
+      {/* LP全体プレビューパネル */}
+      {showFullPreview && (
+        <LPFullPreview
+          sections={sections}
+          onClose={() => setShowFullPreview(false)}
+          onExport={handleExport}
         />
-      </div>
-    </div>
+      )}
+    </>
   );
 }
 
