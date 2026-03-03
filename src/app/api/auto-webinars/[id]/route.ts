@@ -80,6 +80,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       fakeAttendeesMin,
       fakeAttendeesMax,
       simulatedChatEnabled,
+      userChatEnabled,
+      aiBotEnabled,
+      aiBotName,
+      aiBotContext,
       replayEnabled,
     } = parsed.data;
 
@@ -96,6 +100,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         ...(fakeAttendeesMin !== undefined ? { fakeAttendeesMin } : {}),
         ...(fakeAttendeesMax !== undefined ? { fakeAttendeesMax } : {}),
         ...(simulatedChatEnabled !== undefined ? { simulatedChatEnabled } : {}),
+        ...(userChatEnabled !== undefined ? { userChatEnabled } : {}),
+        ...(aiBotEnabled !== undefined ? { aiBotEnabled } : {}),
+        ...(aiBotName !== undefined ? { aiBotName } : {}),
+        ...(aiBotContext !== undefined ? { aiBotContext: aiBotContext ?? null } : {}),
         ...(replayEnabled !== undefined ? { replayEnabled } : {}),
       },
     });

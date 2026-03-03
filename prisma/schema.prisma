@@ -902,6 +902,10 @@ model AutomatedWebinar {
   videoDuration        Int
   status               WebinarStatus @default(DRAFT)
   simulatedChatEnabled Boolean       @default(false)
+  userChatEnabled      Boolean       @default(false)
+  aiBotEnabled         Boolean       @default(false)
+  aiBotName            String        @default("AIホスト")
+  aiBotContext         String?
   chatMessages         Json          @default("[]")
   timedOffers          Json          @default("[]")
   fakeAttendeesEnabled Boolean       @default(false)

@@ -249,7 +249,8 @@ export default function WebinarWatchPage({ params }: PageProps) {
         isEnded,
       }}
       chat={{
-        enabled: sessionData.webinar.simulatedChatEnabled,
+        enabled: sessionData.webinar.simulatedChatEnabled || sessionData.webinar.userChatEnabled,
+        userChatEnabled: sessionData.webinar.userChatEnabled,
         messages: sessionData.chatMessages.map(m => ({
           ...m,
           messageType: m.messageType as "COMMENT" | "QUESTION" | "REACTION" | "TESTIMONIAL",

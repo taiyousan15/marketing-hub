@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { detectVideoType } from "@/lib/auto-webinar/playback";
-import { Save, ArrowLeft, Video, Settings, Users, Gift } from "lucide-react";
+import { Save, ArrowLeft, Video, Settings, Users, Gift, Bot } from "lucide-react";
 
 interface AutoWebinarFormData {
   title: string;
@@ -39,6 +39,9 @@ interface AutoWebinarFormData {
   fakeAttendeesMax: number;
   simulatedChatEnabled: boolean;
   userChatEnabled: boolean;
+  aiBotEnabled: boolean;
+  aiBotName: string;
+  aiBotContext: string;
   replayEnabled: boolean;
   replayExpiresAfterHours: number | null;
 }
@@ -67,6 +70,9 @@ export function AutoWebinarForm({ initialData, mode }: AutoWebinarFormProps) {
     fakeAttendeesMax: initialData?.fakeAttendeesMax || 200,
     simulatedChatEnabled: initialData?.simulatedChatEnabled ?? true,
     userChatEnabled: initialData?.userChatEnabled ?? false,
+    aiBotEnabled: initialData?.aiBotEnabled ?? false,
+    aiBotName: initialData?.aiBotName ?? "AIホスト",
+    aiBotContext: initialData?.aiBotContext ?? "",
     replayEnabled: initialData?.replayEnabled ?? true,
     replayExpiresAfterHours: initialData?.replayExpiresAfterHours || 48,
   });
@@ -158,7 +164,7 @@ export function AutoWebinarForm({ initialData, mode }: AutoWebinarFormProps) {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="basic" className="flex items-center gap-2">
             <Video className="w-4 h-4" />
             基本設定
@@ -170,6 +176,10 @@ export function AutoWebinarForm({ initialData, mode }: AutoWebinarFormProps) {
           <TabsTrigger value="simulation" className="flex items-center gap-2">
             <Users className="w-4 h-4" />
             シミュレーション
+          </TabsTrigger>
+          <TabsTrigger value="aibot" className="flex items-center gap-2">
+            <Bot className="w-4 h-4" />
+            AIbot
           </TabsTrigger>
           <TabsTrigger value="replay" className="flex items-center gap-2">
             <Gift className="w-4 h-4" />
@@ -423,7 +433,7 @@ export function AutoWebinarForm({ initialData, mode }: AutoWebinarFormProps) {
                 <div>
                   <Label>ユーザーチャット</Label>
                   <p className="text-sm text-muted-foreground">
-                    視聴者がチャットを送信できます（準備中）
+                    視聴者がチャットコメントを送信できます
                   </p>
                 </div>
                 <Switch
@@ -431,9 +441,81 @@ export function AutoWebinarForm({ initialData, mode }: AutoWebinarFormProps) {
                   onCheckedChange={(checked) =>
                     setFormData({ ...formData, userChatEnabled: checked })
                   }
-                  disabled
                 />
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="aibot" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="w-5 h-5" />
+                AIチャットbot設定
+              </CardTitle>
+              <CardDescription>
+                視聴者のコメントにAIが自動で返答します
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label>AIbot有効化</Label>
+                  <p className="text-sm text-muted-foreground">
+                    視聴者コメントにAIが講師として返答します
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.aiBotEnabled}
+                  onCheckedChange={(checked) =>
+                    setFormData({ ...formData, aiBotEnabled: checked })
+                  }
+                />
+              </div>
+
+              {formData.aiBotEnabled && (
+                <div className="space-y-4 pl-4 border-l-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="aiBotName">bot名前（講師名）</Label>
+                    <Input
+                      id="aiBotName"
+                      value={formData.aiBotName}
+                      onChange={(e) =>
+                        setFormData({ ...formData, aiBotName: e.target.value })
+                      }
+                      placeholder="AIホスト"
+                      maxLength={50}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      チャットに表示される送信者名
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="aiBotContext">botのコンテキスト・ペルソナ</Label>
+                    <Textarea
+                      id="aiBotContext"
+                      value={formData.aiBotContext}
+                      onChange={(e) =>
+                        setFormData({ ...formData, aiBotContext: e.target.value })
+                      }
+                      placeholder="例: このセミナーはマーケティング初心者向けです。講師は田中太郎（マーケター歴15年）。視聴者の悩みに共感し、行動を促す返答をしてください。"
+                      rows={5}
+                      maxLength={2000}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      AIがどのような講師として振る舞うかを記述（最大2000文字）
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {!formData.userChatEnabled && formData.aiBotEnabled && (
+                <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                  ⚠ AIbotを有効にするには「シミュレーション」タブで「ユーザーチャット」もONにしてください
+                </p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

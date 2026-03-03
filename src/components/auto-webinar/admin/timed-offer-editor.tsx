@@ -21,7 +21,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Gift, Clock, ExternalLink, Edit } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Plus, Trash2, Gift, Clock, ExternalLink, Edit, MessageSquare, Bell, Link } from "lucide-react";
+
+type ActionType =
+  | "EXTERNAL_LINK"
+  | "LINE_FRIEND"
+  | "SURVEY"
+  | "ANNOUNCEMENT"
+  | "EMAIL_FORM"
+  | "STRIPE_CHECKOUT"
+  | "DOWNLOAD"
+  | "CUSTOM";
 
 interface TimedOffer {
   id: string;
@@ -30,10 +47,13 @@ interface TimedOffer {
   title: string;
   description: string | null;
   buttonText: string;
-  buttonUrl: string;
+  buttonUrl: string | null;
+  actionType: ActionType;
   countdownEnabled: boolean;
   countdownSeconds: number | null;
   limitedSeats: number | null;
+  liffId: string | null;
+  surveyUrl: string | null;
   clickCount: number;
   conversionCount: number;
 }
@@ -58,9 +78,12 @@ export function TimedOfferEditor({
     description: "",
     buttonText: "今すぐ申し込む",
     buttonUrl: "",
+    actionType: "EXTERNAL_LINK" as ActionType,
     countdownEnabled: false,
     countdownSeconds: null as number | null,
     limitedSeats: null as number | null,
+    liffId: "",
+    surveyUrl: "",
   });
 
   useEffect(() => {
@@ -87,9 +110,12 @@ export function TimedOfferEditor({
       description: "",
       buttonText: "今すぐ申し込む",
       buttonUrl: "",
+      actionType: "EXTERNAL_LINK",
       countdownEnabled: false,
       countdownSeconds: null,
       limitedSeats: null,
+      liffId: "",
+      surveyUrl: "",
     });
     setEditingOffer(null);
   };
@@ -124,10 +150,13 @@ export function TimedOfferEditor({
       title: offer.title,
       description: offer.description || "",
       buttonText: offer.buttonText,
-      buttonUrl: offer.buttonUrl,
+      buttonUrl: offer.buttonUrl || "",
+      actionType: offer.actionType,
       countdownEnabled: offer.countdownEnabled,
       countdownSeconds: offer.countdownSeconds,
       limitedSeats: offer.limitedSeats,
+      liffId: offer.liffId || "",
+      surveyUrl: offer.surveyUrl || "",
     });
     setEditingOffer(offer);
     setShowAddDialog(true);
@@ -233,13 +262,45 @@ export function TimedOfferEditor({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>オファータイトル</Label>
+                  <Label>ポップアップタイプ</Label>
+                  <Select
+                    value={formData.actionType}
+                    onValueChange={(v) =>
+                      setFormData({ ...formData, actionType: v as ActionType })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="EXTERNAL_LINK">外部URLへ誘導</SelectItem>
+                      <SelectItem value="LINE_FRIEND">LINE友達追加</SelectItem>
+                      <SelectItem value="SURVEY">アンケート</SelectItem>
+                      <SelectItem value="ANNOUNCEMENT">お知らせ・案内</SelectItem>
+                      <SelectItem value="EMAIL_FORM">メール登録フォーム</SelectItem>
+                      <SelectItem value="STRIPE_CHECKOUT">決済</SelectItem>
+                      <SelectItem value="DOWNLOAD">ダウンロード</SelectItem>
+                      <SelectItem value="CUSTOM">カスタム</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>タイトル</Label>
                   <Input
                     value={formData.title}
                     onChange={(e) =>
                       setFormData({ ...formData, title: e.target.value })
                     }
-                    placeholder="今だけの特別オファー"
+                    placeholder={
+                      formData.actionType === "ANNOUNCEMENT"
+                        ? "重要なお知らせ"
+                        : formData.actionType === "SURVEY"
+                        ? "アンケートにご協力ください"
+                        : formData.actionType === "LINE_FRIEND"
+                        ? "LINE友達追加でプレゼント"
+                        : "今だけの特別オファー"
+                    }
                   />
                 </div>
 
@@ -250,32 +311,76 @@ export function TimedOfferEditor({
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="オファーの詳細を入力"
+                    placeholder="詳細を入力"
                     rows={2}
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* LINE友達追加 */}
+                {formData.actionType === "LINE_FRIEND" && (
                   <div className="space-y-2">
-                    <Label>ボタンテキスト</Label>
+                    <Label>LINE LIFF ID</Label>
                     <Input
-                      value={formData.buttonText}
+                      value={formData.liffId}
                       onChange={(e) =>
-                        setFormData({ ...formData, buttonText: e.target.value })
+                        setFormData({ ...formData, liffId: e.target.value })
                       }
+                      placeholder="1234567890-xxxxxxxx"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      LINE Developers でLIFFアプリを作成して取得してください
+                    </p>
+                  </div>
+                )}
+
+                {/* アンケート */}
+                {formData.actionType === "SURVEY" && (
+                  <div className="space-y-2">
+                    <Label>アンケートURL</Label>
+                    <Input
+                      value={formData.surveyUrl}
+                      onChange={(e) =>
+                        setFormData({ ...formData, surveyUrl: e.target.value })
+                      }
+                      placeholder="https://forms.google.com/..."
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>ボタンURL</Label>
-                    <Input
-                      value={formData.buttonUrl}
-                      onChange={(e) =>
-                        setFormData({ ...formData, buttonUrl: e.target.value })
-                      }
-                      placeholder="https://..."
-                    />
+                )}
+
+                {/* ANNOUNCEMENT以外はボタンを表示 */}
+                {formData.actionType !== "ANNOUNCEMENT" && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>ボタンテキスト</Label>
+                      <Input
+                        value={formData.buttonText}
+                        onChange={(e) =>
+                          setFormData({ ...formData, buttonText: e.target.value })
+                        }
+                        placeholder={
+                          formData.actionType === "LINE_FRIEND"
+                            ? "友達追加する"
+                            : formData.actionType === "SURVEY"
+                            ? "アンケートに答える"
+                            : "今すぐ申し込む"
+                        }
+                      />
+                    </div>
+                    {formData.actionType !== "LINE_FRIEND" &&
+                      formData.actionType !== "SURVEY" && (
+                        <div className="space-y-2">
+                          <Label>ボタンURL</Label>
+                          <Input
+                            value={formData.buttonUrl}
+                            onChange={(e) =>
+                              setFormData({ ...formData, buttonUrl: e.target.value })
+                            }
+                            placeholder="https://..."
+                          />
+                        </div>
+                      )}
                   </div>
-                </div>
+                )}
 
                 <div className="border-t pt-4 space-y-4">
                   <h4 className="font-medium">緊急性の演出</h4>
@@ -385,7 +490,7 @@ export function TimedOfferEditor({
                   )}
                   <div className="flex items-center gap-4 text-sm">
                     <a
-                      href={offer.buttonUrl}
+                      href={offer.buttonUrl ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center gap-1 text-primary hover:underline"

@@ -24,6 +24,8 @@ export const OfferActionTypeSchema = z.enum([
   "LINE_FRIEND",
   "STRIPE_CHECKOUT",
   "DOWNLOAD",
+  "SURVEY",
+  "ANNOUNCEMENT",
   "CUSTOM",
 ]);
 export const PopupPositionSchema = z.enum(["CENTER", "BOTTOM_RIGHT", "BOTTOM_LEFT"]);
@@ -103,6 +105,9 @@ export const CreateWebinarSchema = z.object({
     .default(200),
   simulatedChatEnabled: z.boolean().default(true),
   userChatEnabled: z.boolean().default(false),
+  aiBotEnabled: z.boolean().default(false),
+  aiBotName: z.string().max(50).default("AIホスト"),
+  aiBotContext: z.string().max(2000).optional().nullable(),
   replayEnabled: z.boolean().default(true),
   replayExpiresAfterHours: z
     .number()
@@ -239,7 +244,7 @@ export const CreateTimedOfferSchema = z.object({
     .min(1, "ボタンテキストは必須です")
     .max(50, "ボタンテキストは50文字以内で入力してください")
     .default("今すぐ申し込む"),
-  buttonUrl: z.string().url("有効なURLを入力してください"),
+  buttonUrl: z.string().url("有効なURLを入力してください").optional().nullable(),
   actionType: OfferActionTypeSchema.default("EXTERNAL_LINK"),
   countdownEnabled: z.boolean().default(false),
   countdownSeconds: z

@@ -15,13 +15,17 @@ interface TimedOffer {
   id: string;
   appearAtSeconds: number;
   hideAtSeconds: number | null;
+  popupPosition?: string;
   title: string;
   description: string | null;
   buttonText: string;
-  buttonUrl: string;
+  buttonUrl: string | null;
+  actionType?: "EXTERNAL_LINK" | "LINE_FRIEND" | "SURVEY" | "ANNOUNCEMENT" | "EMAIL_FORM" | "STRIPE_CHECKOUT" | "DOWNLOAD" | "CUSTOM";
   countdownEnabled: boolean;
   countdownSeconds: number | null;
   limitedSeats: number | null;
+  liffId?: string | null;
+  surveyUrl?: string | null;
 }
 
 interface WebinarRoomProps {
@@ -45,6 +49,7 @@ interface WebinarRoomProps {
   };
   chat: {
     enabled: boolean;
+    userChatEnabled: boolean;
     messages: ChatMessage[];
   };
   offers: TimedOffer[];
@@ -226,7 +231,7 @@ export function WebinarRoom({
                 webinarId={webinar.id}
                 messages={chatMessages}
                 currentPosition={currentPosition}
-                chatEnabled={chat.enabled}
+                chatEnabled={chat.userChatEnabled}
                 className="h-[calc(100vh-200px)]"
               />
             </div>

@@ -171,7 +171,8 @@ export default function WebinarReplayPage({ params }: PageProps) {
             isEnded: false,
           }}
           chat={{
-            enabled: replayData.webinar.simulatedChatEnabled,
+            enabled: replayData.webinar.simulatedChatEnabled || replayData.webinar.userChatEnabled,
+            userChatEnabled: false,  // リプレイ中は視聴者コメント不可
             messages: replayData.chatMessages,
           }}
           offers={replayData.timedOffers}
