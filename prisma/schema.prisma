@@ -914,8 +914,23 @@ model AutomatedWebinar {
   pageDescription      String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
+  viewerChatMessages   ViewerChatMessage[]
 
   @@index([tenantId])
+}
+
+model ViewerChatMessage {
+  id              String             @id @default(cuid())
+  autoWebinarId   String
+  senderName      String
+  content         String
+  appearAtSeconds Int
+  messageType     SimChatMessageType @default(COMMENT)
+  createdAt       DateTime           @default(now())
+  autoWebinar     AutomatedWebinar   @relation(fields: [autoWebinarId], references: [id], onDelete: Cascade)
+
+  @@index([autoWebinarId])
+  @@index([autoWebinarId, createdAt])
 }
 
 model SMSLog {

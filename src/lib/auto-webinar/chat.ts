@@ -4,7 +4,7 @@
 import type { SimChatMessageType } from '@prisma/client'
 
 /**
- * チャットメッセージ型
+ * チャットメッセージ型（シミュレート）
  */
 export interface ChatMessage {
   id: string
@@ -14,6 +14,65 @@ export interface ChatMessage {
   content: string
   messageType: SimChatMessageType
   order: number
+}
+
+/**
+ * 視聴者コメント型（実際に投稿されたもの）
+ */
+export interface ViewerChatMessage {
+  id: string
+  autoWebinarId: string
+  senderName: string
+  content: string
+  appearAtSeconds: number
+  messageType: SimChatMessageType
+  createdAt: string
+}
+
+/**
+ * 統合表示用メッセージ型
+ */
+export interface UnifiedMessage {
+  id: string
+  senderName: string
+  senderAvatar: string | null
+  content: string
+  messageType: SimChatMessageType
+  isViewer: boolean
+  appearAtSeconds: number
+  order: number
+}
+
+/**
+ * ViewerChatMessage を UnifiedMessage に変換
+ */
+export function viewerToUnified(msg: ViewerChatMessage, order = 999999): UnifiedMessage {
+  return {
+    id: msg.id,
+    senderName: msg.senderName,
+    senderAvatar: null,
+    content: msg.content,
+    messageType: msg.messageType,
+    isViewer: true,
+    appearAtSeconds: msg.appearAtSeconds,
+    order,
+  }
+}
+
+/**
+ * ChatMessage を UnifiedMessage に変換
+ */
+export function simToUnified(msg: ChatMessage): UnifiedMessage {
+  return {
+    id: msg.id,
+    senderName: msg.senderName,
+    senderAvatar: msg.senderAvatar,
+    content: msg.content,
+    messageType: msg.messageType,
+    isViewer: false,
+    appearAtSeconds: msg.appearAtSeconds,
+    order: msg.order,
+  }
 }
 
 /**

@@ -223,8 +223,10 @@ export function WebinarRoom({
           {chat.enabled && showChat && (
             <div className="w-80 shrink-0 hidden lg:block">
               <LiveChat
+                webinarId={webinar.id}
                 messages={chatMessages}
                 currentPosition={currentPosition}
+                chatEnabled={chat.enabled}
                 className="h-[calc(100vh-200px)]"
               />
             </div>
