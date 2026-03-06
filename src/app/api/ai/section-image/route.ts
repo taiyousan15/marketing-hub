@@ -263,19 +263,33 @@ function buildBasePrompt(body: RequestBody): string {
 /**
  * Nano Banana 2 / Gemini Flash Image Preview（最高品質・直接 Gemini API）
  * Google Flow の内部モデルと同等: gemini-3.1-flash-image-preview
+ * 参照画像がある場合はマルチモーダル入力として渡す
  */
 async function generateViaNanaBanana2(
   prompt: string,
+  referenceImageBase64?: string | null,
 ): Promise<string | null> {
   if (!GEMINI_API_KEY) return null;
 
   try {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-image-preview:generateContent?key=${GEMINI_API_KEY}`;
+
+    // 参照画像がある場合はマルチモーダル入力（画像 + テキスト）
+    type Part = { text: string } | { inlineData: { mimeType: string; data: string } };
+    const parts: Part[] = [];
+    if (referenceImageBase64) {
+      const match = referenceImageBase64.match(/^data:([^;]+);base64,(.+)$/);
+      if (match) {
+        parts.push({ inlineData: { mimeType: match[1], data: match[2] } });
+      }
+    }
+    parts.push({ text: prompt });
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
       }),
       signal: AbortSignal.timeout(IMAGE_TIMEOUT_MS),
@@ -286,8 +300,8 @@ async function generateViaNanaBanana2(
     }
 
     const data = await res.json();
-    const parts = data.candidates?.[0]?.content?.parts ?? [];
-    const imagePart = parts.find(
+    const responseParts = data.candidates?.[0]?.content?.parts ?? [];
+    const imagePart = responseParts.find(
       (p: Record<string, unknown>) => 'inlineData' in p,
     ) as Record<string, { mimeType: string; data: string }> | undefined;
 
@@ -459,7 +473,7 @@ export async function POST(request: NextRequest) {
     // ---- 画像生成（4段階フォールバック） ----
 
     // 1. Nano Banana 2 (gemini-3.1-flash-image-preview) — 最高品質
-    const nanaBananaUrl = await generateViaNanaBanana2(imagePrompt);
+    const nanaBananaUrl = await generateViaNanaBanana2(imagePrompt, body.referenceImageBase64);
     if (nanaBananaUrl) {
       return NextResponse.json({ imageUrl: nanaBananaUrl, provider: 'nano-banana-2', usedPrompt: imagePrompt });
     }
