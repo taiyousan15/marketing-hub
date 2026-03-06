@@ -30,5 +30,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "marketing-hub", "taisun_agent", "src/performance"]
+  "exclude": ["node_modules", "marketing-hub", "taisun_agent", "src/performance", "interactive-video-platform", "voice-automation", "research", "docs", "logs"]
 }
