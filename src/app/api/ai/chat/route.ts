@@ -67,16 +67,29 @@ export async function POST(request: NextRequest) {
     console.error("AI chat error:", error);
 
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const isNotConfigured =
+      errorMessage.includes("not configured") ||
+      errorMessage.includes("API key") ||
+      errorMessage.includes("GEMINI_API_KEY") ||
+      errorMessage.includes("ANTHROPIC_API_KEY") ||
+      errorMessage.includes("OPENAI_API_KEY");
     const isConnectionError =
       errorMessage.includes("ECONNREFUSED") ||
       errorMessage.includes("Connection failed") ||
       errorMessage.includes("API error");
 
+    if (isNotConfigured) {
+      return NextResponse.json(
+        { error: "AIサービスが設定されていません。管理者にお問い合わせください。" },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: isConnectionError
-          ? "AIサービスに接続できません。Ollamaが起動しているか確認してください。"
-          : errorMessage,
+          ? "AIサービスに接続できません。しばらくしてからお試しください。"
+          : "AIサービスでエラーが発生しました。",
       },
       { status: isConnectionError ? 503 : 500 }
     );

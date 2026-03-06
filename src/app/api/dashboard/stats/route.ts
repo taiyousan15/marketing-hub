@@ -176,7 +176,7 @@ export async function GET(request: NextRequest) {
       dailyStats,
     });
   } catch (error) {
-    console.error("Dashboard stats error:", error);
+    console.error("Dashboard stats error:", error instanceof Error ? error.message : error);
     return NextResponse.json(
       { error: "Failed to fetch dashboard stats" },
       { status: 500 }

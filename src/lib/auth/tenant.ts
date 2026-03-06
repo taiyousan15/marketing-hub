@@ -114,9 +114,38 @@ export async function getCurrentUser(): Promise<{
     });
 
     if (!user) {
-      // 本番: DBに未登録 → null
       // 開発: DBに未登録 → 開発用テナントにフォールバック
-      return isProduction ? null : getOrCreateDevTenant();
+      if (!isProduction) return getOrCreateDevTenant();
+
+      // 本番: Clerkからユーザー情報を取得してテナントを自動作成
+      try {
+        const { currentUser } = await import("@clerk/nextjs/server");
+        const clerkUser = await currentUser();
+        if (!clerkUser) return null;
+
+        const email =
+          clerkUser.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`;
+        const name =
+          clerkUser.fullName ||
+          clerkUser.firstName ||
+          email.split("@")[0] ||
+          "ユーザー";
+
+        const { user: newUser, tenant: newTenant } = await createTenantForUser(
+          userId,
+          email,
+          name
+        );
+        return {
+          userId: newUser.id,
+          tenantId: newUser.tenantId,
+          user: newUser,
+          tenant: newTenant,
+        };
+      } catch (createError) {
+        console.error("Auto-create tenant failed:", createError instanceof Error ? createError.message : createError);
+        return null;
+      }
     }
 
     return {

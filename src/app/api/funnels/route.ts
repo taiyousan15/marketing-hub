@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
 
     const funnels = await prisma.funnel.findMany({
       where: {
+        tenantId: currentUser.tenantId,
         ...(type ? { type: type as any } : {}),
         ...(status ? { status: status as any } : {}),
       },
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ funnels });
   } catch (error) {
-    console.error("Failed to fetch funnels:", error);
+    console.error("Failed to fetch funnels:", error instanceof Error ? error.message : error);
     return NextResponse.json(
       { error: "Failed to fetch funnels" },
       { status: 500 }

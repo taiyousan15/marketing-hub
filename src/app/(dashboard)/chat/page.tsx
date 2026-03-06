@@ -169,11 +169,14 @@ export default function ChatPage() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error("AI response failed");
-      }
-
       const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 503) {
+          return data.error || "AIサービスが現在利用できません。管理者にお問い合わせください。";
+        }
+        return "申し訳ございません。AIの応答に失敗しました。しばらくしてからお試しください。";
+      }
 
       if (data.response?.shouldHandoff) {
         return `[担当者へエスカレーション] ${data.response.content}`;
@@ -182,7 +185,7 @@ export default function ChatPage() {
       return data.response?.content || "申し訳ございません。応答の生成に失敗しました。";
     } catch (error) {
       console.error("AI assist error:", error);
-      return "申し訳ございません。AIサービスに接続できませんでした。しばらくしてからお試しください。";
+      return "申し訳ございません。通信エラーが発生しました。しばらくしてからお試しください。";
     }
   }, []);
 
