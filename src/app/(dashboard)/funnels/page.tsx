@@ -257,7 +257,7 @@ export default function FunnelsPage() {
                               </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem asChild>
-                              <Link href={`/funnels/${funnel.id}/builder`}>
+                              <Link href={`/funnels/${funnel.id}`}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 ビルダー
                               </Link>

@@ -27,6 +27,9 @@ import {
   ScanText,
   KanbanSquare,
   FileText,
+  Megaphone,
+  TrendingUp,
+  Video,
 } from "lucide-react";
 
 import {
@@ -99,9 +102,24 @@ const menuItems = [
     icon: Calendar,
   },
   {
+    title: "動画管理",
+    url: "/videos",
+    icon: Video,
+  },
+  {
     title: "分析",
     url: "/analytics",
     icon: BarChart3,
+  },
+  {
+    title: "Meta広告",
+    url: "/meta-ads",
+    icon: Megaphone,
+  },
+  {
+    title: "LINEプロジェクト",
+    url: "/line-projects",
+    icon: TrendingUp,
   },
   {
     title: "AI OCR",
@@ -165,6 +183,11 @@ const settingsItems = [
     title: "決済設定",
     url: "/settings/payments",
     icon: CreditCard,
+  },
+  {
+    title: "Meta広告設定",
+    url: "/settings/meta-ads",
+    icon: Megaphone,
   },
 ];
 
