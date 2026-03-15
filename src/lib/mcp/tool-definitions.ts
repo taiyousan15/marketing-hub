@@ -982,4 +982,75 @@ export const TOOLS: MCPTool[] = [
       required: ["funnelId", "templateId", "pageName", "slug"],
     },
   },
+  {
+    name: "livestream_list",
+    description: "ライブ配信の一覧を取得する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenantId: { type: "string", description: "テナントID" },
+        status: { type: "string", description: "ステータスでフィルタ (SCHEDULED/LIVE/COMPLETED/CANCELED)" },
+        limit: { type: "number", description: "取得件数 (デフォルト20)" },
+      },
+      required: ["tenantId"],
+    },
+  },
+  {
+    name: "livestream_create",
+    description: "新しいライブ配信をスケジュールする",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenantId: { type: "string", description: "テナントID" },
+        name: { type: "string", description: "ライブ配信名" },
+        description: { type: "string", description: "説明" },
+        startAt: { type: "string", description: "開始日時 (ISO 8601形式)" },
+        eventId: { type: "string", description: "関連イベントID" },
+        chatEnabled: { type: "boolean", description: "チャット有効 (デフォルトtrue)" },
+        recordingEnabled: { type: "boolean", description: "録画有効 (デフォルトfalse)" },
+      },
+      required: ["tenantId", "name", "startAt"],
+    },
+  },
+  {
+    name: "livestream_update_status",
+    description: "ライブ配信のステータスを更新する（開始/終了/キャンセル）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenantId: { type: "string", description: "テナントID" },
+        livestreamId: { type: "string", description: "ライブ配信ID" },
+        status: { type: "string", description: "新しいステータス (SCHEDULED/LIVE/COMPLETED/CANCELED)" },
+      },
+      required: ["tenantId", "livestreamId", "status"],
+    },
+  },
+  {
+    name: "livestream_chat_list",
+    description: "ライブ配信のチャットメッセージ一覧を取得する",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenantId: { type: "string", description: "テナントID" },
+        livestreamId: { type: "string", description: "ライブ配信ID" },
+        limit: { type: "number", description: "取得件数 (デフォルト50)" },
+      },
+      required: ["tenantId", "livestreamId"],
+    },
+  },
+  {
+    name: "livestream_chat_send",
+    description: "ライブ配信にシステムメッセージを送信する（お知らせ等）",
+    inputSchema: {
+      type: "object",
+      properties: {
+        tenantId: { type: "string", description: "テナントID" },
+        livestreamId: { type: "string", description: "ライブ配信ID" },
+        content: { type: "string", description: "メッセージ内容" },
+        senderName: { type: "string", description: "送信者名 (デフォルト「システム」)" },
+        messageType: { type: "string", description: "メッセージタイプ (デフォルトANNOUNCEMENT)" },
+      },
+      required: ["tenantId", "livestreamId", "content"],
+    },
+  },
 ]

@@ -180,10 +180,12 @@ export async function GET() {
       {
         id: "livestream-management",
         name: "Live Stream Management",
-        description: "Manage live streams and automated webinars",
+        description: "Create, schedule, and manage live streams with real-time chat. Start/stop broadcasts, moderate chat messages, and send system announcements.",
         examples: [
           "ライブ配信一覧を表示してください",
-          "自動ウェビナーの設定を確認してください",
+          "明日15時にライブ配信をスケジュールしてください",
+          "ライブ配信を開始してください",
+          "ライブ配信のチャットにお知らせを送信してください",
         ],
       },
       {

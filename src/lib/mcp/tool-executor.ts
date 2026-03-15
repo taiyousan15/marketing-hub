@@ -1819,6 +1819,90 @@ export async function executeTool(
       }
     }
 
+    case "livestream_list": {
+      const { tenantId, status, limit } = args as Record<string, unknown>
+      const where: Record<string, unknown> = { tenantId: tenantId as string }
+      if (status) where.status = status as string
+      const livestreams = await prisma.liveStream.findMany({
+        where,
+        orderBy: { startAt: "desc" },
+        take: (limit as number | undefined) ?? 20,
+        include: { event: { select: { id: true, name: true } } },
+      })
+      return { livestreams, total: livestreams.length }
+    }
+
+    case "livestream_create": {
+      const { tenantId, name, description, startAt, eventId, chatEnabled, recordingEnabled } = args as Record<string, unknown>
+      const { generateRoomName } = await import("@/lib/livestream/livekit")
+      const roomId = (eventId as string | undefined) ?? `standalone-${Date.now()}`
+      const roomName = generateRoomName(roomId)
+      const livestream = await prisma.liveStream.create({
+        data: {
+          tenantId: tenantId as string,
+          name: name as string,
+          description: (description as string | undefined) ?? null,
+          startAt: new Date(startAt as string),
+          eventId: (eventId as string | undefined) ?? null,
+          chatEnabled: (chatEnabled as boolean | undefined) ?? true,
+          recordingEnabled: (recordingEnabled as boolean | undefined) ?? false,
+          roomName,
+          status: "SCHEDULED",
+        },
+      })
+      return {
+        livestream: { id: livestream.id, name: livestream.name, roomName: livestream.roomName, startAt: livestream.startAt, status: livestream.status },
+        message: `ライブ配信「${livestream.name}」をスケジュールしました`,
+      }
+    }
+
+    case "livestream_update_status": {
+      const { tenantId, livestreamId, status } = args as Record<string, unknown>
+      const updateData: Record<string, unknown> = { status: status as string }
+      if (status === "COMPLETED" || status === "CANCELED") {
+        updateData.endAt = new Date()
+      }
+      const livestream = await prisma.liveStream.update({
+        where: { id: livestreamId as string, tenantId: tenantId as string },
+        data: updateData,
+      })
+      return {
+        livestream: { id: livestream.id, name: livestream.name, status: livestream.status },
+        message: `ライブ配信「${livestream.name}」のステータスを「${status}」に更新しました`,
+      }
+    }
+
+    case "livestream_chat_list": {
+      const { tenantId, livestreamId, limit } = args as Record<string, unknown>
+      const messages = await prisma.liveChatMessage.findMany({
+        where: { livestreamId: livestreamId as string, livestream: { tenantId: tenantId as string } },
+        orderBy: { createdAt: "asc" },
+        take: (limit as number | undefined) ?? 50,
+      })
+      return { messages, total: messages.length }
+    }
+
+    case "livestream_chat_send": {
+      const { tenantId, livestreamId, content, senderName, messageType } = args as Record<string, unknown>
+      const livestream = await prisma.liveStream.findFirst({
+        where: { id: livestreamId as string, tenantId: tenantId as string },
+      })
+      if (!livestream) throw new Error(`LiveStream not found: ${livestreamId as string}`)
+      const message = await prisma.liveChatMessage.create({
+        data: {
+          tenantId: tenantId as string,
+          livestreamId: livestreamId as string,
+          content: content as string,
+          senderName: (senderName as string | undefined) ?? "システム",
+          messageType: (messageType as string | undefined) ?? "ANNOUNCEMENT",
+        },
+      })
+      return {
+        message: { id: message.id, content: message.content, senderName: message.senderName, messageType: message.messageType },
+        result: "メッセージを送信しました",
+      }
+    }
+
     default:
       throw new Error(`Unknown tool: ${name}`)
   }
