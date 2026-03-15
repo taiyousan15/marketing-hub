@@ -23,6 +23,7 @@ import {
   MessageCircle,
   CreditCard,
   Settings,
+  Award,
 } from 'lucide-react';
 import {
   CATEGORY_LABELS,
@@ -48,6 +49,8 @@ const CATEGORY_ICONS: Record<ComponentCategory, React.ComponentType<{ className?
   button: MousePointer,
   line: MessageCircle,
   payment: CreditCard,
+  layout: LayoutGrid,
+  social: Award,
   other: Settings,
 };
 
@@ -63,6 +66,8 @@ const CATEGORY_COLORS: Record<ComponentCategory, string> = {
   button: 'bg-indigo-100 text-indigo-600',
   line: 'bg-emerald-100 text-emerald-600',
   payment: 'bg-rose-100 text-rose-600',
+  layout: 'bg-sky-100 text-sky-600',
+  social: 'bg-amber-100 text-amber-600',
   other: 'bg-gray-100 text-gray-600',
 };
 

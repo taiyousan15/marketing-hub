@@ -19,6 +19,9 @@ const isPublicRoute = createRouteMatcher([
   "/affiliate/join(.*)", // パートナー公開募集ページ
   "/api/affiliate/join(.*)", // パートナー公開登録API
   "/api/partner/(.*)",      // パートナーポータルAPI（独自認証）
+  "/api/mcp(.*)",           // MCP サーバー（独自認証）
+  "/api/stripe/webhook(.*)", // Stripe Webhook（署名検証）
+  "/.well-known/(.*)",      // A2A Agent Card
   "/partner/(.*)",          // パートナーポータル（独自認証）
   "/unsubscribe/(.*)",
 ]);

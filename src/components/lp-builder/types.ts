@@ -15,6 +15,8 @@ export type ComponentCategory =
   | 'button'       // ボタン: ボタン、次へ進むリンク
   | 'line'         // LINE連携: LINE友だち追加ボタン、QRコード
   | 'payment'      // 決済: 決済フォーム、購入ボタン、購入商品一覧
+  | 'layout'       // レイアウト: マルチカラム、タブ切替、通知バー
+  | 'social'       // 証明・実績: プロフィールカード、実績バッジ、星評価、SNSシェア
   | 'other';       // その他: ヘッダー、フッター、カウントダウン、プログレスバー、カスタムHTML
 
 /**
@@ -146,7 +148,7 @@ export interface PreviewConfig {
 /**
  * テンプレートカテゴリ
  */
-export type TemplateCategory = 'optin' | 'sales' | 'webinar' | 'launch';
+export type TemplateCategory = 'optin' | 'sales' | 'webinar' | 'launch' | 'consultation' | 'membership' | 'event';
 
 /**
  * テンプレート定義
@@ -302,6 +304,9 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, string> = {
   sales: 'セールス',
   webinar: 'ウェビナー',
   launch: 'プロダクトローンチ',
+  consultation: 'コンサルティング',
+  membership: '会員サイト',
+  event: 'イベント',
 };
 
 /**

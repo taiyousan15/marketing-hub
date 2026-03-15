@@ -1,6 +1,6 @@
 /**
  * LP Builder コンポーネントレジストリ
- * UTAGE互換 34要素（9カテゴリ）
+ * UTAGE互換 34要素（9カテゴリ）+ 拡張 16要素（layout/social含む）
  */
 
 import { LPComponent, ComponentCategory } from './types';
@@ -261,6 +261,73 @@ export const COMPONENT_REGISTRY: Record<ComponentCategory, LPComponent[]> = {
         { key: 'iconColor', label: 'アイコン色', type: 'color', value: '#6b7280' },
       ],
     },
+    {
+      id: 'comparison-table',
+      type: 'comparison-table',
+      category: 'content',
+      name: '比較表',
+      description: '比較表',
+      icon: 'Columns',
+      defaultProps: [
+        { key: 'headers', label: 'ヘッダー（|区切り）', type: 'text', value: '項目|従来の方法|当サービス', placeholder: '項目|列1|列2' },
+        { key: 'rows', label: '行（|区切り、改行で行追加）', type: 'textarea', value: '価格|¥50,000/月|¥9,800/月\nサポート|メールのみ|24時間チャット\n導入期間|3ヶ月|即日', placeholder: '項目|列1|列2（改行で行追加）' },
+        { key: 'highlightColumn', label: 'ハイライト列', type: 'select', value: 'none', options: [
+          { label: 'なし', value: 'none' },
+          { label: '2列目', value: '2' },
+          { label: '3列目', value: '3' },
+        ]},
+        { key: 'highlightColor', label: 'ハイライト色', type: 'color', value: '#dbeafe' },
+      ],
+    },
+    {
+      id: 'timeline',
+      type: 'timeline',
+      category: 'content',
+      name: 'タイムライン',
+      description: 'タイムライン',
+      icon: 'GitCommitHorizontal',
+      defaultProps: [
+        { key: 'items', label: '項目（ステップ|説明で改行）', type: 'textarea', value: 'STEP1|まずは無料登録\nSTEP2|初期設定（5分）\nSTEP3|運用開始', placeholder: 'ステップ|説明（改行で追加）' },
+        { key: 'style', label: 'スタイル', type: 'select', value: 'vertical', options: [
+          { label: '縦', value: 'vertical' },
+          { label: '横', value: 'horizontal' },
+        ]},
+        { key: 'lineColor', label: 'ライン色', type: 'color', value: '#3b82f6' },
+        { key: 'dotColor', label: 'ドット色', type: 'color', value: '#3b82f6' },
+      ],
+    },
+    {
+      id: 'icon-list',
+      type: 'icon-list',
+      category: 'content',
+      name: 'アイコン付きリスト',
+      description: 'アイコン付きリスト',
+      icon: 'ListPlus',
+      defaultProps: [
+        { key: 'items', label: '項目（アイコン|テキストで改行）', type: 'textarea', value: '✓|初期費用0円\n✓|月額9,800円〜\n✓|いつでも解約可能', placeholder: 'アイコン|テキスト（改行で追加）' },
+        { key: 'iconColor', label: 'アイコン色', type: 'color', value: '#22c55e' },
+        { key: 'fontSize', label: '文字サイズ', type: 'number', value: 16 },
+        { key: 'gap', label: '行間', type: 'number', value: 12 },
+      ],
+    },
+    {
+      id: 'image-gallery',
+      type: 'image-gallery',
+      category: 'content',
+      name: '画像ギャラリー',
+      description: '画像ギャラリー',
+      icon: 'Images',
+      defaultProps: [
+        { key: 'images', label: '画像（URL|キャプションで改行）', type: 'textarea', value: 'url1|キャプション1\nurl2|キャプション2', placeholder: 'URL|キャプション（改行で追加）' },
+        { key: 'columns', label: 'カラム数', type: 'select', value: '3', options: [
+          { label: '2カラム', value: '2' },
+          { label: '3カラム', value: '3' },
+          { label: '4カラム', value: '4' },
+        ]},
+        { key: 'gap', label: '間隔', type: 'number', value: 8 },
+        { key: 'borderRadius', label: '角丸み', type: 'number', value: 8 },
+      ],
+    },
   ],
 
   // ========================================
@@ -424,6 +491,44 @@ export const COMPONENT_REGISTRY: Record<ComponentCategory, LPComponent[]> = {
         ]},
       ],
     },
+    {
+      id: 'floating-cta',
+      type: 'floating-cta',
+      category: 'button',
+      name: '固定CTAバー',
+      description: '固定CTAバー',
+      icon: 'PanelBottomOpen',
+      defaultProps: [
+        { key: 'text', label: 'テキスト', type: 'text', value: '今すぐ申し込む', placeholder: 'ボタンテキスト' },
+        { key: 'subText', label: 'サブテキスト', type: 'text', value: '残りわずか！', placeholder: 'サブテキスト' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: '#dc2626' },
+        { key: 'textColor', label: '文字色', type: 'color', value: '#ffffff' },
+        { key: 'url', label: 'リンクURL', type: 'text', value: '', placeholder: 'https://' },
+        { key: 'position', label: '表示位置', type: 'select', value: 'bottom', options: [
+          { label: '下部固定', value: 'bottom' },
+          { label: '上部固定', value: 'top' },
+        ]},
+      ],
+    },
+    {
+      id: 'anchor-link',
+      type: 'anchor-link',
+      category: 'button',
+      name: 'アンカーリンク',
+      description: 'アンカーリンク',
+      icon: 'Anchor',
+      defaultProps: [
+        { key: 'text', label: 'テキスト', type: 'text', value: '詳細を見る ↓', placeholder: 'リンクテキスト' },
+        { key: 'targetId', label: '移動先ID', type: 'text', value: '', placeholder: 'section-id' },
+        { key: 'textColor', label: '文字色', type: 'color', value: '#3b82f6' },
+        { key: 'textAlign', label: '配置', type: 'select', value: 'center', options: [
+          { label: '左揃え', value: 'left' },
+          { label: '中央', value: 'center' },
+          { label: '右揃え', value: 'right' },
+        ]},
+        { key: 'fontSize', label: '文字サイズ', type: 'number', value: 16 },
+      ],
+    },
   ],
 
   // ========================================
@@ -518,6 +623,20 @@ export const COMPONENT_REGISTRY: Record<ComponentCategory, LPComponent[]> = {
           { label: 'グリッド', value: 'grid' },
           { label: 'リスト', value: 'list' },
         ]},
+      ],
+    },
+    {
+      id: 'price-table',
+      type: 'price-table',
+      category: 'payment',
+      name: '価格表',
+      description: '価格表',
+      icon: 'TableProperties',
+      defaultProps: [
+        { key: 'plans', label: 'プラン（名前|価格|機能（カンマ区切り）|URLで改行）', type: 'textarea', value: 'ベーシック|¥9,800/月|機能A,機能B,機能C|/checkout/basic\nプロ|¥19,800/月|全機能,優先サポート,API連携|/checkout/pro', placeholder: 'プラン名|価格|機能|URL（改行で追加）' },
+        { key: 'recommended', label: 'おすすめプラン名', type: 'text', value: 'プロ', placeholder: 'おすすめ表示するプラン名' },
+        { key: 'currency', label: '通貨記号', type: 'text', value: '', placeholder: '（空欄で価格に含める）' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: '#ffffff' },
       ],
     },
   ],
@@ -627,6 +746,172 @@ export const COMPONENT_REGISTRY: Record<ComponentCategory, LPComponent[]> = {
         { key: 'buttonText', label: 'ボタンテキスト', type: 'text', value: 'この日程で申し込む', placeholder: 'ボタンテキスト' },
       ],
     },
+    {
+      id: 'map-embed',
+      type: 'map-embed',
+      category: 'other',
+      name: 'Googleマップ埋め込み',
+      description: 'Googleマップ埋め込み',
+      icon: 'MapPin',
+      defaultProps: [
+        { key: 'embedUrl', label: '埋め込みURL', type: 'text', value: '', placeholder: 'Google Maps 埋め込みURL' },
+        { key: 'height', label: '高さ', type: 'number', value: 400 },
+        { key: 'borderRadius', label: '角丸み', type: 'number', value: 8 },
+      ],
+    },
+    {
+      id: 'carousel-slider',
+      type: 'carousel-slider',
+      category: 'other',
+      name: 'カルーセルスライダー',
+      description: 'カルーセルスライダー',
+      icon: 'GalleryHorizontal',
+      defaultProps: [
+        { key: 'slides', label: 'スライド（URL|キャプションで改行）', type: 'textarea', value: 'url1|キャプション1\nurl2|キャプション2', placeholder: 'URL|キャプション（改行で追加）' },
+        { key: 'autoplay', label: '自動再生', type: 'boolean', value: true },
+        { key: 'interval', label: '切替間隔（ms）', type: 'number', value: 5000 },
+        { key: 'showDots', label: 'ドット表示', type: 'boolean', value: true },
+        { key: 'showArrows', label: '矢印表示', type: 'boolean', value: true },
+      ],
+    },
+  ],
+
+  // ========================================
+  // レイアウト (3要素)
+  // ========================================
+  layout: [
+    {
+      id: 'multi-column',
+      type: 'multi-column',
+      category: 'layout',
+      name: 'マルチカラム',
+      description: '2〜4カラムレイアウト',
+      icon: 'Columns3',
+      defaultProps: [
+        { key: 'columns', label: 'カラム数', type: 'select', value: '2', options: [
+          { label: '2カラム', value: '2' },
+          { label: '3カラム', value: '3' },
+          { label: '4カラム', value: '4' },
+        ]},
+        { key: 'gap', label: '間隔', type: 'number', value: 16 },
+        { key: 'items', label: '各列の内容（||区切り）', type: 'textarea', value: '列1のテキスト||列2のテキスト||列3のテキスト', placeholder: '列1||列2||列3' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: 'transparent' },
+      ],
+    },
+    {
+      id: 'tab-switcher',
+      type: 'tab-switcher',
+      category: 'layout',
+      name: 'タブ切替',
+      description: 'タブ切替コンテンツ',
+      icon: 'Tabs',
+      defaultProps: [
+        { key: 'tabs', label: 'タブ（タブ名|内容で改行）', type: 'textarea', value: 'タブ1|タブ1の内容\nタブ2|タブ2の内容', placeholder: 'タブ名|内容（改行で追加）' },
+        { key: 'activeColor', label: 'アクティブ色', type: 'color', value: '#3b82f6' },
+        { key: 'inactiveColor', label: '非アクティブ色', type: 'color', value: '#6b7280' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: '#ffffff' },
+      ],
+    },
+    {
+      id: 'notification-bar',
+      type: 'notification-bar',
+      category: 'layout',
+      name: '通知バー',
+      description: '上部通知バー',
+      icon: 'Bell',
+      defaultProps: [
+        { key: 'text', label: 'テキスト', type: 'text', value: '期間限定キャンペーン実施中！', placeholder: '通知テキスト' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: '#dc2626' },
+        { key: 'textColor', label: '文字色', type: 'color', value: '#ffffff' },
+        { key: 'sticky', label: '固定表示', type: 'boolean', value: true },
+        { key: 'closeable', label: '閉じるボタン', type: 'boolean', value: true },
+      ],
+    },
+  ],
+
+  // ========================================
+  // 証明・実績 (4要素)
+  // ========================================
+  social: [
+    {
+      id: 'profile-card',
+      type: 'profile-card',
+      category: 'social',
+      name: 'プロフィールカード',
+      description: 'プロフィールカード',
+      icon: 'UserCircle',
+      defaultProps: [
+        { key: 'name', label: '名前', type: 'text', value: '山田太郎', placeholder: '氏名' },
+        { key: 'title', label: '肩書き', type: 'text', value: '代表取締役', placeholder: '肩書き・役職' },
+        { key: 'image', label: 'プロフィール画像', type: 'image', value: '' },
+        { key: 'bio', label: '自己紹介', type: 'textarea', value: '15年以上のマーケティング経験...', placeholder: '自己紹介文' },
+        { key: 'backgroundColor', label: '背景色', type: 'color', value: '#ffffff' },
+        { key: 'imageShape', label: '画像形状', type: 'select', value: 'circle', options: [
+          { label: '円形', value: 'circle' },
+          { label: '四角', value: 'square' },
+          { label: '角丸', value: 'rounded' },
+        ]},
+      ],
+    },
+    {
+      id: 'achievement-badge',
+      type: 'achievement-badge',
+      category: 'social',
+      name: '実績バッジ',
+      description: '実績バッジ',
+      icon: 'BadgeCheck',
+      defaultProps: [
+        { key: 'items', label: '実績（数値|ラベルで改行）', type: 'textarea', value: '10,000+|導入企業数\n98%|満足度\n5年|連続No.1', placeholder: '数値|ラベル（改行で追加）' },
+        { key: 'columns', label: '表示列数', type: 'select', value: '3', options: [
+          { label: '2列', value: '2' },
+          { label: '3列', value: '3' },
+          { label: '4列', value: '4' },
+        ]},
+        { key: 'badgeColor', label: 'バッジ色', type: 'color', value: '#3b82f6' },
+        { key: 'textColor', label: '文字色', type: 'color', value: '#ffffff' },
+      ],
+    },
+    {
+      id: 'rating-stars',
+      type: 'rating-stars',
+      category: 'social',
+      name: '星評価',
+      description: '星評価',
+      icon: 'Star',
+      defaultProps: [
+        { key: 'rating', label: '評価値', type: 'number', value: 4.8 },
+        { key: 'maxRating', label: '最大評価', type: 'number', value: 5 },
+        { key: 'reviewCount', label: 'レビュー件数テキスト', type: 'text', value: '1,234件のレビュー', placeholder: '件数テキスト' },
+        { key: 'size', label: 'サイズ', type: 'select', value: 'medium', options: [
+          { label: '小', value: 'small' },
+          { label: '中', value: 'medium' },
+          { label: '大', value: 'large' },
+        ]},
+        { key: 'color', label: '星の色', type: 'color', value: '#f59e0b' },
+      ],
+    },
+    {
+      id: 'sns-share',
+      type: 'sns-share',
+      category: 'social',
+      name: 'SNSシェア',
+      description: 'SNSシェアボタン',
+      icon: 'Share2',
+      defaultProps: [
+        { key: 'platforms', label: 'プラットフォーム（改行区切り）', type: 'textarea', value: 'twitter\nfacebook\nline', placeholder: 'twitter/facebook/line（改行で追加）' },
+        { key: 'text', label: 'シェアテキスト', type: 'text', value: 'この情報をシェアする', placeholder: 'ボタン上のテキスト' },
+        { key: 'style', label: 'スタイル', type: 'select', value: 'button', options: [
+          { label: 'アイコン', value: 'icon' },
+          { label: 'ボタン', value: 'button' },
+          { label: '角丸', value: 'rounded' },
+        ]},
+        { key: 'size', label: 'サイズ', type: 'select', value: 'medium', options: [
+          { label: '小', value: 'small' },
+          { label: '中', value: 'medium' },
+          { label: '大', value: 'large' },
+        ]},
+      ],
+    },
   ],
 };
 
@@ -642,6 +927,8 @@ export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
   button: 'ボタン',
   line: 'LINE',
   payment: '決済',
+  layout: 'レイアウト',
+  social: '証明・実績',
   other: 'その他',
 };
 
@@ -657,6 +944,8 @@ export const CATEGORY_ICONS: Record<ComponentCategory, string> = {
   button: 'MousePointer',
   line: 'MessageCircle',
   payment: 'CreditCard',
+  layout: 'LayoutGrid',
+  social: 'Award',
   other: 'Settings',
 };
 

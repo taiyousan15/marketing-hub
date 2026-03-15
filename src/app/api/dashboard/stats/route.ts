@@ -185,66 +185,58 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * 過去N日間の日別統計を取得
+ * 過去N日間の日別統計を取得（最適化版: 3クエリで取得）
  */
 async function getDailyStats(tenantId: string, days: number) {
-  const results: Array<{
-    date: string;
-    contacts: number;
-    messages: number;
-    revenue: number;
-  }> = [];
+  try {
+    const now = new Date();
+    const startDate = new Date(now);
+    startDate.setDate(startDate.getDate() - (days - 1));
+    startDate.setHours(0, 0, 0, 0);
 
-  const now = new Date();
-
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date(now);
-    date.setDate(date.getDate() - i);
-    date.setHours(0, 0, 0, 0);
-
-    const nextDate = new Date(date);
-    nextDate.setDate(nextDate.getDate() + 1);
-
-    const [contacts, messages, orders] = await Promise.all([
-      prisma.contact.count({
-        where: {
-          tenantId,
-          createdAt: {
-            gte: date,
-            lt: nextDate,
-          },
-        },
+    // 3クエリで全期間のデータを一括取得
+    const [contactsByDay, messagesByDay, ordersByDay] = await Promise.all([
+      prisma.contact.findMany({
+        where: { tenantId, createdAt: { gte: startDate } },
+        select: { createdAt: true },
       }),
-      prisma.messageHistory.count({
-        where: {
-          tenantId,
-          direction: "OUTBOUND",
-          createdAt: {
-            gte: date,
-            lt: nextDate,
-          },
-        },
+      prisma.messageHistory.findMany({
+        where: { tenantId, direction: "OUTBOUND", createdAt: { gte: startDate } },
+        select: { createdAt: true },
       }),
-      prisma.order.aggregate({
-        where: {
-          tenantId,
-          status: "COMPLETED",
-          createdAt: {
-            gte: date,
-            lt: nextDate,
-          },
-        },
-        _sum: { amount: true },
+      prisma.order.findMany({
+        where: { tenantId, status: "COMPLETED", createdAt: { gte: startDate } },
+        select: { createdAt: true, amount: true },
       }),
     ]);
 
-    results.push({
-      date: date.toISOString().split("T")[0],
-      contacts,
-      messages,
-      revenue: orders._sum.amount || 0,
-    });
-  }
+    // クライアント側で日別に集計
+    const results: Array<{ date: string; contacts: number; messages: number; revenue: number }> = [];
 
-  return results;
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      const nextDate = new Date(date);
+      nextDate.setDate(nextDate.getDate() + 1);
+      const dateStr = date.toISOString().split("T")[0];
+
+      const contacts = contactsByDay.filter(
+        (c) => c.createdAt >= date && c.createdAt < nextDate
+      ).length;
+      const messages = messagesByDay.filter(
+        (m) => m.createdAt >= date && m.createdAt < nextDate
+      ).length;
+      const revenue = ordersByDay
+        .filter((o) => o.createdAt >= date && o.createdAt < nextDate)
+        .reduce((sum, o) => sum + o.amount, 0);
+
+      results.push({ date: dateStr, contacts, messages, revenue });
+    }
+
+    return results;
+  } catch {
+    // DB エラー時は空配列を返す（dailyStats は任意表示）
+    return [];
+  }
 }

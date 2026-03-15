@@ -4,6 +4,7 @@ import { validateSignature } from "@/lib/line/client";
 import { prisma } from "@/lib/db/prisma";
 import { processLineOptin } from "@/lib/affiliate/service";
 import { processAutoResponse } from "@/lib/line/auto-response";
+import { onFollowEvent } from "@/lib/line/rich-menu-switcher";
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -104,6 +105,13 @@ async function handleFollow(
       },
     });
     console.log(`Updated contact for LINE user: ${contact.id}`);
+  }
+
+  // セグメントベースのリッチメニューを自動設定
+  try {
+    await onFollowEvent(tenantId, userId);
+  } catch (error) {
+    console.error("Error setting rich menu on follow:", error);
   }
 
   // アフィリエイトオプトインを処理
@@ -314,6 +322,31 @@ async function handlePostback(
       } catch (error) {
         console.error("Error processing affiliate postback:", error);
       }
+    }
+  }
+
+  // タブ切り替えリッチメニュー処理
+  const tabAction = params.get("action");
+  const tabGroup = params.get("tab_group");
+  const tabOrder = params.get("tab_order");
+
+  if (tabAction === "switch_tab" && tabGroup) {
+    try {
+      const targetMenu = await prisma.lineRichMenu.findFirst({
+        where: {
+          tabGroup,
+          tabOrder: tabOrder ? parseInt(tabOrder, 10) : 0,
+        },
+      });
+
+      if (targetMenu?.lineRichMenuId) {
+        const { lineClient: client } = await import("@/lib/line/client");
+        if (client) {
+          await client.linkRichMenuToUser(userId, targetMenu.lineRichMenuId);
+        }
+      }
+    } catch (error) {
+      console.error("Error switching tab rich menu:", error);
     }
   }
 }

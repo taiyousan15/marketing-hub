@@ -132,6 +132,8 @@ export async function PATCH(request: NextRequest) {
     if (name) updateData.name = name;
     if (chatBarText) updateData.chatBarText = chatBarText;
     if (conditions !== undefined) updateData.conditions = conditions;
+    if (body.tabGroup !== undefined) updateData.tabGroup = body.tabGroup;
+    if (body.tabOrder !== undefined) updateData.tabOrder = body.tabOrder;
 
     // デフォルト設定の更新
     if (isDefault !== undefined) {

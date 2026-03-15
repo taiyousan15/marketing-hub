@@ -106,9 +106,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ funnel: updatedFunnel }, { status: 201 });
   } catch (error) {
-    console.error("Failed to create funnel:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Failed to create funnel:", message);
     return NextResponse.json(
-      { error: "Failed to create funnel" },
+      { error: `Failed to create funnel: ${message}` },
       { status: 500 }
     );
   }

@@ -11,6 +11,7 @@ import {
   Shield,
   AlertTriangle,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,10 +95,10 @@ export default function SMSSettingsPage() {
       if (!res.ok) {
         throw new Error("Failed to save settings");
       }
-      alert("設定を保存しました");
+      toast.success("設定を保存しました");
     } catch (error) {
       console.error("Failed to save:", error);
-      alert("保存に失敗しました");
+      toast.error("保存に失敗しました");
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +106,7 @@ export default function SMSSettingsPage() {
 
   const handleSendTest = async () => {
     if (!testPhone) {
-      alert("テスト送信先の電話番号を入力してください");
+      toast.error("テスト送信先の電話番号を入力してください");
       return;
     }
     setIsTesting(true);
@@ -122,10 +123,10 @@ export default function SMSSettingsPage() {
         const data = await res.json();
         throw new Error(data.error || "送信に失敗しました");
       }
-      alert("テストSMSを送信しました");
+      toast.success("テストSMSを送信しました");
     } catch (error) {
       console.error("Test SMS failed:", error);
-      alert(error instanceof Error ? error.message : "送信に失敗しました");
+      toast.error(error instanceof Error ? error.message : "送信に失敗しました");
     } finally {
       setIsTesting(false);
     }

@@ -25,6 +25,7 @@ model Tenant {
   lineAccounts           LineAccount[]
   lineProjects           LineProject[]
   lineRichMenus          LineRichMenu[]
+  lineAutoReplies        LineAutoReply[]
   orders                 Order[]
   partners               Partner[]
   products               Product[]
@@ -40,7 +41,6 @@ model Tenant {
   journeys               Journey[]
   forms                  Form[]
   abTests                ABTest[]
-  metaAdsAccounts        MetaAdsAccount[]
 
   @@index([subdomain])
 }
@@ -87,23 +87,10 @@ model Contact {
   whatsappOptIn       Boolean             @default(true)
   whatsappOptInAt     DateTime?
   lineAccountId       String?
-  lineProjectId       String?
   lifecycleStage      LifecycleStage      @default(SUBSCRIBER)
-  // UTM tracking fields
-  utmSource           String?
-  utmMedium           String?
-  utmCampaign         String?
-  utmContent          String?
-  utmTerm             String?
-  // Meta Ads attribution
-  metaAdId            String?
-  metaAdsetId         String?
-  metaCampaignId      String?
-  metaAdAccountId     String?
   campaignContacts    CampaignContact[]
   tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   lineAccount         LineAccount?        @relation("LineAccountContacts", fields: [lineAccountId], references: [id])
-  lineProject         LineProject?        @relation("LineProjectContacts", fields: [lineProjectId], references: [id])
   tags                ContactTag[]
   Conversation        Conversation[]
   courseEnrollments   CourseEnrollment[]
@@ -119,8 +106,6 @@ model Contact {
   @@unique([tenantId, lineUserId])
   @@index([tenantId])
   @@index([tenantId, email])
-  @@index([tenantId, utmSource])
-  @@index([tenantId, metaCampaignId])
   @@index([tenantId, lineUserId])
 }
 
@@ -677,12 +662,32 @@ model LineRichMenu {
   areas          Json
   imageUrl       String?
   conditions     Json?
+  tabGroup       String?
+  tabOrder       Int?     @default(0)
   isDefault      Boolean  @default(false)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   tenant         Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@index([tenantId])
+}
+
+model LineAutoReply {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  keyword     String
+  matchType   String   @default("contains") // exact, contains, startsWith, regex
+  replyType   String   @default("text") // text, flex, image, video, sticker
+  replyContent Json    // { text?: string, altText?: string, contents?: FlexContents, ... }
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([tenantId, isActive])
 }
 
 model AutomationRule {
@@ -1101,7 +1106,6 @@ model LineProject {
   createdAt           DateTime                 @default(now())
   updatedAt           DateTime                 @updatedAt
   accounts            LineAccount[]
-  contacts            Contact[]               @relation("LineProjectContacts")
   distributionSetting LineDistributionSetting?
   tenant              Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -1453,57 +1457,6 @@ model ABTestResult {
 
   @@index([testId])
   @@index([variantId])
-}
-
-// ==================== Meta Ads ====================
-
-model MetaAdsAccount {
-  id             String               @id @default(cuid())
-  tenantId       String
-  name           String
-  adAccountId    String               // Meta Ad Account ID (act_xxxxxxxx)
-  accessToken    String               // Meta User Access Token (encrypted)
-  pixelId        String?              // Meta Pixel ID
-  businessId     String?              // Meta Business Manager ID
-  isActive       Boolean              @default(true)
-  lastSyncedAt   DateTime?
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
-  tenant         Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  campaignStats  MetaAdsCampaignStat[]
-
-  @@unique([tenantId, adAccountId])
-  @@index([tenantId])
-}
-
-model MetaAdsCampaignStat {
-  id             String         @id @default(cuid())
-  accountId      String
-  date           DateTime       @db.Date
-  campaignId     String
-  campaignName   String
-  adsetId        String?
-  adsetName      String?
-  adId           String?
-  adName         String?
-  impressions    Int            @default(0)
-  clicks         Int            @default(0)
-  spend          Float          @default(0)
-  reach          Int            @default(0)
-  // Conversion metrics (from Conversions API or UTM matching)
-  leads          Int            @default(0)
-  purchases      Int            @default(0)
-  revenue        Float          @default(0)
-  // UTM matched contacts count
-  utmContacts    Int            @default(0)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  account        MetaAdsAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
-
-  @@unique([accountId, date, campaignId, adsetId, adId])
-  @@index([accountId])
-  @@index([accountId, date])
-  @@index([campaignId])
 }
 
 // ==================== Enums ====================
@@ -2101,52 +2054,4 @@ enum LifecycleStage {
   OPPORTUNITY
   CUSTOMER
   EVANGELIST
-}
-
-model Video {
-  id          String       @id @default(cuid())
-  tenantId    String
-  title       String
-  description String?
-  videoUrl    String
-  thumbnailUrl String?
-  duration    Int?
-  status      VideoStatus  @default(DRAFT)
-  gateEnabled Boolean      @default(false)
-  gateType    VideoGateType @default(EMAIL)
-  gateTitle   String?
-  gateButtonLabel String?
-  views       Int          @default(0)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  gates       VideoGateEntry[]
-
-  @@index([tenantId])
-  @@index([tenantId, status])
-}
-
-model VideoGateEntry {
-  id        String   @id @default(cuid())
-  videoId   String
-  email     String
-  name      String?
-  phone     String?
-  watchedAt DateTime @default(now())
-  video     Video    @relation(fields: [videoId], references: [id], onDelete: Cascade)
-
-  @@unique([videoId, email])
-  @@index([videoId])
-  @@index([email])
-}
-
-enum VideoStatus {
-  DRAFT
-  PUBLISHED
-  ARCHIVED
-}
-
-enum VideoGateType {
-  EMAIL
-  EMAIL_NAME
-  EMAIL_PHONE
 }
