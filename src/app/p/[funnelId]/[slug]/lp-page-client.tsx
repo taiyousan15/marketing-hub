@@ -139,29 +139,34 @@ export function LPPageClient({
   return (
     <main className="min-h-screen bg-black">
       <div className="mx-auto w-full max-w-[800px]">
-        {headerComponents.map((comp, idx) => (
-          <ComponentRenderer
-            key={(comp.id as string) ?? idx}
-            component={comp}
-            onConversion={handleConversion}
-            nextPageSlug={nextPageSlug}
-            onVideoTimeUpdate={handleVideoTimeUpdate}
-          />
-        ))}
-        {/* カウントダウンガイドメッセージ（60秒後に消える） */}
-        {!bodyRevealed && (
-          <div className="bg-[#0a0a1a] px-4 py-6 text-center transition-opacity duration-700">
-            {!ctaRevealed ? (
-              <p className="text-base sm:text-lg text-gray-400 animate-pulse">
-                🔽 {Math.max(0, Math.ceil(30 - videoCurrentTime))}秒後にボタンが表示されます
-              </p>
-            ) : (
-              <p className="text-base sm:text-lg text-gray-400 animate-pulse">
-                🔽 {Math.max(0, Math.ceil(60 - videoCurrentTime))}秒後に全体の文章が表示されます
-              </p>
-            )}
-          </div>
-        )}
+        {headerComponents.map((comp, idx) => {
+          const compType = (comp.type as string) ?? (comp.componentType as string) ?? "";
+          const isVideo = compType === "lp-video-player";
+          return (
+            <div key={(comp.id as string) ?? idx}>
+              <ComponentRenderer
+                component={comp}
+                onConversion={handleConversion}
+                nextPageSlug={nextPageSlug}
+                onVideoTimeUpdate={handleVideoTimeUpdate}
+              />
+              {/* 動画の直下にカウントダウンガイドメッセージを表示（60秒後に消える） */}
+              {isVideo && !bodyRevealed && (
+                <div className="bg-[#0a0a1a] px-4 py-6 text-center transition-opacity duration-700">
+                  {!ctaRevealed ? (
+                    <p className="text-base sm:text-lg text-gray-400 animate-pulse">
+                      🔽 {Math.max(0, Math.ceil(30 - videoCurrentTime))}秒後にボタンが表示されます
+                    </p>
+                  ) : (
+                    <p className="text-base sm:text-lg text-gray-400 animate-pulse">
+                      🔽 {Math.max(0, Math.ceil(60 - videoCurrentTime))}秒後に全体の文章が表示されます
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {ctaComponents.length > 0 && (
           <div
             className={`transition-all duration-700 ${
