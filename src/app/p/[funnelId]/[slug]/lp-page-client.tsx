@@ -35,6 +35,7 @@ export function LPPageClient({
 }: LPPageClientProps) {
   const router = useRouter();
   const tracked = useRef(false);
+  const [bodyRevealed, setBodyRevealed] = useState(false);
 
   // バリアントを重み付きでランダム選択
   const selectedVariant =
@@ -56,6 +57,27 @@ export function LPPageClient({
     });
   }, [funnelId, page.id, selectedVariant]);
 
+  // ボディ遅延表示タイマー
+  useEffect(() => {
+    const components = page.content;
+    const revealComp = components.find(
+      (c) => (c.props as Record<string, unknown>)?.revealAfterSeconds
+    );
+    if (!revealComp) {
+      setBodyRevealed(true);
+      return;
+    }
+    const delay = Number(
+      (revealComp.props as Record<string, unknown>).revealAfterSeconds
+    );
+    if (!delay || delay <= 0) {
+      setBodyRevealed(true);
+      return;
+    }
+    const timer = setTimeout(() => setBodyRevealed(true), delay * 1000);
+    return () => clearTimeout(timer);
+  }, [page.content]);
+
   // コンバージョン記録 & 次ページ遷移
   const handleConversion = async () => {
     await fetch(`/api/funnels/${funnelId}/track`, {
@@ -75,16 +97,46 @@ export function LPPageClient({
 
   const components = page.content;
 
+  // ヘッダーグループ（revealAfterSeconds なし）とボディグループ（revealAfterSeconds あり）に分割
+  const headerComponents: Record<string, unknown>[] = [];
+  const bodyComponents: Record<string, unknown>[] = [];
+  for (const comp of components) {
+    const props = (comp.props as Record<string, unknown>) ?? {};
+    if (props.revealAfterSeconds) {
+      bodyComponents.push(comp);
+    } else {
+      headerComponents.push(comp);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-white">
-      {components.map((comp, idx) => (
+      {headerComponents.map((comp, idx) => (
         <ComponentRenderer
-          key={comp.id as string ?? idx}
+          key={(comp.id as string) ?? idx}
           component={comp}
           onConversion={handleConversion}
           nextPageSlug={nextPageSlug}
         />
       ))}
+      {bodyComponents.length > 0 && (
+        <div
+          className={`transition-all duration-1000 ${
+            bodyRevealed
+              ? "opacity-100 max-h-[999999px]"
+              : "opacity-0 max-h-0 overflow-hidden"
+          }`}
+        >
+          {bodyComponents.map((comp, idx) => (
+            <ComponentRenderer
+              key={(comp.id as string) ?? `body-${idx}`}
+              component={comp}
+              onConversion={handleConversion}
+              nextPageSlug={nextPageSlug}
+            />
+          ))}
+        </div>
+      )}
       {components.length === 0 && (
         <div className="flex h-screen items-center justify-center text-gray-400">
           <p>このページにはコンテンツがありません</p>
@@ -117,7 +169,7 @@ interface RendererProps {
 }
 
 function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererProps) {
-  const type = (component.componentType as string) ?? "";
+  const type = (component.componentType as string) ?? (component.type as string) ?? "";
   const props = (component.props as Record<string, unknown>) ?? {};
 
   const getString = (key: string, fallback = "") =>
@@ -1451,6 +1503,160 @@ function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererPr
     );
   }
 
+  // ─── インタラクティブ動画 ───
+  if (type === "interactive-video") {
+    const videoUrl = getString("videoUrl") || getString("src");
+    const title = getString("title");
+    const rawChoices = getString("choices");
+    const choicePosition = getString("choicePosition", "bottom");
+    const choiceStyle = getString("choiceStyle", "card");
+
+    if (!videoUrl) return null;
+
+    const isYoutube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
+    const isVimeo = videoUrl.includes("vimeo.com");
+    const embedUrl = isYoutube
+      ? videoUrl.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+      : isVimeo
+        ? videoUrl.replace("vimeo.com/", "player.vimeo.com/video/")
+        : "";
+
+    const choices = rawChoices
+      .split("\n")
+      .filter(Boolean)
+      .map((c) => {
+        const [label, url, seconds] = c.split("|");
+        return { label: label ?? "", url: url ?? "#", seconds: parseInt(seconds ?? "0", 10) };
+      });
+
+    const choiceBtnClass =
+      choiceStyle === "pill"
+        ? "rounded-full px-6 py-2 text-sm"
+        : choiceStyle === "button"
+          ? "rounded-lg px-6 py-3 text-base"
+          : "rounded-xl border bg-white p-4 shadow-sm hover:shadow-md text-left";
+
+    return (
+      <section style={sectionStyle} className="py-8 px-4">
+        <div className="mx-auto max-w-4xl">
+          {title && <h3 className="mb-4 text-xl font-bold text-center">{title}</h3>}
+          <div className="relative">
+            <div className="relative h-0 overflow-hidden rounded-xl pb-[56.25%] shadow-lg">
+              {embedUrl ? (
+                <iframe
+                  src={embedUrl}
+                  className="absolute inset-0 h-full w-full"
+                  allowFullScreen
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                />
+              ) : (
+                <video src={videoUrl} controls className="absolute inset-0 h-full w-full object-cover" />
+              )}
+            </div>
+            {choicePosition === "overlay" && choices.length > 0 && (
+              <div className="absolute inset-0 flex items-end justify-center pb-8">
+                <div className="flex flex-wrap gap-3 rounded-xl bg-black/50 p-4 backdrop-blur-sm">
+                  {choices.map((choice, i) => (
+                    <a
+                      key={i}
+                      href={choice.url}
+                      className="rounded-lg bg-white px-5 py-2.5 text-sm font-semibold text-gray-800 shadow hover:bg-gray-100 transition-colors"
+                    >
+                      {choice.label}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {choicePosition === "bottom" && choices.length > 0 && (
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              {choices.map((choice, i) => (
+                <a
+                  key={i}
+                  href={choice.url}
+                  style={choiceStyle !== "card" ? { backgroundColor: btnColor, color: btnText } : undefined}
+                  className={`block text-center font-semibold transition-all hover:opacity-90 ${choiceBtnClass}`}
+                >
+                  {choice.label}
+                  {choice.seconds > 0 && (
+                    <span className="ml-2 text-xs opacity-60">
+                      ({Math.floor(choice.seconds / 60)}:{String(choice.seconds % 60).padStart(2, "0")}〜)
+                    </span>
+                  )}
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+    );
+  }
+
+  // ─── 時限表示CTA付き動画 ───
+  if (type === "timed-video-cta") {
+    const videoUrl = getString("videoUrl") || getString("src");
+    const title = getString("title");
+    const ctaText = getString("ctaText", "今すぐ申し込む");
+    const ctaUrl = getString("ctaUrl") || getString("url");
+    const ctaSubText = getString("ctaSubText");
+    const delaySeconds = parseInt(getString("delaySeconds", "30"), 10);
+    const triggerType = getString("triggerType", "elapsed");
+    const hideAtSeconds = parseInt(getString("hideAtSeconds", "0"), 10);
+    const ctaColorVal = getString("ctaColor", "#dc2626");
+    const ctaTextColorVal = getString("ctaTextColor", "#ffffff");
+    const animation = getString("animation", "fadeIn");
+
+    if (!videoUrl) return null;
+
+    const isYoutube = videoUrl.includes("youtube.com") || videoUrl.includes("youtu.be");
+    const isVimeo = videoUrl.includes("vimeo.com");
+    const embedUrl = isYoutube
+      ? videoUrl.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+      : isVimeo
+        ? videoUrl.replace("vimeo.com/", "player.vimeo.com/video/")
+        : "";
+
+    return (
+      <section style={sectionStyle} className="py-8 px-4">
+        <div className="mx-auto max-w-4xl">
+          {title && <h3 className="mb-4 text-xl font-bold text-center">{title}</h3>}
+          <div className="relative w-full overflow-hidden rounded-xl shadow-lg bg-black" style={{ paddingBottom: "56.25%" }}>
+            {embedUrl ? (
+              <iframe
+                src={embedUrl}
+                className="absolute top-0 left-0 w-full h-full"
+                style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }}
+                allowFullScreen
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                title={title || "Video"}
+              />
+            ) : (
+              <video
+                src={videoUrl}
+                controls
+                className="absolute top-0 left-0 w-full h-full object-cover"
+                data-trigger-type={triggerType}
+              />
+            )}
+          </div>
+          <TimedCTAButton
+            ctaText={ctaText}
+            ctaUrl={ctaUrl}
+            ctaSubText={ctaSubText}
+            delaySeconds={delaySeconds}
+            triggerType={triggerType}
+            hideAtSeconds={hideAtSeconds}
+            ctaColor={ctaColorVal}
+            ctaTextColor={ctaTextColorVal}
+            animation={animation}
+            onConversion={onConversion}
+          />
+        </div>
+      </section>
+    );
+  }
+
   // ─── デフォルト（未知のタイプ） ───
   const headline = getString("headline") || getString("title") || getString("text");
   const description = getString("description") || getString("content");
@@ -1608,6 +1814,96 @@ function CarouselSlider({
             />
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 時限表示CTAボタン（動画視聴後にボタン表示）
+// ─────────────────────────────────────────────────────────────────────────────
+function TimedCTAButton({
+  ctaText,
+  ctaUrl,
+  ctaSubText,
+  delaySeconds,
+  triggerType,
+  hideAtSeconds,
+  ctaColor,
+  ctaTextColor,
+  animation,
+  onConversion,
+}: {
+  ctaText: string;
+  ctaUrl: string;
+  ctaSubText: string;
+  delaySeconds: number;
+  triggerType: string;
+  hideAtSeconds: number;
+  ctaColor: string;
+  ctaTextColor: string;
+  animation: string;
+  onConversion: () => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  const [entered, setEntered] = useState(false);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (triggerType === "elapsed") {
+      timerRef.current = setTimeout(() => {
+        setVisible(true);
+        requestAnimationFrame(() => setEntered(true));
+      }, delaySeconds * 1000);
+    }
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [triggerType, delaySeconds]);
+
+  // 非表示タイマー
+  useEffect(() => {
+    if (!visible || hideAtSeconds <= 0) return;
+    const hideTimer = setTimeout(() => {
+      setEntered(false);
+      setTimeout(() => setVisible(false), 500);
+    }, hideAtSeconds * 1000);
+    return () => clearTimeout(hideTimer);
+  }, [visible, hideAtSeconds]);
+
+  if (!visible) return null;
+
+  const animClass =
+    animation === "fadeIn"
+      ? `transition-opacity duration-700 ${entered ? "opacity-100" : "opacity-0"}`
+      : animation === "slideUp"
+        ? `transition-all duration-700 ${entered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`
+        : animation === "zoom"
+          ? `transition-all duration-500 ${entered ? "opacity-100 scale-100" : "opacity-0 scale-75"}`
+          : animation === "shake"
+            ? `${entered ? "animate-pulse" : "opacity-0"}`
+            : "";
+
+  const handleClick = (e: React.MouseEvent) => {
+    if (!ctaUrl || ctaUrl === "#") {
+      e.preventDefault();
+      onConversion();
+    }
+  };
+
+  return (
+    <div className={`mt-6 text-center ${animClass}`}>
+      <a
+        href={ctaUrl || "#"}
+        onClick={handleClick}
+        style={{ backgroundColor: ctaColor, color: ctaTextColor }}
+        className="inline-block rounded-xl px-10 py-4 text-xl font-extrabold shadow-xl hover:opacity-90 transition-opacity"
+      >
+        {ctaText}
+      </a>
+      {ctaSubText && (
+        <p className="mt-2 text-sm text-gray-500">{ctaSubText}</p>
       )}
     </div>
   );
