@@ -262,6 +262,53 @@ function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererPr
     );
   }
 
+  // ─── セクション画像（フルワイド） ───
+  if (type === "section-image") {
+    const src = getString("src");
+    const alt = getString("alt", "");
+    const width = getString("width", "100%");
+    if (!src) return null;
+    return (
+      <section style={sectionStyle} className="flex justify-center p-0">
+        <img
+          src={src}
+          alt={alt}
+          style={{ width, maxWidth: "100%", display: "block", height: "auto" }}
+          loading="lazy"
+        />
+      </section>
+    );
+  }
+
+  // ─── CTA画像（クリック可能な画像ボタン） ───
+  if (type === "cta-image") {
+    const src = getString("src");
+    const alt = getString("alt", "");
+    const href = getString("href");
+    const width = getString("width", "100%");
+    if (!src) return null;
+    const handleClick = () => {
+      onConversion?.();
+      if (href) window.open(href, "_blank", "noopener,noreferrer");
+    };
+    return (
+      <section style={sectionStyle} className="flex justify-center p-0">
+        <button
+          onClick={handleClick}
+          className="w-full cursor-pointer border-0 bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          style={{ maxWidth: "100%" }}
+        >
+          <img
+            src={src}
+            alt={alt}
+            style={{ width, maxWidth: "100%", display: "block", height: "auto" }}
+            loading="lazy"
+          />
+        </button>
+      </section>
+    );
+  }
+
   // ─── ヘッドライン / テキスト ───
   if (type === "headline" || type === "heading") {
     const text = getString("text") || getString("headline");
