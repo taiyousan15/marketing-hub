@@ -1,45 +1,26 @@
 import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 dotenv.config({ path: path.join(__dirname, '../.env.local') })
 dotenv.config({ path: path.join(__dirname, '../.env') })
 
-import { PrismaClient } from '@prisma/client'
-import { PrismaPg } from '@prisma/adapter-pg'
 import { Pool } from 'pg'
 
 const databaseUrl = process.env.DATABASE_URL
 if (!databaseUrl) {
-  console.error('DATABASE_URL not set')
   process.exit(1)
 }
 
 const pool = new Pool({ connectionString: databaseUrl, max: 2 })
-const adapter = new PrismaPg(pool)
-const prisma = new PrismaClient({ adapter })
 
 const LINE_URL = 'https://utage-system.com/page/gDhlVgHf6Krs'
 const IMG_BASE = '/images/lp/kindle-ai'
 
 async function main() {
-  const tenant = await prisma.tenant.findFirst()
-  if (!tenant) {
-    console.error('テナントが見つかりません。')
-    process.exit(1)
-  }
-  console.log(`テナント: ${tenant.name} (${tenant.id})`)
-
-  const funnel = await prisma.funnel.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Kindle×AI 四次元AIポケットシステム セミナーLP v2',
-      type: 'SALES',
-      status: 'PUBLISHED',
-      settings: {},
-    },
-  })
-  console.log(`ファネル作成: ${funnel.id}`)
-
   const content = [
     // ===== ヘッダーセクション（常に表示） =====
 
@@ -66,9 +47,9 @@ async function main() {
       },
     },
 
-    // ===== ボディセクション（動画60秒後に表示） =====
+    // ===== CTAセクション（動画30秒後に表示） =====
 
-    // 3. CTA① 画像ボタン（動画30秒後に表示）
+    // 3. CTA① 画像ボタン
     {
       id: 'body-cta-1-image',
       type: 'cta-image',
@@ -82,7 +63,9 @@ async function main() {
       },
     },
 
-    // 5. 問題提起セクション画像
+    // ===== ボディセクション（動画60秒後に表示） =====
+
+    // 4. 問題提起セクション画像
     {
       id: 'body-section-02-problem',
       type: 'section-image',
@@ -95,7 +78,7 @@ async function main() {
       },
     },
 
-    // 6. 危機感セクション画像
+    // 5. 危機感セクション画像
     {
       id: 'body-section-03-fear',
       type: 'section-image',
@@ -108,7 +91,7 @@ async function main() {
       },
     },
 
-    // 7. 解決策セクション画像
+    // 6. 解決策セクション画像
     {
       id: 'body-section-04-solution',
       type: 'section-image',
@@ -121,7 +104,7 @@ async function main() {
       },
     },
 
-    // 8. Kindle報酬体系セクション画像
+    // 7. Kindle報酬体系セクション画像
     {
       id: 'body-section-05-kindle',
       type: 'section-image',
@@ -134,7 +117,7 @@ async function main() {
       },
     },
 
-    // 9. カラクリ＋資産セクション画像
+    // 8. カラクリ＋資産セクション画像
     {
       id: 'body-section-06-mechanism',
       type: 'section-image',
@@ -147,7 +130,7 @@ async function main() {
       },
     },
 
-    // 10. CTA② 画像ボタン
+    // 9. CTA② 画像ボタン
     {
       id: 'body-cta-2-image',
       type: 'cta-image',
@@ -161,7 +144,7 @@ async function main() {
       },
     },
 
-    // 11. 自動化＋セミナー内容セクション画像
+    // 10. 自動化＋セミナー内容セクション画像
     {
       id: 'body-section-07-automation',
       type: 'section-image',
@@ -174,7 +157,7 @@ async function main() {
       },
     },
 
-    // 12. お客様の声セクション画像
+    // 11. お客様の声セクション画像
     {
       id: 'body-section-08-testimonials',
       type: 'section-image',
@@ -187,7 +170,7 @@ async function main() {
       },
     },
 
-    // 13. FAQセクション画像
+    // 12. FAQセクション画像
     {
       id: 'body-section-09-faq',
       type: 'section-image',
@@ -200,7 +183,7 @@ async function main() {
       },
     },
 
-    // 14. 受け取れることセクション画像
+    // 13. 受け取れることセクション画像
     {
       id: 'body-section-10-value',
       type: 'section-image',
@@ -213,7 +196,7 @@ async function main() {
       },
     },
 
-    // 15. ストーリー＋メッセージセクション画像
+    // 14. ストーリー＋メッセージセクション画像
     {
       id: 'body-section-11-story',
       type: 'section-image',
@@ -226,7 +209,7 @@ async function main() {
       },
     },
 
-    // 16. 最終CTA＋対象者セクション画像
+    // 15. 最終CTA＋対象者セクション画像
     {
       id: 'body-section-12-final',
       type: 'section-image',
@@ -239,7 +222,7 @@ async function main() {
       },
     },
 
-    // 17. 最終CTA 画像ボタン
+    // 16. 最終CTA 画像ボタン
     {
       id: 'body-final-cta-image',
       type: 'cta-image',
@@ -253,7 +236,7 @@ async function main() {
       },
     },
 
-    // 18. 参加費テキスト
+    // 17. 参加費テキスト
     {
       id: 'body-final-note',
       type: 'text',
@@ -265,7 +248,7 @@ async function main() {
       },
     },
 
-    // 19. フッター
+    // 18. フッター
     {
       id: 'body-footer',
       type: 'footer',
@@ -278,41 +261,22 @@ async function main() {
     },
   ]
 
-  const pageId = `kindle-ai-lp-v2-${Date.now()}`
-  const slug = 'kindle-ai-seminar-v2'
-  await prisma.$executeRaw`
-    INSERT INTO "FunnelPage" (id, "funnelId", name, slug, content, "seoTitle", "seoDescription", "order", "createdAt", "updatedAt")
-    VALUES (
-      ${pageId},
-      ${funnel.id},
-      'Kindle×AI 四次元AIポケットシステム セミナーLP v2（画像版）',
-      ${slug},
-      ${JSON.stringify(content)}::jsonb,
-      'Kindle報酬を全額あなたへ届ける仕組み｜四次元AIポケットシステム無料セミナー',
-      'スキルや知識ゼロ、自宅でもできるKindle出版の全く新しい仕組み。Kindle報酬は全額あなたへ。96人のAIチームが24時間働く四次元AIポケットシステムを無料セミナーで初公開。',
-      0,
-      NOW(),
-      NOW()
-    )
-  `
-  console.log(`ページ作成: ${pageId} (slug: ${slug})`)
+  // 既存のページを更新（slug: kindle-ai-seminar-v2）
+  const result = await pool.query(
+    `UPDATE "FunnelPage" SET content = $1::jsonb, "updatedAt" = NOW() WHERE slug = $2 RETURNING id`,
+    [JSON.stringify(content), 'kindle-ai-seminar-v2']
+  )
 
-  // FunnelStep を作成
-  await prisma.funnelStep.create({
-    data: {
-      funnelId: funnel.id,
-      name: 'メインLP',
-      type: 'LANDING',
-      order: 0,
-      pageId,
-    },
-  })
-  console.log('ステップ作成完了')
+  if (result.rowCount === 0) {
+    console.error('ページが見つかりません（slug: kindle-ai-seminar-v2）')
+    process.exit(1)
+  }
 
-  console.log('\n========================================')
-  console.log('Kindle×AI セミナーLP v2 作成完了！')
-  console.log(`URL: /p/${funnel.id}/${slug}`)
-  console.log('========================================')
+  console.log(`ページ更新完了: ${result.rows[0].id}`)
+  console.log('- 動画: lp-video-player（サムネイル付き）')
+  console.log('- CTA: 30秒後に表示（revealGroup: cta）')
+  console.log('- ボディ: 60秒後に表示（revealAfterSeconds: 60）')
+  console.log(`- 全CTA URL: ${LINE_URL}`)
 }
 
 main()
@@ -321,6 +285,5 @@ main()
     process.exit(1)
   })
   .finally(async () => {
-    await prisma.$disconnect()
     await pool.end()
   })

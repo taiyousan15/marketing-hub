@@ -35,6 +35,7 @@ export function LPPageClient({
 }: LPPageClientProps) {
   const router = useRouter();
   const tracked = useRef(false);
+  const [ctaRevealed, setCtaRevealed] = useState(false);
   const [bodyRevealed, setBodyRevealed] = useState(false);
 
   // バリアントを重み付きでランダム選択
@@ -57,13 +58,28 @@ export function LPPageClient({
     });
   }, [funnelId, page.id, selectedVariant]);
 
-  // ボディ遅延表示タイマー
+  // 動画再生時間ベースの表示制御コールバック
+  const handleVideoTimeUpdate = (currentTime: number) => {
+    if (!ctaRevealed && currentTime >= 30) {
+      setCtaRevealed(true);
+    }
+    if (!bodyRevealed && currentTime >= 60) {
+      setBodyRevealed(true);
+    }
+  };
+
+  // 動画プレーヤーがない場合のフォールバック（タイマーベース）
   useEffect(() => {
-    const components = page.content;
+    const hasVideoPlayer = components.some(
+      (c) => (c.type as string) === "lp-video-player"
+    );
+    if (hasVideoPlayer) return;
+
     const revealComp = components.find(
       (c) => (c.props as Record<string, unknown>)?.revealAfterSeconds
     );
     if (!revealComp) {
+      setCtaRevealed(true);
       setBodyRevealed(true);
       return;
     }
@@ -71,11 +87,16 @@ export function LPPageClient({
       (revealComp.props as Record<string, unknown>).revealAfterSeconds
     );
     if (!delay || delay <= 0) {
+      setCtaRevealed(true);
       setBodyRevealed(true);
       return;
     }
-    const timer = setTimeout(() => setBodyRevealed(true), delay * 1000);
-    return () => clearTimeout(timer);
+    const ctaTimer = setTimeout(() => setCtaRevealed(true), 30 * 1000);
+    const bodyTimer = setTimeout(() => setBodyRevealed(true), delay * 1000);
+    return () => {
+      clearTimeout(ctaTimer);
+      clearTimeout(bodyTimer);
+    };
   }, [page.content]);
 
   // コンバージョン記録 & 次ページ遷移
@@ -97,12 +118,16 @@ export function LPPageClient({
 
   const components = page.content;
 
-  // ヘッダーグループ（revealAfterSeconds なし）とボディグループ（revealAfterSeconds あり）に分割
+  // ヘッダー / CTA（30秒後表示） / ボディ（60秒後表示）に3分割
   const headerComponents: Record<string, unknown>[] = [];
+  const ctaComponents: Record<string, unknown>[] = [];
   const bodyComponents: Record<string, unknown>[] = [];
   for (const comp of components) {
-    const props = (comp.props as Record<string, unknown>) ?? {};
-    if (props.revealAfterSeconds) {
+    const compProps = (comp.props as Record<string, unknown>) ?? {};
+    const revealGroup = compProps.revealGroup as string | undefined;
+    if (revealGroup === "cta") {
+      ctaComponents.push(comp);
+    } else if (compProps.revealAfterSeconds) {
       bodyComponents.push(comp);
     } else {
       headerComponents.push(comp);
@@ -110,38 +135,59 @@ export function LPPageClient({
   }
 
   return (
-    <main className="min-h-screen bg-white">
-      {headerComponents.map((comp, idx) => (
-        <ComponentRenderer
-          key={(comp.id as string) ?? idx}
-          component={comp}
-          onConversion={handleConversion}
-          nextPageSlug={nextPageSlug}
-        />
-      ))}
-      {bodyComponents.length > 0 && (
-        <div
-          className={`transition-all duration-1000 ${
-            bodyRevealed
-              ? "opacity-100 max-h-[999999px]"
-              : "opacity-0 max-h-0 overflow-hidden"
-          }`}
-        >
-          {bodyComponents.map((comp, idx) => (
-            <ComponentRenderer
-              key={(comp.id as string) ?? `body-${idx}`}
-              component={comp}
-              onConversion={handleConversion}
-              nextPageSlug={nextPageSlug}
-            />
-          ))}
-        </div>
-      )}
-      {components.length === 0 && (
-        <div className="flex h-screen items-center justify-center text-gray-400">
-          <p>このページにはコンテンツがありません</p>
-        </div>
-      )}
+    <main className="min-h-screen bg-black">
+      <div className="mx-auto w-full max-w-[800px]">
+        {headerComponents.map((comp, idx) => (
+          <ComponentRenderer
+            key={(comp.id as string) ?? idx}
+            component={comp}
+            onConversion={handleConversion}
+            nextPageSlug={nextPageSlug}
+            onVideoTimeUpdate={handleVideoTimeUpdate}
+          />
+        ))}
+        {ctaComponents.length > 0 && (
+          <div
+            className={`transition-all duration-700 ${
+              ctaRevealed
+                ? "opacity-100 max-h-[999999px]"
+                : "opacity-0 max-h-0 overflow-hidden"
+            }`}
+          >
+            {ctaComponents.map((comp, idx) => (
+              <ComponentRenderer
+                key={(comp.id as string) ?? `cta-${idx}`}
+                component={comp}
+                onConversion={handleConversion}
+                nextPageSlug={nextPageSlug}
+              />
+            ))}
+          </div>
+        )}
+        {bodyComponents.length > 0 && (
+          <div
+            className={`transition-all duration-1000 ${
+              bodyRevealed
+                ? "opacity-100 max-h-[999999px]"
+                : "opacity-0 max-h-0 overflow-hidden"
+            }`}
+          >
+            {bodyComponents.map((comp, idx) => (
+              <ComponentRenderer
+                key={(comp.id as string) ?? `body-${idx}`}
+                component={comp}
+                onConversion={handleConversion}
+                nextPageSlug={nextPageSlug}
+              />
+            ))}
+          </div>
+        )}
+        {components.length === 0 && (
+          <div className="flex h-screen items-center justify-center text-gray-400">
+            <p>このページにはコンテンツがありません</p>
+          </div>
+        )}
+      </div>
     </main>
   );
 }
@@ -166,9 +212,10 @@ interface RendererProps {
   component: Record<string, unknown>;
   onConversion: () => void;
   nextPageSlug: string | null;
+  onVideoTimeUpdate?: (currentTime: number) => void;
 }
 
-function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererProps) {
+function ComponentRenderer({ component, onConversion, nextPageSlug, onVideoTimeUpdate }: RendererProps) {
   const type = (component.componentType as string) ?? (component.type as string) ?? "";
   const props = (component.props as Record<string, unknown>) ?? {};
 
@@ -184,6 +231,29 @@ function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererPr
     backgroundColor: bgColor,
     color: textColor,
   };
+
+  // ─── LP動画プレーヤー（再生時間で表示制御） ───
+  if (type === "lp-video-player") {
+    const videoUrl = getString("videoUrl");
+    const poster = getString("poster");
+    if (!videoUrl) return null;
+    return (
+      <section style={sectionStyle} className="w-full">
+        <video
+          src={videoUrl}
+          poster={poster || undefined}
+          controls
+          playsInline
+          preload="metadata"
+          onTimeUpdate={(e) => {
+            const video = e.currentTarget;
+            onVideoTimeUpdate?.(video.currentTime);
+          }}
+          className="w-full h-auto block"
+        />
+      </section>
+    );
+  }
 
   // ─── Hero / ヒーローセクション ───
   if (type.startsWith("hero") || type === "landing") {
@@ -266,14 +336,13 @@ function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererPr
   if (type === "section-image") {
     const src = getString("src");
     const alt = getString("alt", "");
-    const width = getString("width", "100%");
     if (!src) return null;
     return (
-      <section style={sectionStyle} className="flex justify-center p-0">
+      <section style={sectionStyle} className="w-full">
         <img
           src={src}
           alt={alt}
-          style={{ width, maxWidth: "100%", display: "block", height: "auto" }}
+          className="w-full h-auto block"
           loading="lazy"
         />
       </section>
@@ -285,23 +354,21 @@ function ComponentRenderer({ component, onConversion, nextPageSlug }: RendererPr
     const src = getString("src");
     const alt = getString("alt", "");
     const href = getString("href");
-    const width = getString("width", "100%");
     if (!src) return null;
     const handleClick = () => {
       onConversion?.();
       if (href) window.open(href, "_blank", "noopener,noreferrer");
     };
     return (
-      <section style={sectionStyle} className="flex justify-center p-0">
+      <section style={sectionStyle} className="w-full">
         <button
           onClick={handleClick}
           className="w-full cursor-pointer border-0 bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-[0.98]"
-          style={{ maxWidth: "100%" }}
         >
           <img
             src={src}
             alt={alt}
-            style={{ width, maxWidth: "100%", display: "block", height: "auto" }}
+            className="w-full h-auto block"
             loading="lazy"
           />
         </button>
