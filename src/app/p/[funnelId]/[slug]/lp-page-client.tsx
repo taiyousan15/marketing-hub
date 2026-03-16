@@ -37,6 +37,7 @@ export function LPPageClient({
   const tracked = useRef(false);
   const [ctaRevealed, setCtaRevealed] = useState(false);
   const [bodyRevealed, setBodyRevealed] = useState(false);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
 
   // バリアントを重み付きでランダム選択
   const selectedVariant =
@@ -60,6 +61,7 @@ export function LPPageClient({
 
   // 動画再生時間ベースの表示制御コールバック
   const handleVideoTimeUpdate = (currentTime: number) => {
+    setVideoCurrentTime(currentTime);
     if (!ctaRevealed && currentTime >= 30) {
       setCtaRevealed(true);
     }
@@ -146,6 +148,20 @@ export function LPPageClient({
             onVideoTimeUpdate={handleVideoTimeUpdate}
           />
         ))}
+        {/* カウントダウンガイドメッセージ（60秒後に消える） */}
+        {!bodyRevealed && (
+          <div className="bg-[#0a0a1a] px-4 py-6 text-center transition-opacity duration-700">
+            {!ctaRevealed ? (
+              <p className="text-base sm:text-lg text-gray-400 animate-pulse">
+                🔽 {Math.max(0, Math.ceil(30 - videoCurrentTime))}秒後にボタンが表示されます
+              </p>
+            ) : (
+              <p className="text-base sm:text-lg text-gray-400 animate-pulse">
+                🔽 {Math.max(0, Math.ceil(60 - videoCurrentTime))}秒後に全体の文章が表示されます
+              </p>
+            )}
+          </div>
+        )}
         {ctaComponents.length > 0 && (
           <div
             className={`transition-all duration-700 ${
@@ -360,15 +376,15 @@ function ComponentRenderer({ component, onConversion, nextPageSlug, onVideoTimeU
       if (href) window.open(href, "_blank", "noopener,noreferrer");
     };
     return (
-      <section style={sectionStyle} className="w-full">
+      <section style={sectionStyle} className="w-full px-3 py-4 sm:px-4 sm:py-5">
         <button
           onClick={handleClick}
-          className="w-full cursor-pointer border-0 bg-transparent p-0 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          className="w-full cursor-pointer border-0 bg-transparent p-0 transition-transform hover:scale-[1.03] active:scale-[0.97]"
         >
           <img
             src={src}
             alt={alt}
-            className="w-full h-auto block"
+            className="w-full h-auto block rounded-lg shadow-lg shadow-yellow-500/20"
             loading="lazy"
           />
         </button>
