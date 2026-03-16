@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Tailwind v4: 親ディレクトリ ../.claude のスキャンを除外（Turbopack パニック対策） */
+@source not "../../.claude";
+@source not "../../voice-automation";
+@source not "../../interactive-video-platform";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

@@ -22,6 +22,7 @@ export async function GET(_request: NextRequest, { params }: RouteParams) {
         status: true,
         startAt: true,
         chatEnabled: true,
+        timedOffers: true,
       },
     });
 

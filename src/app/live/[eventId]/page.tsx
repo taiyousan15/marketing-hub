@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { Radio } from "lucide-react";
 import { Countdown } from "@/components/livestream/viewer/countdown";
-import { ViewerRoom } from "@/components/livestream/viewer/viewer-room";
+import { ViewerRoom, type PublicLiveStream } from "@/components/livestream/viewer/viewer-room";
 import type { Metadata } from "next";
 
 interface PageProps {
@@ -40,6 +40,7 @@ export default async function LiveViewerPage({
       status: true,
       startAt: true,
       chatEnabled: true,
+      timedOffers: true,
     },
   });
 
@@ -111,6 +112,9 @@ export default async function LiveViewerPage({
           status: livestream.status,
           startAt: livestream.startAt.toISOString(),
           chatEnabled: livestream.chatEnabled,
+          timedOffers: Array.isArray(livestream.timedOffers)
+            ? (livestream.timedOffers as unknown as PublicLiveStream["timedOffers"])
+            : [],
         }}
         contactId={contactId}
       />

@@ -8,12 +8,30 @@ import {
   type FormEvent,
 } from "react";
 import { Radio, MessageSquare, Send, User, Pin } from "lucide-react";
+import { TimedOffersContainer } from "@/components/auto-webinar/viewer/timed-offer-popup";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+
+interface TimedOfferData {
+  id: string;
+  title: string;
+  description: string | null;
+  buttonText: string;
+  buttonUrl: string | null;
+  actionType?: string;
+  appearAtSeconds: number;
+  hideAtSeconds: number | null;
+  popupPosition?: string;
+  countdownEnabled: boolean;
+  countdownSeconds: number | null;
+  limitedSeats: number | null;
+  liffId?: string | null;
+  surveyUrl?: string | null;
+}
 
 export interface PublicLiveStream {
   id: string;
@@ -22,6 +40,7 @@ export interface PublicLiveStream {
   status: string;
   startAt: string;
   chatEnabled: boolean;
+  timedOffers?: TimedOfferData[];
 }
 
 interface ChatMessage {
@@ -60,13 +79,41 @@ export function ViewerRoom({ eventId, livestream, contactId }: ViewerRoomProps) 
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // localStorage から送信者名を復元
   useEffect(() => {
     const saved = localStorage.getItem(SENDER_NAME_KEY);
     if (saved) setSenderName(saved);
+  }, []);
+
+  // 配信開始からの経過秒数を追跡（ポップアップ表示タイミング用）
+  useEffect(() => {
+    if (livestream.status !== "LIVE") return;
+
+    const streamStart = new Date(livestream.startAt).getTime();
+    const calcElapsed = () =>
+      Math.max(0, Math.floor((Date.now() - streamStart) / 1000));
+
+    setElapsedSeconds(calcElapsed());
+    elapsedRef.current = setInterval(() => {
+      setElapsedSeconds(calcElapsed());
+    }, 1000);
+
+    return () => {
+      if (elapsedRef.current) clearInterval(elapsedRef.current);
+    };
+  }, [livestream.status, livestream.startAt]);
+
+  const timedOffers = Array.isArray(livestream.timedOffers)
+    ? livestream.timedOffers
+    : [];
+
+  const handleOfferClick = useCallback((offerId: string) => {
+    console.debug("Offer clicked:", offerId);
   }, []);
 
   // チャットメッセージ取得
@@ -163,6 +210,14 @@ export function ViewerRoom({ eventId, livestream, contactId }: ViewerRoomProps) 
       <div className="w-full lg:w-[70%] flex flex-col bg-black">
         <div className="relative w-full aspect-video lg:aspect-auto lg:flex-1 flex items-center justify-center">
           <VideoPlaceholder />
+          {timedOffers.length > 0 && livestream.status === "LIVE" && (
+            <TimedOffersContainer
+              offers={timedOffers as Parameters<typeof TimedOffersContainer>[0]["offers"]}
+              currentPosition={elapsedSeconds}
+              videoDuration={0}
+              onOfferClick={handleOfferClick}
+            />
+          )}
         </div>
 
         {/* 配信説明 */}

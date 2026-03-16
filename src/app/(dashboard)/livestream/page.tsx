@@ -12,6 +12,7 @@ import {
   Square,
   Trash2,
   MessageSquare,
+  Gift,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { LivestreamChatPanel } from "./components/LivestreamChatPanel";
+import { LivestreamOfferPanel } from "./components/LivestreamOfferPanel";
 
 interface LivestreamItem {
   id: string;
@@ -112,6 +114,7 @@ export default function LivestreamPage() {
   const [form, setForm] = useState<CreateFormState>(defaultForm);
   const [creating, setCreating] = useState(false);
   const [expandedChat, setExpandedChat] = useState<string | null>(null);
+  const [expandedOffers, setExpandedOffers] = useState<string | null>(null);
 
   const fetchLivestreams = useCallback(async () => {
     setLoading(true);
@@ -489,6 +492,23 @@ export default function LivestreamPage() {
                                   {nextStatusLabel[ls.status as "SCHEDULED" | "LIVE"]}
                                 </Button>
                               )}
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setExpandedOffers(
+                                    expandedOffers === ls.id ? null : ls.id
+                                  )
+                                }
+                              >
+                                <Gift className="h-3 w-3 mr-1" />
+                                オファー
+                                {expandedOffers === ls.id ? (
+                                  <ChevronUp className="h-3 w-3 ml-1" />
+                                ) : (
+                                  <ChevronDown className="h-3 w-3 ml-1" />
+                                )}
+                              </Button>
                               {ls.chatEnabled && (
                                 <Button
                                   variant="ghost"
@@ -519,6 +539,18 @@ export default function LivestreamPage() {
                             </div>
                           </TableCell>
                         </TableRow>
+                        {expandedOffers === ls.id && (
+                          <TableRow key={`${ls.id}-offers`}>
+                            <TableCell colSpan={6} className="p-0">
+                              <div className="border-t bg-muted/30 p-4">
+                                <LivestreamOfferPanel
+                                  livestreamId={ls.id}
+                                  eventId={ls.eventId}
+                                />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
                         {expandedChat === ls.id && ls.eventId && (
                           <TableRow key={`${ls.id}-chat`}>
                             <TableCell colSpan={6} className="p-0">

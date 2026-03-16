@@ -35,7 +35,15 @@ export default async function PublicLPPage({ params }: Props) {
 
   const page = await prisma.funnelPage.findFirst({
     where: { funnelId, slug },
-    include: {
+    select: {
+      id: true,
+      funnelId: true,
+      name: true,
+      slug: true,
+      content: true,
+      seoTitle: true,
+      seoDescription: true,
+      ogImage: true,
       funnel: {
         select: {
           id: true,
@@ -43,7 +51,12 @@ export default async function PublicLPPage({ params }: Props) {
           status: true,
           steps: {
             orderBy: { order: "asc" },
-            include: {
+            select: {
+              id: true,
+              name: true,
+              type: true,
+              order: true,
+              pageId: true,
               page: { select: { id: true, slug: true, name: true } },
             },
           },
@@ -66,19 +79,23 @@ export default async function PublicLPPage({ params }: Props) {
       : null;
   const nextPageSlug = nextStep?.page?.slug ?? null;
 
-  // アクティブなA/Bテストバリアントを取得
-  const activeVariants = await prisma.aBTestVariant.findMany({
-    where: {
-      test: {
-        funnelId,
-        status: "RUNNING",
+  // アクティブなA/Bテストバリアントを取得（テーブル未作成時は空配列）
+  let activeVariants: { id: string; testId: string; weight: number }[] = [];
+  try {
+    const variants = await prisma.aBTestVariant.findMany({
+      where: {
+        test: {
+          funnelId,
+          status: "RUNNING",
+        },
+        pageId: page.id,
       },
-      pageId: page.id,
-    },
-    include: {
-      test: { select: { id: true, algorithm: true } },
-    },
-  });
+      select: { id: true, testId: true, weight: true },
+    });
+    activeVariants = variants;
+  } catch {
+    // ABTestVariant テーブルが未マイグレーションの場合はスキップ
+  }
 
   return (
     <LPPageClient
@@ -90,11 +107,7 @@ export default async function PublicLPPage({ params }: Props) {
       }}
       funnelId={funnelId}
       nextPageSlug={nextPageSlug}
-      activeVariants={activeVariants.map((v) => ({
-        id: v.id,
-        testId: v.testId,
-        weight: v.weight,
-      }))}
+      activeVariants={activeVariants}
     />
   );
 }
