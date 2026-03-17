@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db/prisma";
 import { processLineOptin } from "@/lib/affiliate/service";
 import { processAutoResponse } from "@/lib/line/auto-response";
 import { onFollowEvent } from "@/lib/line/rich-menu-switcher";
+import { assignLineAccountToContact } from "@/lib/line/distribution";
 
 export async function POST(request: NextRequest) {
   const body = await request.text();
@@ -15,13 +16,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
-  // URLからテナントIDを取得
-  // Webhook URL形式: /api/webhooks/line?tenant=xxx または ヘッダーから
+  // URLからテナントID・アカウントIDを取得
+  // Webhook URL形式: /api/webhooks/line?tenant=xxx&account=yyy
   const { searchParams } = new URL(request.url);
   const tenantId =
     searchParams.get("tenant") ||
     request.headers.get("x-tenant-id") ||
     process.env.DEFAULT_TENANT_ID;
+  const accountId = searchParams.get("account") || null;
 
   if (!tenantId) {
     console.error("Tenant ID not found in LINE webhook request");
@@ -35,16 +37,16 @@ export async function POST(request: NextRequest) {
 
   // 各イベントを処理
   for (const event of events) {
-    await handleLineEvent(event, tenantId);
+    await handleLineEvent(event, tenantId, accountId);
   }
 
   return NextResponse.json({ success: true });
 }
 
-async function handleLineEvent(event: WebhookEvent, tenantId: string) {
+async function handleLineEvent(event: WebhookEvent, tenantId: string, accountId: string | null) {
   switch (event.type) {
     case "follow":
-      await handleFollow(event, tenantId);
+      await handleFollow(event, tenantId, accountId);
       break;
     case "unfollow":
       await handleUnfollow(event, tenantId);
@@ -62,16 +64,15 @@ async function handleLineEvent(event: WebhookEvent, tenantId: string) {
 
 async function handleFollow(
   event: WebhookEvent & { type: "follow" },
-  tenantId: string
+  tenantId: string,
+  accountId: string | null
 ) {
   const userId = event.source.userId;
   if (!userId) return;
 
-  console.log(`New follower: ${userId}`);
+  console.log(`New follower: ${userId} (account: ${accountId || "unknown"})`);
 
   // LIFFパラメータやリッチメニューからアフィリエイト情報を取得
-  // followイベント時にはLIFFパラメータは直接取得できないため、
-  // 一時保存されたアフィリエイトクリック情報と照合する
   const clickId = await getAffiliateClickId(userId);
   const partnerCode = await getPartnerCode(userId);
 
@@ -92,6 +93,7 @@ async function handleFollow(
         lineOptIn: true,
         lineOptInAt: new Date(),
         source: "LINE",
+        lineAccountId: accountId,
       },
     });
     console.log(`Created new contact for LINE user: ${contact.id}`);
@@ -102,9 +104,39 @@ async function handleFollow(
       data: {
         lineOptIn: true,
         lineOptInAt: new Date(),
+        lineAccountId: accountId || contact.lineAccountId,
       },
     });
     console.log(`Updated contact for LINE user: ${contact.id}`);
+  }
+
+  // アカウントIDが指定されている場合、そのアカウントのcurrentFriendsを更新
+  if (accountId) {
+    await prisma.lineAccount.update({
+      where: { id: accountId },
+      data: { currentFriends: { increment: 1 } },
+    }).catch((err: Error) => {
+      console.error("Error updating currentFriends:", err.message);
+    });
+  }
+
+  // プロジェクト単位の振り分け: アカウントが上限(maxFriends)に達したか確認
+  if (accountId) {
+    try {
+      const account = await prisma.lineAccount.findUnique({
+        where: { id: accountId },
+        select: { projectId: true, currentFriends: true, maxFriends: true },
+      });
+
+      if (account?.maxFriends && account.currentFriends >= account.maxFriends && account.projectId) {
+        console.log(
+          `Account ${accountId} reached maxFriends limit (${account.maxFriends}). ` +
+          `Next followers will be distributed to another account in project ${account.projectId}.`
+        );
+      }
+    } catch (error) {
+      console.error("Error checking account limit:", error);
+    }
   }
 
   // セグメントベースのリッチメニューを自動設定
@@ -133,7 +165,6 @@ async function handleFollow(
       }
     } catch (error) {
       console.error("Error processing affiliate opt-in:", error);
-      // アフィリエイト処理のエラーは登録自体には影響させない
     }
   }
 }

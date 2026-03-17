@@ -63,8 +63,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       accounts: maskedAccounts,
       distributionSetting: distributionSetting || {
-        isEnabled: false,
-        distributionType: "ROUND_ROBIN",
+        isEnabled: true,
+        distributionType: "FILL_FIRST",
         maxListsPerRotation: 1,
         currentIndex: 0,
         onLimitReached: "NEXT_ACCOUNT",
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { tenantId, projectId, name, channelId, channelSecret, accessToken } = body;
+    const { tenantId, projectId, name, channelId, channelSecret, accessToken, maxFriends } = body;
 
     if (!tenantId || !name || !channelId || !channelSecret || !accessToken) {
       return NextResponse.json(
@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       _max: { order: true },
     });
 
-    // アカウントを作成
+    // アカウントを作成（maxFriendsデフォルト: 5人）
     const account = await prisma.lineAccount.create({
       data: {
         tenantId,
@@ -129,6 +129,7 @@ export async function POST(request: NextRequest) {
         isConnected: true,
         lastTestedAt: new Date(),
         order: (maxOrder._max.order || 0) + 1,
+        maxFriends: maxFriends ?? 5,
       },
     });
 

@@ -31,13 +31,13 @@ export async function GET(request: NextRequest) {
     });
 
     if (!setting) {
-      // デフォルト設定を返す
+      // デフォルト設定を返す（FILL_FIRST: 1アカウント上限まで埋めてから次へ）
       setting = {
         id: "",
         tenantId,
         projectId,
-        isEnabled: false,
-        distributionType: "ROUND_ROBIN",
+        isEnabled: true,
+        distributionType: "FILL_FIRST",
         maxListsPerRotation: 1,
         currentIndex: 0,
         onLimitReached: "NEXT_ACCOUNT",
